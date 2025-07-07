@@ -1,3 +1,5 @@
+from dotenv import load_dotenv
+load_dotenv()
 from flask import Flask, render_template, redirect, url_for, request, flash, session, jsonify
 from extensions import db
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -5,67 +7,68 @@ import os
 import re
 import json
 from datetime import datetime
+from flask_migrate import Migrate
+import click
+from flask.cli import with_appcontext
+from flask_security import Security, SQLAlchemyUserDatastore, login_required
 
 app = Flask(__name__)
 
-# Configuration for production deployment
-if os.environ.get('DATABASE_URL'):
-    # Production database (PostgreSQL on Heroku)
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL').replace('postgres://', 'postgresql://')
-else:
-    # Development database (SQLite)
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///transport.db'
+class Config:
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SECRET_KEY = os.environ.get('SECRET_KEY', 'your-secret-key-change-this-in-production')
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', '').replace('postgres://', 'postgresql://')
+    SECURITY_PASSWORD_SALT = os.environ.get('SECURITY_PASSWORD_SALT', 'change-this-salt-in-production')
+    SECURITY_USER_IDENTITY_ATTRIBUTES = [
+        {"username": {"mapper": "username", "case_insensitive": True}},
+        {"email": {"mapper": "email", "case_insensitive": True}},
+    ]
 
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-change-this-in-production')
+class DevelopmentConfig(Config):
+    pass
+
+class TestingConfig(Config):
+    TESTING = True
+
+class ProductionConfig(Config):
+    pass
+
+config_map = {
+    'development': DevelopmentConfig,
+    'testing': TestingConfig,
+    'production': ProductionConfig
+}
+
+app_env = os.environ.get('FLASK_ENV', 'development')
+app.config.from_object(config_map.get(app_env, DevelopmentConfig))
+
+if not app.config['SQLALCHEMY_DATABASE_URI']:
+    raise RuntimeError('DATABASE_URL environment variable must be set to a valid PostgreSQL connection string.')
 
 db.init_app(app)
 
+migrate = Migrate(app, db)
+
 with app.app_context():
-    from models import User, Job, Driver, Agent, Billing, Discount, Service, Vehicle
+    from models import User, Job, Driver, Agent, Billing, Discount, Service, Vehicle, Role
 
-    if not os.path.exists('database.db'):
-        db.create_all()
-
-
-    # Create default admin user if not exists
-    def create_default_admin():
-        admin = User.query.filter_by(username='admin').first()
-        if not admin:
-            admin = User(username='admin', email='admin@example.com')
-            admin.set_password('admin')
-            db.session.add(admin)
-            db.session.commit()
-
-
-    create_default_admin()
-
+user_datastore = SQLAlchemyUserDatastore(db, User, Role)
+security = Security(app, user_datastore)
 
 @app.route('/')
+@login_required
 def index():
-    if 'user_id' in session:
-        return redirect(url_for('dashboard'))
-    return redirect(url_for('login'))
+    return redirect(url_for('dashboard'))
 
 
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        user = User.query.filter_by(username=username).first()
-        if user and user.check_password(password):
-            session['user_id'] = user.id
-            return redirect(url_for('dashboard'))
-        else:
-            flash('Invalid username or password')
-    return render_template('login.html')
+# @app.route('/login', methods=['GET', 'POST'])
+# def login():
+#     ...
 
 
-@app.route('/logout')
-def logout():
-    session.pop('user_id', None)
-    return redirect(url_for('login'))
+# @app.route('/logout')
+# def logout():
+#     ...
 
 
 @app.route('/reset_password', methods=['GET', 'POST'])
@@ -78,24 +81,22 @@ def reset_password():
             user.set_password(new_password)
             db.session.commit()
             flash('Password reset successful. Please login.')
-            return redirect(url_for('login'))
+            return redirect(url_for('security.login'))
         else:
             flash('Email not found.')
     return render_template('reset_password.html')
 
 
 @app.route('/dashboard')
+@login_required
 def dashboard():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
     return render_template('dashboard.html')
 
 
 # JOBS CRUD
 @app.route('/jobs', methods=['GET', 'POST'])
+@login_required
 def jobs():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
     # Advanced search fields
     search_fields = [
         'customer_name', 'customer_email', 'customer_mobile', 'customer_reference',
@@ -145,9 +146,8 @@ def jobs():
 
 
 @app.route('/jobs/add', methods=['GET', 'POST'])
+@login_required
 def add_job():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
     from models import Agent, Service, Vehicle, Driver
     agents = Agent.query.filter_by(status='Active').all()
     services = Service.query.filter_by(status='Active').all()
@@ -200,9 +200,8 @@ def add_job():
 
 
 @app.route('/jobs/edit/<int:job_id>', methods=['GET', 'POST'])
+@login_required
 def edit_job(job_id):
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
     from models import Agent, Service, Vehicle, Driver
     agents = Agent.query.filter_by(status='Active').all()
     services = Service.query.filter_by(status='Active').all()
@@ -254,9 +253,8 @@ def edit_job(job_id):
 
 
 @app.route('/jobs/delete/<int:job_id>', methods=['POST'])
+@login_required
 def delete_job(job_id):
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
     job = Job.query.get_or_404(job_id)
     db.session.delete(job)
     db.session.commit()
@@ -264,9 +262,8 @@ def delete_job(job_id):
 
 
 @app.route('/jobs/smart_add', methods=['GET', 'POST'])
+@login_required
 def smart_add_job():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
     parsed_data = None
     if request.method == 'POST':
         message = request.form.get('message')
@@ -331,9 +328,8 @@ def parse_job_message(message):
 
 # DRIVERS CRUD
 @app.route('/drivers')
+@login_required
 def drivers():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
     name = request.args.get('name', '')
     phone = request.args.get('phone', '')
     query = Driver.query
@@ -346,9 +342,8 @@ def drivers():
 
 
 @app.route('/drivers/add', methods=['GET', 'POST'])
+@login_required
 def add_driver():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
     if request.method == 'POST':
         name = request.form['name']
         phone = request.form['phone']
@@ -360,9 +355,8 @@ def add_driver():
 
 
 @app.route('/drivers/edit/<int:driver_id>', methods=['GET', 'POST'])
+@login_required
 def edit_driver(driver_id):
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
     driver = Driver.query.get_or_404(driver_id)
     if request.method == 'POST':
         driver.name = request.form['name']
@@ -373,9 +367,8 @@ def edit_driver(driver_id):
 
 
 @app.route('/drivers/delete/<int:driver_id>', methods=['POST'])
+@login_required
 def delete_driver(driver_id):
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
     driver = Driver.query.get_or_404(driver_id)
     db.session.delete(driver)
     db.session.commit()
@@ -384,9 +377,8 @@ def delete_driver(driver_id):
 
 # AGENTS CRUD
 @app.route('/agents')
+@login_required
 def agents():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
     name = request.args.get('name', '')
     email = request.args.get('email', '')
     mobile = request.args.get('mobile', '')
@@ -408,9 +400,8 @@ def agents():
 
 
 @app.route('/agents/add', methods=['GET', 'POST'])
+@login_required
 def add_agent():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
     if request.method == 'POST':
         name = request.form['name']
         email = request.form['email']
@@ -425,9 +416,8 @@ def add_agent():
 
 
 @app.route('/agents/edit/<int:agent_id>', methods=['GET', 'POST'])
+@login_required
 def edit_agent(agent_id):
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
     agent = Agent.query.get_or_404(agent_id)
     if request.method == 'POST':
         agent.name = request.form['name']
@@ -441,9 +431,8 @@ def edit_agent(agent_id):
 
 
 @app.route('/agents/delete/<int:agent_id>', methods=['POST'])
+@login_required
 def delete_agent(agent_id):
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
     agent = Agent.query.get_or_404(agent_id)
     db.session.delete(agent)
     db.session.commit()
@@ -452,17 +441,15 @@ def delete_agent(agent_id):
 
 # BILLING CRUD
 @app.route('/billing')
+@login_required
 def billing():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
     billings = Billing.query.all()
     return render_template('billing.html', billings=billings)
 
 
 @app.route('/billing/add', methods=['GET', 'POST'])
+@login_required
 def add_billing():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
     if request.method == 'POST':
         job_id = request.form['job_id']
         amount = request.form['amount']
@@ -475,9 +462,8 @@ def add_billing():
 
 
 @app.route('/billing/edit/<int:billing_id>', methods=['GET', 'POST'])
+@login_required
 def edit_billing(billing_id):
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
     billing = Billing.query.get_or_404(billing_id)
     if request.method == 'POST':
         billing.job_id = request.form['job_id']
@@ -489,9 +475,8 @@ def edit_billing(billing_id):
 
 
 @app.route('/billing/delete/<int:billing_id>', methods=['POST'])
+@login_required
 def delete_billing(billing_id):
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
     billing = Billing.query.get_or_404(billing_id)
     db.session.delete(billing)
     db.session.commit()
@@ -500,17 +485,15 @@ def delete_billing(billing_id):
 
 # DISCOUNTS CRUD
 @app.route('/discounts')
+@login_required
 def discounts():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
     discounts = Discount.query.all()
     return render_template('discounts.html', discounts=discounts)
 
 
 @app.route('/discounts/add', methods=['GET', 'POST'])
+@login_required
 def add_discount():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
     if request.method == 'POST':
         code = request.form['code']
         percent = request.form['percent']
@@ -522,9 +505,8 @@ def add_discount():
 
 
 @app.route('/discounts/edit/<int:discount_id>', methods=['GET', 'POST'])
+@login_required
 def edit_discount(discount_id):
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
     discount = Discount.query.get_or_404(discount_id)
     if request.method == 'POST':
         discount.code = request.form['code']
@@ -535,9 +517,8 @@ def edit_discount(discount_id):
 
 
 @app.route('/discounts/delete/<int:discount_id>', methods=['POST'])
+@login_required
 def delete_discount(discount_id):
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
     discount = Discount.query.get_or_404(discount_id)
     db.session.delete(discount)
     db.session.commit()
@@ -546,9 +527,8 @@ def delete_discount(discount_id):
 
 # SERVICES CRUD
 @app.route('/services')
+@login_required
 def services():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
     name = request.args.get('name', '')
     status = request.args.get('status', '')
     query = Service.query
@@ -561,9 +541,8 @@ def services():
 
 
 @app.route('/services/add', methods=['GET', 'POST'])
+@login_required
 def add_service():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
     if request.method == 'POST':
         name = request.form['name']
         description = request.form['description']
@@ -576,9 +555,8 @@ def add_service():
 
 
 @app.route('/services/edit/<int:service_id>', methods=['GET', 'POST'])
+@login_required
 def edit_service(service_id):
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
     service = Service.query.get_or_404(service_id)
     if request.method == 'POST':
         service.name = request.form['name']
@@ -590,9 +568,8 @@ def edit_service(service_id):
 
 
 @app.route('/services/delete/<int:service_id>', methods=['POST'])
+@login_required
 def delete_service(service_id):
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
     service = Service.query.get_or_404(service_id)
     db.session.delete(service)
     db.session.commit()
@@ -601,9 +578,8 @@ def delete_service(service_id):
 
 # VEHICLES CRUD
 @app.route('/vehicles')
+@login_required
 def vehicles():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
     name = request.args.get('name', '')
     number = request.args.get('number', '')
     type_ = request.args.get('type', '')
@@ -622,9 +598,8 @@ def vehicles():
 
 
 @app.route('/vehicles/add', methods=['GET', 'POST'])
+@login_required
 def add_vehicle():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
     if request.method == 'POST':
         name = request.form['name']
         number = request.form['number']
@@ -638,9 +613,8 @@ def add_vehicle():
 
 
 @app.route('/vehicles/edit/<int:vehicle_id>', methods=['GET', 'POST'])
+@login_required
 def edit_vehicle(vehicle_id):
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
     vehicle = Vehicle.query.get_or_404(vehicle_id)
     if request.method == 'POST':
         vehicle.name = request.form['name']
@@ -653,9 +627,8 @@ def edit_vehicle(vehicle_id):
 
 
 @app.route('/vehicles/delete/<int:vehicle_id>', methods=['POST'])
+@login_required
 def delete_vehicle(vehicle_id):
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
     vehicle = Vehicle.query.get_or_404(vehicle_id)
     db.session.delete(vehicle)
     db.session.commit()
@@ -663,6 +636,7 @@ def delete_vehicle(vehicle_id):
 
 
 @app.route('/api/quick_add/agent', methods=['POST'])
+@login_required
 def api_quick_add_agent():
     data = request.json
     from models import Agent
@@ -683,6 +657,7 @@ def api_quick_add_agent():
     })
 
 @app.route('/api/quick_add/service', methods=['POST'])
+@login_required
 def api_quick_add_service():
     data = request.json
     from models import Service
@@ -699,6 +674,7 @@ def api_quick_add_service():
     })
 
 @app.route('/api/quick_add/vehicle', methods=['POST'])
+@login_required
 def api_quick_add_vehicle():
     data = request.json
     from models import Vehicle
@@ -718,6 +694,7 @@ def api_quick_add_vehicle():
     })
 
 @app.route('/api/quick_add/driver', methods=['POST'])
+@login_required
 def api_quick_add_driver():
     data = request.json
     from models import Driver
@@ -732,6 +709,29 @@ def api_quick_add_driver():
         'name': driver.name,
         'phone': driver.phone
     })
+
+@app.cli.command('create-admin')
+@click.argument('username')
+@click.argument('email')
+@click.argument('password')
+@with_appcontext
+def create_admin(username, email, password):
+    from models import User, Role, db
+    admin_role = Role.query.filter_by(name='admin').first()
+    if not admin_role:
+        admin_role = Role(name='admin', description='Administrator')
+        db.session.add(admin_role)
+        db.session.commit()
+    user = User.query.filter_by(username=username).first()
+    if user:
+        click.echo(f'User {username} already exists.')
+        return
+    user = User(username=username, email=email, active=True)
+    user.set_password(password)
+    user.roles.append(admin_role)
+    db.session.add(user)
+    db.session.commit()
+    click.echo(f'Admin user {username} created successfully.')
 
 if __name__ == '__main__':
     import os

@@ -1,18 +1,36 @@
 from extensions import db
 from werkzeug.security import generate_password_hash, check_password_hash
+import uuid
+from flask_security import UserMixin
 
+# Association table for many-to-many relationship between users and roles
+roles_users = db.Table(
+    'roles_users',
+    db.Column('user_id', db.Integer(), db.ForeignKey('user.id')),
+    db.Column('role_id', db.Integer(), db.ForeignKey('role.id'))
+)
 
-class User(db.Model):
+class Role(db.Model):
+    id = db.Column(db.Integer(), primary_key=True)
+    name = db.Column(db.String(80), unique=True)
+    description = db.Column(db.String(255))
+    permissions = db.Column(db.UnicodeText)  # Flask-Security-Too expects this
+
+    def get_permissions(self):
+        if self.permissions:
+            return self.permissions.split(',')
+        return []
+
+class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(150), unique=True, nullable=False)
     email = db.Column(db.String(150), unique=True, nullable=False)
-    password_hash = db.Column(db.String(256), nullable=False)
-
-    def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
-
-    def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
+    password = db.Column(db.String(255), nullable=False)
+    active = db.Column(db.Boolean(), default=True)
+    fs_uniquifier = db.Column(db.String(64), unique=True, nullable=False, default=lambda: str(uuid.uuid4()))
+    # Optional fields
+    username = db.Column(db.String(150), unique=True, nullable=True)
+    confirmed_at = db.Column(db.DateTime())
+    roles = db.relationship('Role', secondary=roles_users, backref=db.backref('users', lazy='dynamic'))
 
 
 class Service(db.Model):
