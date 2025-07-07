@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block title %}{{ action }} Driver - Admin Portal{% endblock %}
+{% block content %}
+<h2>{{ action }} Driver</h2>
+<form method="post">
+  <div class="mb-3">
+    <label for="name" class="form-label">Name</label>
+    <input type="text" class="form-control" id="name" name="name" value="{{ driver.name if driver else '' }}" required>
+  </div>
+  <div class="mb-3">
+    <label for="phone" class="form-label">Phone</label>
+    <input type="text" class="form-control" id="phone" name="phone" value="{{ driver.phone if driver else '' }}" required>
+  </div>
+  <button type="submit" class="btn btn-primary">{{ action }}</button>
+  <a href="{{ url_for('drivers') }}" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %} 

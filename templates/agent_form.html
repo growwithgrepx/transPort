@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block title %}{{ action }} Agent - Admin Portal{% endblock %}
+{% block content %}
+<h2>{{ action }} Agent</h2>
+<form method="post">
+  <div class="mb-3">
+    <label for="name" class="form-label">Name</label>
+    <input type="text" class="form-control" id="name" name="name" value="{{ agent.name if agent else '' }}" required>
+  </div>
+  <div class="mb-3">
+    <label for="email" class="form-label">Email</label>
+    <input type="email" class="form-control" id="email" name="email" value="{{ agent.email if agent else '' }}">
+  </div>
+  <div class="mb-3">
+    <label for="mobile" class="form-label">Mobile</label>
+    <input type="text" class="form-control" id="mobile" name="mobile" value="{{ agent.mobile if agent else '' }}">
+  </div>
+  <div class="mb-3">
+    <label for="type" class="form-label">Type</label>
+    <input type="text" class="form-control" id="type" name="type" value="{{ agent.type if agent else '' }}">
+  </div>
+  <div class="mb-3">
+    <label for="status" class="form-label">Status</label>
+    <select class="form-select" id="status" name="status">
+      <option value="Active" {% if agent and agent.status == 'Active' %}selected{% endif %}>Active</option>
+      <option value="Inactive" {% if agent and agent.status == 'Inactive' %}selected{% endif %}>Inactive</option>
+    </select>
+  </div>
+  <button type="submit" class="btn btn-primary">{{ action }}</button>
+  <a href="{{ url_for('agents') }}" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %} 

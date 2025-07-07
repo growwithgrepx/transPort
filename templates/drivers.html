@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block title %}Drivers - Admin Portal{% endblock %}
+{% block content %}
+<h2>Drivers</h2>
+<a href="{{ url_for('add_driver') }}" class="btn btn-success mb-3">Add Driver</a>
+<form method="get" action="{{ url_for('drivers') }}">
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Name</th>
+      <th>Phone</th>
+      <th>Actions</th>
+    </tr>
+    <tr>
+      <th></th>
+      <th><input type="text" class="form-control form-control-sm" name="name" placeholder="Filter" value="{{ request.args.get('name', '') }}"></th>
+      <th><input type="text" class="form-control form-control-sm" name="phone" placeholder="Filter" value="{{ request.args.get('phone', '') }}"></th>
+      <th><button type="submit" class="btn btn-sm btn-primary">Filter</button></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for driver in drivers %}
+    <tr>
+      <td>{{ driver.id }}</td>
+      <td>{{ driver.name }}</td>
+      <td>{{ driver.phone }}</td>
+      <td>
+        <a href="{{ url_for('edit_driver', driver_id=driver.id) }}" class="btn btn-primary btn-sm">Edit</a>
+        <form action="{{ url_for('delete_driver', driver_id=driver.id) }}" method="post" style="display:inline;">
+          <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Delete this driver?');">Delete</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</form>
+{% endblock %} 

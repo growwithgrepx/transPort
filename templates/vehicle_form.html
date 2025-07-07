@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block title %}{{ action }} Vehicle - Admin Portal{% endblock %}
+{% block content %}
+<h2>{{ action }} Vehicle</h2>
+<form method="post">
+  <div class="mb-3">
+    <label for="name" class="form-label">Name</label>
+    <input type="text" class="form-control" id="name" name="name" value="{{ vehicle.name if vehicle else '' }}" required>
+  </div>
+  <div class="mb-3">
+    <label for="number" class="form-label">Number</label>
+    <input type="text" class="form-control" id="number" name="number" value="{{ vehicle.number if vehicle else '' }}" required>
+  </div>
+  <div class="mb-3">
+    <label for="type" class="form-label">Type</label>
+    <input type="text" class="form-control" id="type" name="type" value="{{ vehicle.type if vehicle else '' }}">
+  </div>
+  <div class="mb-3">
+    <label for="status" class="form-label">Status</label>
+    <select class="form-select" id="status" name="status">
+      <option value="Active" {% if vehicle and vehicle.status == 'Active' %}selected{% endif %}>Active</option>
+      <option value="Inactive" {% if vehicle and vehicle.status == 'Inactive' %}selected{% endif %}>Inactive</option>
+    </select>
+  </div>
+  <button type="submit" class="btn btn-primary">{{ action }}</button>
+  <a href="{{ url_for('vehicles') }}" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %} 

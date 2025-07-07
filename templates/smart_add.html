@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block title %}Smart Add Job - Admin Portal{% endblock %}
+{% block content %}
+<h2>Smart Add Job</h2>
+<form method="post">
+  <div class="mb-3">
+    <label for="message" class="form-label">Paste WhatsApp or Message Text</label>
+    <textarea class="form-control" id="message" name="message" rows="6" placeholder="Paste the message here..."></textarea>
+  </div>
+  <button type="submit" class="btn btn-primary">Parse & Fill Form</button>
+  <a href="{{ url_for('jobs') }}" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %} 

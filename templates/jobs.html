@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+{% block title %}Jobs - Admin Portal{% endblock %}
+{% block content %}
+<h2>Manage Jobs</h2>
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <form class="d-flex" method="get" action="{{ url_for('jobs') }}">
+    <input class="form-control me-2" type="search" name="search" placeholder="Quick search..." value="{{ search_query }}">
+    <button class="btn btn-outline-primary me-2" type="submit">Search</button>
+    <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#advancedSearchModal">Advanced Search</button>
+  </form>
+  <div>
+    <a href="{{ url_for('add_job') }}" class="btn btn-success me-2">Create Job</a>
+    <a href="{{ url_for('smart_add_job') }}" class="btn btn-info">Smart Add</a>
+  </div>
+</div>
+<!-- Advanced Search Modal -->
+<div class="modal fade" id="advancedSearchModal" tabindex="-1" aria-labelledby="advancedSearchModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <form method="get" action="{{ url_for('jobs') }}">
+        <div class="modal-header">
+          <h5 class="modal-title" id="advancedSearchModalLabel">Advanced Search</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-4"><input type="text" class="form-control" name="customer_name" placeholder="Customer Name"></div>
+            <div class="col-md-4"><input type="email" class="form-control" name="customer_email" placeholder="Customer Email"></div>
+            <div class="col-md-4"><input type="text" class="form-control" name="customer_mobile" placeholder="Customer Mobile"></div>
+            <div class="col-md-4"><input type="text" class="form-control" name="customer_reference" placeholder="Customer Reference"></div>
+            <div class="col-md-4"><input type="text" class="form-control" name="passenger_name" placeholder="Passenger Name"></div>
+            <div class="col-md-4"><input type="email" class="form-control" name="passenger_email" placeholder="Passenger Email"></div>
+            <div class="col-md-4"><input type="text" class="form-control" name="passenger_mobile" placeholder="Passenger Mobile"></div>
+            <div class="col-md-4"><input type="text" class="form-control" name="type_of_service" placeholder="Type of Service"></div>
+            <div class="col-md-4"><input type="date" class="form-control" name="pickup_date" placeholder="Date"></div>
+            <div class="col-md-4"><input type="time" class="form-control" name="pickup_time" placeholder="Time of Pick Up"></div>
+            <div class="col-md-4"><input type="text" class="form-control" name="pickup_location" placeholder="Pick-up Location"></div>
+            <div class="col-md-4"><input type="text" class="form-control" name="dropoff_location" placeholder="Drop-Off Location"></div>
+            <div class="col-md-4"><input type="text" class="form-control" name="vehicle_type" placeholder="Vehicle Type"></div>
+            <div class="col-md-4"><input type="text" class="form-control" name="vehicle_number" placeholder="Vehicle Number"></div>
+            <div class="col-md-4"><input type="text" class="form-control" name="driver_contact" placeholder="Driver Contact"></div>
+            <div class="col-md-4"><input type="text" class="form-control" name="payment_mode" placeholder="Payment Mode"></div>
+            <div class="col-md-4"><input type="text" class="form-control" name="payment_status" placeholder="Payment Status"></div>
+            <div class="col-md-4"><input type="text" class="form-control" name="order_status" placeholder="Order Status"></div>
+            <div class="col-md-4"><input type="text" class="form-control" name="message" placeholder="Message"></div>
+            <div class="col-md-4"><input type="text" class="form-control" name="remarks" placeholder="Remarks"></div>
+            <div class="col-md-4"><input type="text" class="form-control" name="reference" placeholder="Reference"></div>
+            <div class="col-md-4"><input type="text" class="form-control" name="status" placeholder="Status"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Search</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<form method="get" action="{{ url_for('jobs') }}">
+<table class="table table-bordered table-hover">
+  <thead class="table-light">
+    <tr>
+      <th>ID</th>
+      <th>Customer Name</th>
+      <th>Customer Email</th>
+      <th>Customer Mobile</th>
+      <th>Passenger Name</th>
+      <th>Type of Service</th>
+      <th>Date</th>
+      <th>Time</th>
+      <th>Pickup</th>
+      <th>Drop-off</th>
+      <th>Additional Stops</th>
+      <th>Vehicle</th>
+      <th>Driver Contact</th>
+      <th>Payment Status</th>
+      <th>Status</th>
+      <th>Actions</th>
+    </tr>
+    <tr>
+      <th></th>
+      <th><input type="text" class="form-control form-control-sm" name="customer_name" placeholder="Filter" value="{{ request.args.get('customer_name', '') }}"></th>
+      <th><input type="text" class="form-control form-control-sm" name="customer_email" placeholder="Filter" value="{{ request.args.get('customer_email', '') }}"></th>
+      <th><input type="text" class="form-control form-control-sm" name="customer_mobile" placeholder="Filter" value="{{ request.args.get('customer_mobile', '') }}"></th>
+      <th><input type="text" class="form-control form-control-sm" name="passenger_name" placeholder="Filter" value="{{ request.args.get('passenger_name', '') }}"></th>
+      <th>
+        <select class="form-select form-select-sm" name="type_of_service">
+          <option value="">All</option>
+          {% for val in jobs|map(attribute='type_of_service')|unique if val %}
+          <option value="{{ val }}" {% if request.args.get('type_of_service') == val %}selected{% endif %}>{{ val }}</option>
+          {% endfor %}
+        </select>
+      </th>
+      <th><input type="date" class="form-control form-control-sm" name="pickup_date" value="{{ request.args.get('pickup_date', '') }}"></th>
+      <th><input type="text" class="form-control form-control-sm" name="pickup_time" placeholder="Filter" value="{{ request.args.get('pickup_time', '') }}"></th>
+      <th><input type="text" class="form-control form-control-sm" name="pickup_location" placeholder="Filter" value="{{ request.args.get('pickup_location', '') }}"></th>
+      <th><input type="text" class="form-control form-control-sm" name="dropoff_location" placeholder="Filter" value="{{ request.args.get('dropoff_location', '') }}"></th>
+      <th><input type="text" class="form-control form-control-sm" name="additional_stops" placeholder="Filter" value="{{ request.args.get('additional_stops', '') }}"></th>
+      <th>
+        <select class="form-select form-select-sm" name="vehicle_type">
+          <option value="">All</option>
+          {% for val in jobs|map(attribute='vehicle_type')|unique if val %}
+          <option value="{{ val }}" {% if request.args.get('vehicle_type') == val %}selected{% endif %}>{{ val }}</option>
+          {% endfor %}
+        </select>
+      </th>
+      <th><input type="text" class="form-control form-control-sm" name="driver_contact" placeholder="Filter" value="{{ request.args.get('driver_contact', '') }}"></th>
+      <th>
+        <select class="form-select form-select-sm" name="payment_status">
+          <option value="">All</option>
+          {% for val in jobs|map(attribute='payment_status')|unique if val %}
+          <option value="{{ val }}" {% if request.args.get('payment_status') == val %}selected{% endif %}>{{ val }}</option>
+          {% endfor %}
+        </select>
+      </th>
+      <th>
+        <select class="form-select form-select-sm" name="order_status">
+          <option value="">All</option>
+          {% for val in jobs|map(attribute='order_status')|unique if val %}
+          <option value="{{ val }}" {% if request.args.get('order_status') == val %}selected{% endif %}>{{ val }}</option>
+          {% endfor %}
+        </select>
+      </th>
+      <th><button type="submit" class="btn btn-sm btn-primary">Filter</button></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for job in jobs %}
+    <tr>
+      <td>{{ job.id }}</td>
+      <td>{{ job.customer_name }}</td>
+      <td>{{ job.customer_email }}</td>
+      <td>{{ job.customer_mobile }}</td>
+      <td>{{ job.passenger_name }}</td>
+      <td>{{ job.type_of_service }}</td>
+      <td>{{ job.pickup_date }}</td>
+      <td>{{ job.pickup_time }}</td>
+      <td>{{ job.pickup_location }}</td>
+      <td>{{ job.dropoff_location }}</td>
+      <td>
+        {% if job.additional_stops %}
+          {{ job.additional_stops | safe | tojson | loads | join(', ') }}
+        {% endif %}
+      </td>
+      <td>{{ job.vehicle_type }} {{ job.vehicle_number }}</td>
+      <td>{{ job.driver_contact }}</td>
+      <td>{{ job.payment_status }}</td>
+      <td>{{ job.order_status }}</td>
+      <td>
+        <a href="{{ url_for('edit_job', job_id=job.id) }}" class="btn btn-primary btn-sm">Edit</a>
+        <form action="{{ url_for('delete_job', job_id=job.id) }}" method="post" style="display:inline;">
+          <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Delete this job?');">Delete</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</form>
+{% endblock %} 

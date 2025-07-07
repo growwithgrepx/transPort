@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block title %}Billing - Admin Portal{% endblock %}
+{% block content %}
+<h2>Billing</h2>
+<a href="{{ url_for('add_billing') }}" class="btn btn-success mb-3">Add Billing</a>
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Job ID</th>
+      <th>Amount</th>
+      <th>Discount ID</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for billing in billings %}
+    <tr>
+      <td>{{ billing.id }}</td>
+      <td>{{ billing.job_id }}</td>
+      <td>{{ billing.amount }}</td>
+      <td>{{ billing.discount_id }}</td>
+      <td>
+        <a href="{{ url_for('edit_billing', billing_id=billing.id) }}" class="btn btn-primary btn-sm">Edit</a>
+        <form action="{{ url_for('delete_billing', billing_id=billing.id) }}" method="post" style="display:inline;">
+          <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Delete this billing record?');">Delete</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %} 

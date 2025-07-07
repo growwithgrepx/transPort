@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% block title %}{{ action }} Service - Admin Portal{% endblock %}
+{% block content %}
+<h2>{{ action }} Service</h2>
+<form method="post">
+  <div class="mb-3">
+    <label for="name" class="form-label">Name</label>
+    <input type="text" class="form-control" id="name" name="name" value="{{ service.name if service else '' }}" required>
+  </div>
+  <div class="mb-3">
+    <label for="description" class="form-label">Description</label>
+    <textarea class="form-control" id="description" name="description">{{ service.description if service else '' }}</textarea>
+  </div>
+  <div class="mb-3">
+    <label for="status" class="form-label">Status</label>
+    <select class="form-select" id="status" name="status">
+      <option value="Active" {% if service and service.status == 'Active' %}selected{% endif %}>Active</option>
+      <option value="Inactive" {% if service and service.status == 'Inactive' %}selected{% endif %}>Inactive</option>
+    </select>
+  </div>
+  <button type="submit" class="btn btn-primary">{{ action }}</button>
+  <a href="{{ url_for('services') }}" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %} 
