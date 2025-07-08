@@ -36,4 +36,19 @@ class User(UserMixin, db.Model):
     
     def is_anonymous(self):
         """Flask-Login method"""
-        return False 
+        return False
+    
+    def validate_email(self, email):
+        """Validate email format"""
+        import re
+        if not re.match(r'^[^@]+@[^@]+\.[^@]+$', email):
+            raise ValueError('Invalid email format')
+        return True
+    
+    def validate_username(self, username):
+        """Validate username format"""
+        if not username or len(username) < 3:
+            raise ValueError('Username must be at least 3 characters long')
+        if len(username) > 150:
+            raise ValueError('Username must be less than 150 characters')
+        return True 

@@ -11,16 +11,50 @@ from flask_migrate import Migrate
 import click
 from flask.cli import with_appcontext
 from flask_login import LoginManager, login_required, current_user, login_user, logout_user
-from wtforms import Form, StringField, PasswordField
-from wtforms.validators import DataRequired
+from wtforms import Form, StringField, PasswordField, validators
+from wtforms.validators import DataRequired, Email, Length, Optional
 from math import ceil
 from flask_admin import Admin, expose
 from flask_admin.contrib.sqla import ModelView
 from flask import abort
 from flask_wtf.csrf import CSRFProtect
 from models import User
+import logging
+from logging.handlers import RotatingFileHandler
+import sentry_sdk
+from sentry_sdk.integrations.flask import FlaskIntegration
+from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
+import traceback
+from functools import wraps
 
 app = Flask(__name__)
+
+# Initialize Sentry for error tracking
+sentry_dsn = os.environ.get('SENTRY_DSN')
+if sentry_dsn:
+    sentry_sdk.init(
+        dsn=sentry_dsn,
+        integrations=[
+            FlaskIntegration(),
+            SqlalchemyIntegration(),
+        ],
+        traces_sample_rate=1.0,
+        environment=os.environ.get('FLASK_ENV', 'development')
+    )
+
+# Configure logging
+if not app.debug:
+    if not os.path.exists('logs'):
+        os.mkdir('logs')
+    
+    file_handler = RotatingFileHandler('logs/transport_app.log', maxBytes=10240, backupCount=10)
+    file_handler.setFormatter(logging.Formatter(
+        '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+    ))
+    file_handler.setLevel(logging.INFO)
+    app.logger.addHandler(file_handler)
+    app.logger.setLevel(logging.INFO)
+    app.logger.info('Transport Admin Portal startup')
 
 class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
@@ -68,8 +102,57 @@ def load_user(user_id):
     return User.query.get(int(user_id))
 
 class LoginForm(Form):
-    username = StringField('Username or Email', validators=[DataRequired()])
-    password = PasswordField('Password', validators=[DataRequired()])
+    username = StringField('Username or Email', validators=[
+        DataRequired(message='Username or email is required'),
+        Length(min=3, max=150, message='Username must be between 3 and 150 characters')
+    ])
+    password = PasswordField('Password', validators=[
+        DataRequired(message='Password is required'),
+        Length(min=3, max=255, message='Password must be between 3 and 255 characters')
+    ])
+
+# Input validation decorators
+def validate_json_input(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        try:
+            if request.is_json:
+                data = request.get_json()
+                if not data:
+                    app.logger.warning(f'Empty JSON data received in {f.__name__}')
+                    return jsonify({'error': 'No input data provided'}), 400
+            return f(*args, **kwargs)
+        except Exception as e:
+            app.logger.error(f'JSON validation error in {f.__name__}: {str(e)}')
+            return jsonify({'error': 'Invalid JSON data'}), 400
+    return decorated_function
+
+def validate_form_input(required_fields=None):
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if required_fields and request.method == 'POST':
+                for field in required_fields:
+                    if not request.form.get(field):
+                        app.logger.warning(f'Missing required field {field} in {f.__name__}')
+                        flash(f'{field.replace("_", " ").title()} is required', 'error')
+                        return redirect(request.url)
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
+def handle_database_errors(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        try:
+            return f(*args, **kwargs)
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f'Database error in {f.__name__}: {str(e)}')
+            app.logger.error(traceback.format_exc())
+            flash('An error occurred while processing your request. Please try again.', 'error')
+            return redirect(url_for('dashboard'))
+    return decorated_function
 
 # Custom admin view to restrict access to admins only
 class AdminModelView(ModelView):
@@ -92,30 +175,76 @@ with app.app_context():
     admin.add_view(AdminModelView(Discount, db.session))
     admin.add_view(AdminModelView(Service, db.session))
 
+# Error handlers
+@app.errorhandler(400)
+def bad_request(error):
+    app.logger.error(f'Bad request: {error}')
+    return render_template('errors/400.html'), 400
+
+@app.errorhandler(403)
+def forbidden(error):
+    app.logger.error(f'Forbidden access: {error}')
+    return render_template('errors/403.html'), 403
+
+@app.errorhandler(404)
+def not_found(error):
+    app.logger.error(f'Page not found: {error}')
+    return render_template('errors/404.html'), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    app.logger.error(f'Internal server error: {error}')
+    app.logger.error(traceback.format_exc())
+    db.session.rollback()
+    return render_template('errors/500.html'), 500
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
+        app.logger.info(f'User {current_user.username} already authenticated, redirecting to dashboard')
         return redirect(url_for('dashboard'))
     
     form = LoginForm(request.form)
     error = None
     
-    if request.method == 'POST' and form.validate():
-        username = form.username.data
-        password = form.password.data
+    if request.method == 'POST':
+        app.logger.info(f'Login attempt for user: {request.form.get("username", "unknown")}')
         
-        # Try to find user by username or email
-        user = User.query.filter(
-            (User.username == username) | (User.email == username)
-        ).first()
-        
-        if user and user.check_password(password):
-            login_user(user)
-            flash('Login successful!', 'success')
-            next_page = request.args.get('next')
-            return redirect(next_page) if next_page else redirect(url_for('dashboard'))
+        if form.validate():
+            username = form.username.data.strip()
+            password = form.password.data
+            
+            # Input sanitization
+            if not username or not password:
+                error = 'Username and password are required'
+                app.logger.warning('Empty username or password provided')
+            else:
+                try:
+                    # Try to find user by username or email
+                    user = User.query.filter(
+                        (User.username == username) | (User.email == username)
+                    ).first()
+                    
+                    if user and user.check_password(password):
+                        if user.active:
+                            login_user(user)
+                            app.logger.info(f'User {user.username} logged in successfully')
+                            flash('Login successful!', 'success')
+                            next_page = request.args.get('next')
+                            return redirect(next_page) if next_page else redirect(url_for('dashboard'))
+                        else:
+                            error = 'Account is inactive. Please contact administrator.'
+                            app.logger.warning(f'Inactive user {user.username} attempted to login')
+                    else:
+                        error = 'Invalid username or password'
+                        app.logger.warning(f'Failed login attempt for user: {username}')
+                        
+                except Exception as e:
+                    app.logger.error(f'Login error: {str(e)}')
+                    error = 'An error occurred during login. Please try again.'
         else:
-            error = 'Invalid username or password'
+            error = 'Please correct the errors below'
+            app.logger.warning(f'Form validation failed: {form.errors}')
     
     return render_template('login.html', form=form, error=error)
 
@@ -247,6 +376,8 @@ def jobs_table():
 
 @app.route('/jobs/add', methods=['GET', 'POST'])
 @login_required
+@handle_database_errors
+@validate_form_input(['customer_name', 'pickup_date', 'pickup_location', 'dropoff_location'])
 def add_job():
     from models import Agent, Service, Vehicle, Driver
     agents = Agent.query.filter_by(status='Active').all()
@@ -254,48 +385,116 @@ def add_job():
     vehicles = Vehicle.query.filter_by(status='Active').all()
     drivers = Driver.query.all()
     if request.method == 'POST':
-        agent_id = request.form.get('agent_id')
-        agent = Agent.query.get(agent_id) if agent_id else None
-        service_id = request.form.get('service_id')
-        service = Service.query.get(service_id) if service_id else None
-        vehicle_id = request.form.get('vehicle_id')
-        vehicle = Vehicle.query.get(vehicle_id) if vehicle_id else None
-        driver_id = request.form.get('driver_id')
-        driver = Driver.query.get(driver_id) if driver_id else None
-        stops = request.form.getlist('additional_stops[]')
-        job = Job(
-            customer_name=agent.name if agent else request.form.get('customer_name'),
-            customer_email=agent.email if agent else request.form.get('customer_email'),
-            customer_mobile=agent.mobile if agent else request.form.get('customer_mobile'),
-            agent_id=agent.id if agent else None,
-            type_of_service=service.name if service else request.form.get('type_of_service'),
-            vehicle_type=vehicle.type if vehicle else request.form.get('vehicle_type'),
-            vehicle_number=vehicle.number if vehicle else request.form.get('vehicle_number'),
-            driver_contact=driver.name if driver else request.form.get('driver_contact'),
-            driver_id=driver.id if driver else None,
-            customer_reference=request.form.get('customer_reference'),
-            passenger_name=request.form.get('passenger_name'),
-            passenger_email=request.form.get('passenger_email'),
-            passenger_mobile=request.form.get('passenger_mobile'),
-            pickup_date=request.form.get('pickup_date'),
-            pickup_time=request.form.get('pickup_time'),
-            pickup_location=request.form.get('pickup_location'),
-            dropoff_location=request.form.get('dropoff_location'),
-            payment_mode=request.form.get('payment_mode'),
-            payment_status=request.form.get('payment_status'),
-            order_status=request.form.get('order_status'),
-            message=request.form.get('message'),
-            remarks=request.form.get('remarks'),
-            has_additional_stop=bool(request.form.get('has_additional_stop')),
-            additional_stops=json.dumps(stops) if stops else None,
-            has_request=bool(request.form.get('has_request')),
-            reference=request.form.get('reference'),
-            status=request.form.get('status'),
-            date=request.form.get('pickup_date')
-        )
-        db.session.add(job)
-        db.session.commit()
-        return redirect(url_for('jobs'))
+        try:
+            # Validate and sanitize input
+            agent_id = request.form.get('agent_id')
+            agent = Agent.query.get(agent_id) if agent_id and agent_id.isdigit() else None
+            
+            service_id = request.form.get('service_id')
+            service = Service.query.get(service_id) if service_id and service_id.isdigit() else None
+            
+            vehicle_id = request.form.get('vehicle_id')
+            vehicle = Vehicle.query.get(vehicle_id) if vehicle_id and vehicle_id.isdigit() else None
+            
+            driver_id = request.form.get('driver_id')
+            driver = Driver.query.get(driver_id) if driver_id and driver_id.isdigit() else None
+            
+            # Validate required fields
+            customer_name = (agent.name if agent else request.form.get('customer_name', '').strip())
+            pickup_location = request.form.get('pickup_location', '').strip()
+            dropoff_location = request.form.get('dropoff_location', '').strip()
+            pickup_date = request.form.get('pickup_date', '').strip()
+            
+            if not customer_name:
+                flash('Customer name is required', 'error')
+                return redirect(request.url)
+            
+            if not pickup_location:
+                flash('Pickup location is required', 'error')
+                return redirect(request.url)
+            
+            if not dropoff_location:
+                flash('Dropoff location is required', 'error')
+                return redirect(request.url)
+            
+            if not pickup_date:
+                flash('Pickup date is required', 'error')
+                return redirect(request.url)
+            
+            # Validate date format
+            try:
+                datetime.strptime(pickup_date, '%Y-%m-%d')
+            except ValueError:
+                flash('Invalid pickup date format', 'error')
+                return redirect(request.url)
+            
+            # Validate email if provided
+            customer_email = (agent.email if agent else request.form.get('customer_email', '').strip())
+            if customer_email and not re.match(r'^[^@]+@[^@]+\.[^@]+$', customer_email):
+                flash('Invalid customer email format', 'error')
+                return redirect(request.url)
+            
+            passenger_email = request.form.get('passenger_email', '').strip()
+            if passenger_email and not re.match(r'^[^@]+@[^@]+\.[^@]+$', passenger_email):
+                flash('Invalid passenger email format', 'error')
+                return redirect(request.url)
+            
+            # Validate mobile numbers
+            customer_mobile = (agent.mobile if agent else request.form.get('customer_mobile', '').strip())
+            if customer_mobile and not re.match(r'^[\d\s\-\+\(\)]+$', customer_mobile):
+                flash('Invalid customer mobile number format', 'error')
+                return redirect(request.url)
+            
+            passenger_mobile = request.form.get('passenger_mobile', '').strip()
+            if passenger_mobile and not re.match(r'^[\d\s\-\+\(\)]+$', passenger_mobile):
+                flash('Invalid passenger mobile number format', 'error')
+                return redirect(request.url)
+            
+            stops = request.form.getlist('additional_stops[]')
+            
+            job = Job(
+                customer_name=customer_name,
+                customer_email=customer_email,
+                customer_mobile=customer_mobile,
+                agent_id=agent.id if agent else None,
+                type_of_service=service.name if service else request.form.get('type_of_service', '').strip(),
+                vehicle_type=vehicle.type if vehicle else request.form.get('vehicle_type', '').strip(),
+                vehicle_number=vehicle.number if vehicle else request.form.get('vehicle_number', '').strip(),
+                driver_contact=driver.name if driver else request.form.get('driver_contact', '').strip(),
+                driver_id=driver.id if driver else None,
+                customer_reference=request.form.get('customer_reference', '').strip(),
+                passenger_name=request.form.get('passenger_name', '').strip(),
+                passenger_email=passenger_email,
+                passenger_mobile=passenger_mobile,
+                pickup_date=pickup_date,
+                pickup_time=request.form.get('pickup_time', '').strip(),
+                pickup_location=pickup_location,
+                dropoff_location=dropoff_location,
+                payment_mode=request.form.get('payment_mode', '').strip(),
+                payment_status=request.form.get('payment_status', '').strip(),
+                order_status=request.form.get('order_status', '').strip(),
+                message=request.form.get('message', '').strip(),
+                remarks=request.form.get('remarks', '').strip(),
+                has_additional_stop=bool(request.form.get('has_additional_stop')),
+                additional_stops=json.dumps(stops) if stops else None,
+                has_request=bool(request.form.get('has_request')),
+                reference=request.form.get('reference', '').strip(),
+                status=request.form.get('status', '').strip(),
+                date=pickup_date
+            )
+            
+            db.session.add(job)
+            db.session.commit()
+            
+            app.logger.info(f'Job created successfully by user {current_user.username}: {job.id}')
+            flash('Job created successfully', 'success')
+            return redirect(url_for('jobs'))
+            
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f'Error creating job: {str(e)}')
+            flash('Error creating job. Please try again.', 'error')
+            return redirect(request.url)
     return render_template('job_form.html', action='Add', job=None, agents=agents, services=services, vehicles=vehicles, drivers=drivers, stops=[])
 
 
@@ -737,26 +936,50 @@ def delete_vehicle(vehicle_id):
 
 @app.route('/api/quick_add/agent', methods=['POST'])
 @login_required
+@validate_json_input
+@handle_database_errors
 def api_quick_add_agent():
     data = request.json
     from models import Agent
-    if not data:
-        return jsonify({'error': 'No input data provided'}), 400
-    agent = Agent(
-        name=data.get('name'),
-        email=data.get('email'),
-        mobile=data.get('mobile'),
-        type=data.get('type'),
-        status=data.get('status', 'Active')
-    )
-    db.session.add(agent)
-    db.session.commit()
-    return jsonify({
-        'id': agent.id,
-        'name': agent.name,
-        'email': agent.email,
-        'mobile': agent.mobile
-    })
+    
+    # Validate required fields
+    if not data.get('name'):
+        app.logger.warning('Agent creation failed: missing name')
+        return jsonify({'error': 'Agent name is required'}), 400
+    
+    # Validate email format if provided
+    email = data.get('email', '').strip()
+    if email and not re.match(r'^[^@]+@[^@]+\.[^@]+$', email):
+        app.logger.warning(f'Agent creation failed: invalid email format {email}')
+        return jsonify({'error': 'Invalid email format'}), 400
+    
+    # Validate mobile format if provided
+    mobile = data.get('mobile', '').strip()
+    if mobile and not re.match(r'^[\d\s\-\+\(\)]+$', mobile):
+        app.logger.warning(f'Agent creation failed: invalid mobile format {mobile}')
+        return jsonify({'error': 'Invalid mobile number format'}), 400
+    
+    try:
+        agent = Agent(
+            name=data.get('name', '').strip(),
+            email=email,
+            mobile=mobile,
+            type=data.get('type', '').strip(),
+            status=data.get('status', 'Active')
+        )
+        db.session.add(agent)
+        db.session.commit()
+        
+        app.logger.info(f'Agent created successfully by user {current_user.username}: {agent.id}')
+        return jsonify({
+            'id': agent.id,
+            'name': agent.name,
+            'email': agent.email,
+            'mobile': agent.mobile
+        })
+    except Exception as e:
+        app.logger.error(f'Error creating agent: {str(e)}')
+        return jsonify({'error': 'Failed to create agent'}), 500
 
 @app.route('/api/quick_add/service', methods=['POST'])
 @login_required
