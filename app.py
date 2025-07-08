@@ -10,11 +10,8 @@ from datetime import datetime
 from flask_migrate import Migrate
 import click
 from flask.cli import with_appcontext
-from flask_security.core import Security
-from flask_security.datastore import SQLAlchemyUserDatastore
-from flask_security.forms import LoginForm
-from flask_login import login_required, current_user
-from wtforms import StringField
+from flask_login import LoginManager, login_required, current_user, login_user, logout_user
+from wtforms import Form, StringField, PasswordField
 from wtforms.validators import DataRequired
 from math import ceil
 from flask_admin import Admin, expose
@@ -29,25 +26,7 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SECRET_KEY = os.environ.get('SECRET_KEY', 'your-secret-key-change-this-in-production')
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', '').replace('postgres://', 'postgresql://')
-    SECURITY_USER_IDENTITY_ATTRIBUTES = [
-        {"username": {"mapper": "username", "case_insensitive": True}},
-        {"email": {"mapper": "email", "case_insensitive": True}},
-    ]
-    # Flask-Security configuration
-    SECURITY_REGISTERABLE = False
-    SECURITY_RECOVERABLE = False
-    SECURITY_CHANGEABLE = False
-    SECURITY_CONFIRMABLE = False
-    SECURITY_TRACKABLE = False
-    SECURITY_PASSWORDLESS = False
-    SECURITY_FLASH_MESSAGES = True
-    SECURITY_POST_LOGIN_REDIRECT_ENDPOINT = 'dashboard'
     WTF_CSRF_ENABLED = True
-    # Disable password hashing completely
-    SECURITY_PASSWORD_HASH = 'plaintext'
-    SECURITY_PASSWORD_SALT = ''
-    SECURITY_HASHING_SCHEMES = ['plaintext']
-    SECURITY_DEPRECATED_HASHING_SCHEMES = []
 
 class DevelopmentConfig(Config):
     pass
@@ -73,17 +52,24 @@ if not app.config['SQLALCHEMY_DATABASE_URI']:
 db.init_app(app)
 csrf = CSRFProtect(app)
 
+# Flask-Login setup
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+login_manager.login_message = 'Please log in to access this page.'
+
 migrate = Migrate(app, db)
 
 with app.app_context():
     from models import User, Job, Driver, Agent, Billing, Discount, Service, Vehicle, Role
 
-class ExtendedLoginForm(LoginForm):
-    identity = StringField('Email or Username', validators=[DataRequired()])
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
 
-user_datastore = SQLAlchemyUserDatastore(db, User, Role)
-app.config['SECURITY_LOGIN_FORM'] = ExtendedLoginForm
-security = Security(app, user_datastore)
+class LoginForm(Form):
+    username = StringField('Username or Email', validators=[DataRequired()])
+    password = PasswordField('Password', validators=[DataRequired()])
 
 # Custom admin view to restrict access to admins only
 class AdminModelView(ModelView):
@@ -106,13 +92,44 @@ with app.app_context():
     admin.add_view(AdminModelView(Discount, db.session))
     admin.add_view(AdminModelView(Service, db.session))
 
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+    
+    form = LoginForm(request.form)
+    error = None
+    
+    if request.method == 'POST' and form.validate():
+        username = form.username.data
+        password = form.password.data
+        
+        # Try to find user by username or email
+        user = User.query.filter(
+            (User.username == username) | (User.email == username)
+        ).first()
+        
+        if user and user.check_password(password):
+            login_user(user)
+            flash('Login successful!', 'success')
+            next_page = request.args.get('next')
+            return redirect(next_page) if next_page else redirect(url_for('dashboard'))
+        else:
+            error = 'Invalid username or password'
+    
+    return render_template('login.html', form=form, error=error)
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    flash('You have been logged out.', 'info')
+    return redirect(url_for('login'))
+
 @app.route('/')
 @login_required
 def index():
     return redirect(url_for('dashboard'))
-
-# Removed custom reset_password route - using Flask-Security's built-in functionality
-
 
 @app.route('/dashboard')
 @login_required

@@ -1,5 +1,5 @@
 from extensions import db
-from flask_security import UserMixin
+from flask_login import UserMixin
 import uuid
 from .role import Role
 from .association import roles_users
@@ -22,6 +22,18 @@ class User(UserMixin, db.Model):
         """Set password without hashing"""
         self.password = password
     
-    def verify_and_update_password(self, password, other):
-        """Flask-Security method for password verification"""
-        return self.password == password, False 
+    def get_id(self):
+        """Flask-Login method to return user ID as string"""
+        return str(self.id)
+    
+    def is_authenticated(self):
+        """Flask-Login method"""
+        return True
+    
+    def is_active(self):
+        """Flask-Login method"""
+        return self.active
+    
+    def is_anonymous(self):
+        """Flask-Login method"""
+        return False 
