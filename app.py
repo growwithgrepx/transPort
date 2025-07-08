@@ -690,8 +690,7 @@ def add_vehicle():
         vehicle = Vehicle(name=name, number=number, type=type_, status=status)
         db.session.add(vehicle)
         db.session.commit()
-        return```python
- redirect(url_for('vehicles'))
+        redirect(url_for('vehicles'))
     return render_template('vehicle_form.html', action='Add', vehicle=None)
 
 
