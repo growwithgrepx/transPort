@@ -43,9 +43,11 @@ class Config:
     SECURITY_FLASH_MESSAGES = True
     SECURITY_POST_LOGIN_REDIRECT_ENDPOINT = 'dashboard'
     WTF_CSRF_ENABLED = True
-    # Disable password hashing for now
+    # Disable password hashing completely
     SECURITY_PASSWORD_HASH = 'plaintext'
-    SECURITY_PASSWORD_SALT = os.environ.get('SECURITY_PASSWORD_SALT', 'change-this-salt-in-production')
+    SECURITY_PASSWORD_SALT = ''
+    SECURITY_HASHING_SCHEMES = ['plaintext']
+    SECURITY_DEPRECATED_HASHING_SCHEMES = []
 
 class DevelopmentConfig(Config):
     pass

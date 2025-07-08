@@ -16,4 +16,12 @@ class User(UserMixin, db.Model):
     
     def check_password(self, password):
         """Simple plaintext password check - no hashing"""
-        return self.password == password 
+        return self.password == password
+    
+    def set_password(self, password):
+        """Set password without hashing"""
+        self.password = password
+    
+    def verify_and_update_password(self, password, other):
+        """Flask-Security method for password verification"""
+        return self.password == password, False 
