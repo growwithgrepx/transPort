@@ -29,7 +29,6 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SECRET_KEY = os.environ.get('SECRET_KEY', 'your-secret-key-change-this-in-production')
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', '').replace('postgres://', 'postgresql://')
-    SECURITY_PASSWORD_SALT = os.environ.get('SECURITY_PASSWORD_SALT', 'change-this-salt-in-production')
     SECURITY_USER_IDENTITY_ATTRIBUTES = [
         {"username": {"mapper": "username", "case_insensitive": True}},
         {"email": {"mapper": "email", "case_insensitive": True}},
@@ -44,6 +43,9 @@ class Config:
     SECURITY_FLASH_MESSAGES = True
     SECURITY_POST_LOGIN_REDIRECT_ENDPOINT = 'dashboard'
     WTF_CSRF_ENABLED = True
+    # Ensure Flask-Security handles password hashing
+    SECURITY_PASSWORD_HASH = 'pbkdf2_sha256'
+    SECURITY_PASSWORD_SALT = os.environ.get('SECURITY_PASSWORD_SALT', 'change-this-salt-in-production')
 
 class DevelopmentConfig(Config):
     pass

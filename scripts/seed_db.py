@@ -89,10 +89,6 @@ with app.app_context():
     )
     db.session.commit()
 
-    # After creating users, print their username and password hash for debugging
-    for user in [fleet_manager, system_admin, fleet_employee, accountant, customer_service]:
-        print(f"User: {user.username}, Password Hash: {user.password}")
-
     # Vehicles
     vehicle1 = get_or_create(Vehicle, number='SGX1234A', defaults={'name': 'Toyota Hiace', 'type': '13-Seater', 'status': 'Active'})
     vehicle2 = get_or_create(Vehicle, number='SGX5678B', defaults={'name': 'Mercedes Sprinter', 'type': '23-Seater', 'status': 'Active'})
