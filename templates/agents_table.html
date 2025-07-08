@@ -42,11 +42,11 @@
         {% endif %}
       </td>
       <td>
-        <div class="d-flex gap-2">
-          <a href="{{ url_for('edit_agent', agent_id=agent.id) }}" class="btn btn-outline-primary btn-sm" title="Edit"><i class="bi bi-pencil"></i></a>
+        <div class="d-flex justify-content-center align-items-center gap-2">
+          <a href="{{ url_for('edit_agent', agent_id=agent.id) }}" class="btn btn-outline-primary btn-sm d-flex align-items-center justify-content-center" title="Edit"><i class="bi bi-pencil text-primary"></i></a>
           <form action="{{ url_for('delete_agent', agent_id=agent.id) }}" method="post" style="display:inline;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn btn-outline-danger btn-sm" title="Delete" onclick="return confirm('Delete this agent?');"><i class="bi bi-trash"></i></button>
+            <button type="submit" class="btn btn-outline-danger btn-sm d-flex align-items-center justify-content-center" title="Delete" onclick="return confirm('Delete this agent?');"><i class="bi bi-trash text-danger"></i></button>
           </form>
         </div>
       </td>

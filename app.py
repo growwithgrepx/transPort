@@ -263,7 +263,29 @@ def index():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    return render_template('dashboard.html')
+    from models import Job, Vehicle, Driver
+    from datetime import date
+    # Unassigned Jobs: jobs with no driver or vehicle assigned
+    unassigned_jobs = Job.query.filter((Job.driver_id == None) | (Job.vehicle_type == None)).count()
+    # Ready to Invoice: jobs with order_status 'Completed' and not yet billed (assuming payment_status 'Unpaid')
+    ready_to_invoice = Job.query.filter(Job.order_status == 'Completed', Job.payment_status == 'Unpaid').count()
+    # Total Vehicles
+    total_vehicles = Vehicle.query.count()
+    # Available Drivers: drivers not assigned to any active job (assuming jobs with order_status 'New' or 'In Progress')
+    active_driver_ids = [job.driver_id for job in Job.query.filter(Job.order_status.in_(['New', 'In Progress'])).all() if job.driver_id]
+    available_drivers = Driver.query.filter(~Driver.id.in_(active_driver_ids)).count()
+    # Active Jobs: jobs with order_status 'New' or 'In Progress'
+    active_jobs = Job.query.filter(Job.order_status.in_(['New', 'In Progress'])).count()
+    # Completed Today: jobs with order_status 'Completed' and pickup_date is today
+    completed_today = Job.query.filter(Job.order_status == 'Completed', Job.pickup_date == date.today().isoformat()).count()
+    return render_template('dashboard.html',
+        unassigned_jobs=unassigned_jobs,
+        ready_to_invoice=ready_to_invoice,
+        total_vehicles=total_vehicles,
+        available_drivers=available_drivers,
+        active_jobs=active_jobs,
+        completed_today=completed_today
+    )
 
 
 # JOBS CRUD

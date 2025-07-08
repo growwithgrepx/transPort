@@ -2,37 +2,43 @@
 {% block title %}Billing - Admin Portal{% endblock %}
 {% block content %}
 <div class="container-fluid fw-normal fs-6">
-<h2>Billing</h2>
-<a href="{{ url_for('add_billing') }}" class="btn btn-success mb-3">Add Billing</a>
-<div class="table-responsive">
-<table class="table table-bordered table-hover table-striped align-middle">
-  <thead class="table-light">
-    <tr>
-      <th>Job ID</th>
-      <th>Amount</th>
-      <th>Discount ID</th>
-      <th>Actions</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for billing in billings %}
-    <tr data-billing-id="{{ billing.id }}">
-      <td>{{ billing.job_id }}</td>
-      <td>{{ billing.amount }}</td>
-      <td>{{ billing.discount_id }}</td>
-      <td>
-        <div class="d-flex gap-2">
-          <a href="{{ url_for('edit_billing', billing_id=billing.id) }}" class="btn btn-outline-primary btn-sm" title="Edit"><i class="bi bi-pencil"></i></a>
-          <form action="{{ url_for('delete_billing', billing_id=billing.id) }}" method="post" style="display:inline;">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn btn-outline-danger btn-sm" title="Delete" onclick="return confirm('Delete this billing record?');"><i class="bi bi-trash"></i></button>
-          </form>
-        </div>
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="mb-0"><i class="bi bi-receipt me-2"></i>Manage Billing</h2>
+  <a href="{{ url_for('add_billing') }}" class="btn btn-success btn-lg"><i class="bi bi-plus-circle me-1"></i>Add Billing</a>
+</div>
+<div class="card shadow-sm mb-4">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover table-striped align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Job ID</th>
+            <th>Amount</th>
+            <th>Discount ID</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for billing in billings %}
+          <tr data-billing-id="{{ billing.id }}">
+            <td>{{ billing.job_id }}</td>
+            <td>{{ billing.amount }}</td>
+            <td>{{ billing.discount_id }}</td>
+            <td>
+              <div class="d-flex justify-content-center align-items-center gap-2">
+                <a href="{{ url_for('edit_billing', billing_id=billing.id) }}" class="btn btn-outline-primary btn-sm d-flex align-items-center justify-content-center" title="Edit"><i class="bi bi-pencil text-primary"></i></a>
+                <form action="{{ url_for('delete_billing', billing_id=billing.id) }}" method="post" style="display:inline;">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn btn-outline-danger btn-sm d-flex align-items-center justify-content-center" title="Delete" onclick="return confirm('Delete this billing record?');"><i class="bi bi-trash text-danger"></i></button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
 </div>
 </div>
 {% endblock %} 

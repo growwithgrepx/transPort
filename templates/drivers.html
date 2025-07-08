@@ -1,10 +1,16 @@
 {% extends 'base.html' %}
 {% block title %}Drivers - Admin Portal{% endblock %}
 {% block content %}
-<h2>Drivers</h2>
-<a href="#" class="btn btn-success mb-3" hx-get="{{ url_for('add_driver') }}" hx-target="#driver-modal-body" hx-trigger="click" data-bs-toggle="modal" data-bs-target="#driverModal">Add Driver</a>
-<div id="drivers-table" hx-target="this">
-  {% include 'drivers_table.html' %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="mb-0"><i class="bi bi-person-badge me-2"></i>Manage Drivers</h2>
+  <a href="#" class="btn btn-success btn-lg" hx-get="{{ url_for('add_driver') }}" hx-target="#driver-modal-body" hx-trigger="click" data-bs-toggle="modal" data-bs-target="#driverModal"><i class="bi bi-plus-circle me-1"></i>Add Driver</a>
+</div>
+<div class="card shadow-sm mb-4">
+  <div class="card-body p-0">
+    <div id="drivers-table" hx-target="this">
+      {% include 'drivers_table.html' %}
+    </div>
+  </div>
 </div>
 <!-- Modal for Add/Edit Driver -->
 <div class="modal fade" id="driverModal" tabindex="-1" aria-labelledby="driverModalLabel" aria-hidden="true">

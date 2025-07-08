@@ -1,8 +1,326 @@
+/*
+  Dark Theme Palette:
+    --color-bg: #181c20 (App background)
+    --color-surface: #23272b (Cards, modals, tables)
+    --color-primary: #4ade80 (Primary buttons, accents)
+    --color-secondary: #60a5fa
+    --color-accent: #38bdf8
+    --color-text: #f3f4f6 (Main text)
+    --color-muted: #94a3b8 (Muted text, placeholders)
+    --color-border: #2d3238 (Borders, dividers)
+    --color-danger: #f87171
+    --color-success: #4ade80
+    --color-warning: #fde68a
+    --color-info: #38bdf8
+
+  Typography:
+    - Inherit Bootstrap's font stack and sizing.
+    - Maintain spacing, padding, and border-radius as in light theme.
+*/
+:root {
+  --color-bg: #f8f9fa;
+  --color-surface: #fff;
+  --color-primary: #198754;
+  --color-secondary: #0d6efd;
+  --color-accent: #0dcaf0;
+  --color-text: #212529;
+  --color-muted: #6c757d;
+  --color-border: #dee2e6;
+  --color-danger: #dc3545;
+  --color-success: #198754;
+  --color-warning: #ffc107;
+  --color-info: #0dcaf0;
+}
+[data-theme="dark"] {
+  --color-bg: #181c20;           /* App background */
+  --color-surface: #232b3a;      /* Cards, tables, modals */
+  --color-primary: #4ade80;
+  --color-secondary: #60a5fa;
+  --color-accent: #38bdf8;
+  --color-text: #f3f4f6;
+  --color-muted: #94a3b8;
+  --color-border: #2d3748;
+  --color-danger: #f87171;
+  --color-success: #4ade80;
+  --color-warning: #fde68a;
+  --color-info: #38bdf8;
+}
+
+/* Stronger specificity for Bootstrap components in dark mode */
+[data-theme="dark"] .card,
+[data-theme="dark"] .modal-content,
+[data-theme="dark"] .dropdown-menu,
+[data-theme="dark"] .table,
+[data-theme="dark"] .table th,
+[data-theme="dark"] .table td,
+[data-theme="dark"] .table-striped > tbody > tr,
+[data-theme="dark"] .form-control,
+[data-theme="dark"] .form-select {
+  background-color: var(--color-surface) !important;
+  color: var(--color-text) !important;
+  border-color: var(--color-border) !important;
+}
+
+[data-theme="dark"] .table-striped > tbody > tr:nth-of-type(odd) > td,
+[data-theme="dark"] .table-striped > tbody > tr:nth-of-type(odd) > th {
+  background-color: rgba(60, 80, 120, 0.15) !important;
+}
+
+[data-theme="dark"] .card,
+[data-theme="dark"] .modal-content {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+}
+
+[data-theme="dark"] .btn,
+[data-theme="dark"] .btn-success {
+  color: var(--color-text) !important;
+  background-color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+}
+
 body {
-    background-color: #f8f9fa;
-    padding-top: 40px;
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    padding-top: 0 !important;
+    margin-top: 0 !important;
 }
 
 h2 {
-    color: #343a40;
+    color: var(--color-text);
+}
+
+.card, .modal-content, .dropdown-menu {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--color-border);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+}
+
+.table {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.table-striped > tbody > tr:nth-of-type(odd) {
+  background-color: rgba(60, 60, 70, 0.15);
+}
+
+.btn {
+  color: var(--color-text);
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.btn-success {
+  background-color: var(--color-success);
+  border-color: var(--color-success);
+}
+
+.btn-success:hover, .btn-success:focus {
+  background-color: #22c55e;
+  border-color: #16a34a;
+}
+
+.form-control, .form-select {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--color-muted);
+  opacity: 1;
+} 
+
+/* Dashboard hero card and all .card.bg-primary use dark surface in dark mode */
+[data-theme="dark"] .bg-primary,
+[data-theme="dark"] .card.bg-primary {
+  background-color: var(--color-surface) !important;
+  color: var(--color-text) !important;
+}
+
+/* Remove the dotted SVG line overlay in dark mode */
+[data-theme="dark"] .bg-primary svg {
+  display: none !important;
+}
+
+/* Make filter/search box boundaries more visible in both themes */
+.form-control,
+input[type="search"],
+input[type="text"],
+input[type="date"],
+select {
+  border: 1.5px solid var(--color-border) !important;
+  box-shadow: 0 1px 4px rgba(60,80,120,0.04);
+}
+[data-theme="dark"] .form-control,
+[data-theme="dark"] input[type="search"],
+[data-theme="dark"] input[type="text"],
+[data-theme="dark"] input[type="date"],
+[data-theme="dark"] select {
+  border: 1.5px solid var(--color-border) !important;
+  background: var(--color-surface) !important;
+  color: var(--color-text) !important;
+}
+
+/* Make navbar/menu more prominent and professional */
+.navbar {
+  background: linear-gradient(90deg, #232b3a 0%, #1a2332 100%) !important;
+  box-shadow: 0 2px 12px 0 rgba(33,150,243,0.10), 0 1.5px 6px 0 rgba(0,0,0,0.05);
+  border-bottom: 2px solid var(--color-border);
+  margin-top: 0 !important;
+}
+.navbar .navbar-brand {
+  font-size: 2rem;
+  letter-spacing: 1px;
+  color: #fff !important;
+  text-shadow: 0 2px 8px rgba(60,80,120,0.15);
+}
+.navbar .nav-link {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: #e0e7ef !important;
+  margin-right: 0.5rem;
+  transition: color 0.2s, border-bottom 0.2s;
+}
+.navbar .nav-link.active, .navbar .nav-link:focus, .navbar .nav-link:hover {
+  color: var(--color-secondary) !important;
+  border-bottom: 2.5px solid var(--color-secondary);
+  background: rgba(60,80,120,0.10);
+  border-radius: 0.5rem 0.5rem 0 0;
+}
+[data-theme="dark"] .navbar {
+  background: linear-gradient(90deg, #232b3a 0%, #181c20 100%) !important;
+  border-bottom: 2px solid var(--color-border);
+}
+[data-theme="dark"] .navbar .navbar-brand {
+  color: #fff !important;
+  text-shadow: 0 2px 8px rgba(60,80,120,0.25);
+}
+[data-theme="dark"] .navbar .nav-link {
+  color: #e0e7ef !important;
+}
+[data-theme="dark"] .navbar .nav-link.active, [data-theme="dark"] .navbar .nav-link:focus, [data-theme="dark"] .navbar .nav-link:hover {
+  color: var(--color-secondary) !important;
+  background: rgba(60,80,120,0.18);
+} 
+
+/* Smoothly rounded tables with visible border color on all edges and between cells */
+.table,
+.table-bordered,
+.table-responsive > .table {
+  border-radius: 0 !important;
+  border: none !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  background-clip: padding-box;
+}
+.table th, .table td {
+  border-color: var(--color-border) !important;
+  border-width: 1.5px !important;
+  border-style: solid !important;
+}
+[data-theme="dark"] .table,
+[data-theme="dark"] .table-bordered,
+[data-theme="dark"] .table-responsive > .table {
+  border-radius: 0 !important;
+  border: none !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  background-clip: padding-box;
+}
+[data-theme="dark"] .table th, [data-theme="dark"] .table td {
+  border-color: var(--color-border) !important;
+  border-width: 1.5px !important;
+  border-style: solid !important;
+}
+
+/* Ensure table header and cell borders are visible and match the table border color */
+.table th, .table td {
+  border-color: var(--color-border) !important;
+}
+
+/* Remove gap between browser top edge and navbar */
+body {
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+}
+.navbar {
+  margin-top: 0 !important;
+}
+
+/* Center-align all table headers and prevent awkward wrapping */
+.table th {
+  text-align: center !important;
+  vertical-align: middle !important;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  max-width: 180px;
+}
+
+/* Center-align all table cell content */
+.table td {
+  text-align: center !important;
+  vertical-align: middle !important;
+}
+
+/* In dark theme, make table headers distinct from cells */
+[data-theme="dark"] .table th {
+  background: #273043 !important; /* slightly lighter than cell bg */
+  color: #f3f4f6 !important;
+  font-weight: 700 !important;
+  border-bottom: 2.5px solid var(--color-border) !important;
+  box-shadow: 0 2px 8px 0 rgba(60,80,120,0.10);
+  letter-spacing: 0.01em;
+}
+
+/* Jobs table: visually improve header row */
+#jobs-table th {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+  font-size: 1.08rem;
+  font-weight: 600;
+  background: var(--color-surface);
+  border-bottom: 2.5px solid var(--color-border);
+  letter-spacing: 0.01em;
+  box-shadow: 0 1px 0 rgba(60,80,120,0.04);
+}
+
+/* Quick search box: compact, optimal width, no search button */
+.quick-search-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+.quick-search-row input[type="search"],
+.quick-search-row input[type="text"] {
+  width: 320px;
+  max-width: 100%;
+  min-width: 180px;
+  padding: 0.6rem 1rem;
+  font-size: 1rem;
+  border-radius: 0.75rem;
+}
+.quick-search-row button,
+.quick-search-row .btn {
+  display: none !important;
+} 
+
+/* Best practice: rounded corners and border on table container, not table */
+.card, .table-container {
+  border-radius: 1.25rem !important;
+  border: 2px solid var(--color-border) !important;
+  overflow: hidden;
+  background-clip: padding-box;
+  box-shadow: 0 2px 12px 0 rgba(60,80,120,0.08);
+}
+[data-theme="dark"] .card, [data-theme="dark"] .table-container {
+  border-radius: 1.25rem !important;
+  border: 2px solid var(--color-border) !important;
+  overflow: hidden;
+  background-clip: padding-box;
+  box-shadow: 0 2px 16px 0 rgba(60,80,120,0.18);
 } 

@@ -1,15 +1,112 @@
 {% extends 'base.html' %}
 {% block title %}Dashboard{% endblock %}
 {% block content %}
-<div class="container">
-    <div class="row">
-        <div class="col-md-12">
-            <h2 class="mb-4">Dashboard</h2>
-            <div class="card p-4">
-                <p>Welcome, {{ current_user.username or current_user.email }}!</p>
-                <p>Use the sidebar to navigate through the system.</p>
-            </div>
-        </div>
+<style>
+  .glow {
+    text-shadow: 0 0 8px #fff, 0 0 16px #2196f3, 0 0 2px #fff;
+  }
+  .metric-glow {
+    text-shadow: 0 0 8px #fff, 0 0 16px #2196f3, 0 0 2px #fff;
+    font-weight: bold;
+  }
+  .btn-green-soft {
+    color: #fff;
+    background: linear-gradient(90deg, #43e97b 0%, #38f9d7 100%);
+    border: none;
+    border-radius: 2rem;
+    font-weight: 600;
+    box-shadow: 0 2px 12px 0 rgba(67,233,123,0.15);
+    transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+  .btn-green-soft:hover, .btn-green-soft:focus {
+    background: linear-gradient(90deg, #38f9d7 0%, #43e97b 100%);
+    color: #fff;
+    box-shadow: 0 4px 24px 0 rgba(67,233,123,0.25);
+  }
+  .card.bg-primary {
+    border-radius: 1.5rem !important;
+    box-shadow: 0 4px 32px 0 rgba(33,150,243,0.10), 0 1.5px 6px 0 rgba(0,0,0,0.05);
+  }
+</style>
+<div class="container-fluid px-0 text-center">
+  <div class="bg-primary text-white rounded-4 p-4 mb-4 mx-auto" style="min-height: 180px; max-width: 1200px; border-radius: 2rem !important; box-shadow: 0 4px 32px 0 rgba(33,150,243,0.10), 0 1.5px 6px 0 rgba(0,0,0,0.05);">
+    <div class="position-absolute top-0 start-0 w-100 h-100" style="pointer-events:none; opacity:0.10;">
+      <svg width="100%" height="100%"><line x1="0" y1="0" x2="100%" y2="100%" stroke="#fff" stroke-dasharray="12 8" stroke-width="2"/></svg>
     </div>
+    <div class="position-relative z-1">
+      <h1 class="display-4 fw-bold glow mb-2">Fleet Command Center</h1>
+      <p class="lead mb-0 text-white">Track every trip. Assign in seconds. Bill with zero delays.<br>Your single source of truth for smooth, real-time operations.</p>
+    </div>
+  </div>
+  <div class="mb-4">
+    <h5 class="text-white mb-3"><i class="bi bi-lightbulb me-2"></i>Actionable Insights</h5>
+    <div class="row g-3 justify-content-center">
+      <div class="col-12 col-md-4 col-lg-3">
+        <div class="card bg-primary text-white h-100 shadow-sm border-0 mx-auto" style="max-width: 320px;">
+          <div class="card-body d-flex flex-column justify-content-between align-items-center">
+            <div>
+              <div class="d-flex align-items-center justify-content-center mb-2"><i class="bi bi-box fs-3 me-2"></i><span class="fw-semibold">Unassigned Jobs</span></div>
+              <div class="text-white-50 small mb-2">Jobs that need a driver and vehicle assigned.</div>
+            </div>
+            <span class="display-5 metric-glow mb-2">{{ unassigned_jobs }}</span>
+            <a href="{{ url_for('jobs') }}" class="btn btn-success btn-lg px-4"><i class="bi bi-person-plus me-2"></i>Assign Now</a>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-md-4 col-lg-3">
+        <div class="card bg-primary text-white h-100 shadow-sm border-0 mx-auto" style="max-width: 320px;">
+          <div class="card-body d-flex flex-column justify-content-between align-items-center">
+            <div>
+              <div class="d-flex align-items-center justify-content-center mb-2"><i class="bi bi-file-earmark-text fs-3 me-2"></i><span class="fw-semibold">Ready to Invoice</span></div>
+              <div class="text-white-50 small mb-2">Completed jobs that are ready for billing.</div>
+            </div>
+            <span class="display-5 metric-glow mb-2">{{ ready_to_invoice }}</span>
+            <a href="{{ url_for('billing') }}" class="btn btn-success btn-lg px-4"><i class="bi bi-receipt me-2"></i>Create Invoices</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <h5 class="text-white mb-3">Fleet Status</h5>
+  <div class="row g-3 justify-content-center mb-4">
+    <div class="col-12 col-md-4 col-lg-3">
+      <div class="card bg-primary text-white h-100 shadow-sm border-0 mx-auto" style="max-width: 320px;">
+        <div class="card-body text-center">
+          <div class="fw-semibold mb-1">Total Vehicles <i class="bi bi-truck ms-1"></i></div>
+          <div class="display-6 metric-glow">{{ total_vehicles }}</div>
+          <div class="text-white-50 small">Managed across the fleet</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-4 col-lg-3">
+      <div class="card bg-primary text-white h-100 shadow-sm border-0 mx-auto" style="max-width: 320px;">
+        <div class="card-body text-center">
+          <div class="fw-semibold mb-1">Available Drivers <i class="bi bi-person-badge ms-1"></i></div>
+          <div class="display-6 metric-glow">{{ available_drivers }}</div>
+          <div class="text-white-50 small">Ready for assignments</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-4 col-lg-3">
+      <div class="card bg-primary text-white h-100 shadow-sm border-0 mx-auto" style="max-width: 320px;">
+        <div class="card-body text-center">
+          <div class="fw-semibold mb-1">Active Jobs <i class="bi bi-clipboard2-check ms-1"></i></div>
+          <div class="display-6 metric-glow">{{ active_jobs }}</div>
+          <div class="text-white-50 small">Assigned or In Progress</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-4 col-lg-3">
+      <div class="card bg-primary text-white h-100 shadow-sm border-0 mx-auto" style="max-width: 320px;">
+        <div class="card-body text-center">
+          <div class="fw-semibold mb-1">Completed Today <i class="bi bi-calendar-check ms-1"></i></div>
+          <div class="display-6 metric-glow">{{ completed_today }}</div>
+          <div class="text-white-50 small">Jobs finished today</div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 {% endblock %} 
