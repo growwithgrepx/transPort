@@ -1073,6 +1073,14 @@ def create_admin(username, email, password):
 
 # CSRF token is automatically handled by Flask-WTF and Flask-Security
 
+@app.context_processor
+def inject_role_helpers():
+    def has_role(role_name):
+        return any(role.name == role_name for role in getattr(current_user, 'roles', []))
+    def has_any_role(*role_names):
+        return any(role.name in role_names for role in getattr(current_user, 'roles', []))
+    return dict(has_role=has_role, has_any_role=has_any_role)
+
 if __name__ == '__main__':
     import os
     port = int(os.environ.get('PORT', 5000))

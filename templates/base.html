@@ -3,60 +3,87 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Admin Portal{% endblock %}</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    {% block custom_css %}{% endblock %}
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-    <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
+    <title>{% block title %}Fleet Management{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background: #f8f9fa; }
+        .navbar-brand { font-weight: bold; }
+        .nav-link.active, .nav-link:focus, .nav-link:hover {
+            color: #0d6efd !important;
+            font-weight: 500;
+            border-bottom: 2px solid #0d6efd;
+        }
+        .main-content {
+            margin-top: 40px;
+            padding: 30px;
+        }
+    </style>
 </head>
 <body>
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-  <div class="container-fluid">
-    <a class="navbar-brand" href="{{ url_for('dashboard') }}">Admin Portal</a>
-    <div class="collapse navbar-collapse">
-      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-        <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a></li>
-        <li class="nav-item"><a class="nav-link" href="{{ url_for('jobs') }}">Jobs</a></li>
-        <li class="nav-item"><a class="nav-link" href="{{ url_for('drivers') }}">Drivers</a></li>
-        <li class="nav-item"><a class="nav-link" href="{{ url_for('agents') }}">Agents</a></li>
-        <li class="nav-item"><a class="nav-link" href="{{ url_for('vehicles') }}">Vehicles</a></li>
-        <li class="nav-item"><a class="nav-link" href="{{ url_for('billing') }}">Billing</a></li>
-        <li class="nav-item"><a class="nav-link" href="{{ url_for('discounts') }}">Discounts</a></li>
-        <li class="nav-item"><a class="nav-link" href="{{ url_for('services') }}">Services</a></li>
-      </ul>
-      <ul class="navbar-nav ms-auto">
-        {% if current_user.is_authenticated %}
-        {% set is_admin = false %}
-        {% for role in current_user.roles %}
-          {% if role.name == 'admin' %}
-            {% set is_admin = true %}
-          {% endif %}
-        {% endfor %}
-        {% if is_admin %}
-          <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.index') }}">Admin</a></li>
-        {% endif %}
-        <li class="nav-item"><a class="nav-link" href="{{ url_for('logout') }}">Logout</a></li>
-        {% endif %}
-      </ul>
-    </div>
-  </div>
-</nav>
-<div class="container mt-4">
-    {% with messages = get_flashed_messages() %}
-      {% if messages %}
-        <div class="alert alert-info">
-          {% for message in messages %}
-            <div>{{ message }}</div>
-          {% endfor %}
+    <!-- Top Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('dashboard') }}">Fleet Portal</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="mainNavbar">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">Dashboard</a>
+                    </li>
+                    {% if has_any_role('fleet_manager', 'system_admin', 'fleet_employee') %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'jobs' %}active{% endif %}" href="{{ url_for('jobs') }}">Jobs</a>
+                    </li>
+                    {% endif %}
+                    {% if has_any_role('fleet_manager', 'system_admin', 'fleet_employee') %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'drivers' %}active{% endif %}" href="{{ url_for('drivers') }}">Drivers</a>
+                    </li>
+                    {% endif %}
+                    {% if has_any_role('fleet_manager', 'system_admin', 'fleet_employee', 'accountant', 'customer_service') %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'agents' %}active{% endif %}" href="{{ url_for('agents') }}">Agents</a>
+                    </li>
+                    {% endif %}
+                    {% if has_any_role('fleet_manager', 'system_admin', 'accountant') %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'billing' %}active{% endif %}" href="{{ url_for('billing') }}">Billing</a>
+                    </li>
+                    {% endif %}
+                    {% if has_any_role('fleet_manager', 'system_admin') %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'discounts' %}active{% endif %}" href="{{ url_for('discounts') }}">Discounts</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'services' %}active{% endif %}" href="{{ url_for('services') }}">Services</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'vehicles' %}active{% endif %}" href="{{ url_for('vehicles') }}">Vehicles</a>
+                    </li>
+                    {% endif %}
+                </ul>
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('logout') }}">Logout</a></li>
+                </ul>
+            </div>
         </div>
-      {% endif %}
-    {% endwith %}
-    {% block content %}{% endblock %}
-</div>
-    <!-- Bootstrap 5 JS Bundle (with Popper) -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ENjdO4Dr2bkBIFxQpeoA6DQD1KQ2U5r1Q9ctPQ5l1j6wZ6Mvo5D5V5d5U5y5Q5v5" crossorigin="anonymous"></script>
+    </nav>
+
+    <div class="container main-content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html> 

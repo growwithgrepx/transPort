@@ -1,10 +1,15 @@
 {% extends 'base.html' %}
-{% block title %}Dashboard - Admin Portal{% endblock %}
+{% block title %}Dashboard{% endblock %}
 {% block content %}
-<div class="row">
-  <div class="col">
-    <h2>Welcome to the Admin Dashboard</h2>
-    <p>Use the navigation bar to manage Jobs, Drivers, Agents, Billing, and Discounts.</p>
-  </div>
+<div class="container">
+    <div class="row">
+        <div class="col-md-12">
+            <h2 class="mb-4">Dashboard</h2>
+            <div class="card p-4">
+                <p>Welcome, {{ current_user.username or current_user.email }}!</p>
+                <p>Use the sidebar to navigate through the system.</p>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %} 
