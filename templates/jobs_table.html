@@ -3,9 +3,7 @@
 <table class="table table-bordered table-hover table-striped align-middle">
   <thead class="table-light">
     <tr>
-      <th>ID</th>
       <th>Customer Name</th>
-      <th>Customer Email</th>
       <th>Customer Mobile</th>
       <th>Passenger Name</th>
       <th>Type of Service</th>
@@ -13,7 +11,6 @@
       <th>Time</th>
       <th>Pickup</th>
       <th>Drop-off</th>
-      <th>Additional Stops</th>
       <th>Vehicle</th>
       <th>Driver Contact</th>
       <th>Payment Status</th>
@@ -21,35 +18,32 @@
       <th>Actions</th>
     </tr>
     <tr>
-      <th></th>
-      <th><input type="text" class="form-control form-control-sm" name="customer_name" placeholder="Filter" value="{{ request.args.get('customer_name', '') }}"></th>
-      <th><input type="text" class="form-control form-control-sm" name="customer_email" placeholder="Filter" value="{{ request.args.get('customer_email', '') }}"></th>
-      <th><input type="text" class="form-control form-control-sm" name="customer_mobile" placeholder="Filter" value="{{ request.args.get('customer_mobile', '') }}"></th>
-      <th><input type="text" class="form-control form-control-sm" name="passenger_name" placeholder="Filter" value="{{ request.args.get('passenger_name', '') }}"></th>
+      <th><input type="text" class="form-control form-control-sm" name="customer_name" placeholder="Filter" value="{{ request.args.get('customer_name', '') }}" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="keyup changed delay:400ms" autocomplete="off"></th>
+      <th><input type="text" class="form-control form-control-sm" name="customer_mobile" placeholder="Filter" value="{{ request.args.get('customer_mobile', '') }}" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="keyup changed delay:400ms" autocomplete="off"></th>
+      <th><input type="text" class="form-control form-control-sm" name="passenger_name" placeholder="Filter" value="{{ request.args.get('passenger_name', '') }}" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="keyup changed delay:400ms" autocomplete="off"></th>
       <th>
-        <select class="form-select form-select-sm" name="type_of_service">
+        <select class="form-select form-select-sm" name="type_of_service" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="change">
           <option value="">All</option>
           {% for val in jobs|map(attribute='type_of_service')|unique if val %}
           <option value="{{ val }}" {% if request.args.get('type_of_service') == val %}selected{% endif %}>{{ val }}</option>
           {% endfor %}
         </select>
       </th>
-      <th><input type="date" class="form-control form-control-sm" name="pickup_date" value="{{ request.args.get('pickup_date', '') }}"></th>
-      <th><input type="text" class="form-control form-control-sm" name="pickup_time" placeholder="Filter" value="{{ request.args.get('pickup_time', '') }}"></th>
-      <th><input type="text" class="form-control form-control-sm" name="pickup_location" placeholder="Filter" value="{{ request.args.get('pickup_location', '') }}"></th>
-      <th><input type="text" class="form-control form-control-sm" name="dropoff_location" placeholder="Filter" value="{{ request.args.get('dropoff_location', '') }}"></th>
-      <th><input type="text" class="form-control form-control-sm" name="additional_stops" placeholder="Filter" value="{{ request.args.get('additional_stops', '') }}"></th>
+      <th><input type="date" class="form-control form-control-sm" name="pickup_date" value="{{ request.args.get('pickup_date', '') }}" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="change"></th>
+      <th><input type="text" class="form-control form-control-sm" name="pickup_time" placeholder="Filter" value="{{ request.args.get('pickup_time', '') }}" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="keyup changed delay:400ms" autocomplete="off"></th>
+      <th><input type="text" class="form-control form-control-sm" name="pickup_location" placeholder="Filter" value="{{ request.args.get('pickup_location', '') }}" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="keyup changed delay:400ms" autocomplete="off"></th>
+      <th><input type="text" class="form-control form-control-sm" name="dropoff_location" placeholder="Filter" value="{{ request.args.get('dropoff_location', '') }}" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="keyup changed delay:400ms" autocomplete="off"></th>
       <th>
-        <select class="form-select form-select-sm" name="vehicle_type">
+        <select class="form-select form-select-sm" name="vehicle_type" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="change">
           <option value="">All</option>
           {% for val in jobs|map(attribute='vehicle_type')|unique if val %}
           <option value="{{ val }}" {% if request.args.get('vehicle_type') == val %}selected{% endif %}>{{ val }}</option>
           {% endfor %}
         </select>
       </th>
-      <th><input type="text" class="form-control form-control-sm" name="driver_contact" placeholder="Filter" value="{{ request.args.get('driver_contact', '') }}"></th>
+      <th><input type="text" class="form-control form-control-sm" name="driver_contact" placeholder="Filter" value="{{ request.args.get('driver_contact', '') }}" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="keyup changed delay:400ms" autocomplete="off"></th>
       <th>
-        <select class="form-select form-select-sm" name="payment_status">
+        <select class="form-select form-select-sm" name="payment_status" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="change">
           <option value="">All</option>
           {% for val in jobs|map(attribute='payment_status')|unique if val %}
           <option value="{{ val }}" {% if request.args.get('payment_status') == val %}selected{% endif %}>{{ val }}</option>
@@ -57,22 +51,20 @@
         </select>
       </th>
       <th>
-        <select class="form-select form-select-sm" name="order_status">
+        <select class="form-select form-select-sm" name="order_status" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="change">
           <option value="">All</option>
           {% for val in jobs|map(attribute='order_status')|unique if val %}
           <option value="{{ val }}" {% if request.args.get('order_status') == val %}selected{% endif %}>{{ val }}</option>
           {% endfor %}
         </select>
       </th>
-      <th><button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel"></i> Filter</button></th>
+      <th></th>
     </tr>
   </thead>
   <tbody>
     {% for job in jobs %}
-    <tr>
-      <td>{{ job.id }}</td>
+    <tr data-job-id="{{ job.id }}">
       <td>{{ job.customer_name }}</td>
-      <td>{{ job.customer_email }}</td>
       <td>{{ job.customer_mobile }}</td>
       <td>{{ job.passenger_name }}</td>
       <td>{{ job.type_of_service }}</td>
@@ -80,11 +72,6 @@
       <td>{{ job.pickup_time }}</td>
       <td>{{ job.pickup_location }}</td>
       <td>{{ job.dropoff_location }}</td>
-      <td>
-        {% if job.additional_stops %}
-          {{ job.additional_stops | safe | tojson | loads | join(', ') }}
-        {% endif %}
-      </td>
       <td>{{ job.vehicle_type }} {{ job.vehicle_number }}</td>
       <td>{{ job.driver_contact }}</td>
       <td>

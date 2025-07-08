@@ -1,24 +1,21 @@
-<form method="get" action="{{ url_for('drivers') }}" hx-get="{{ url_for('drivers') }}" hx-target="#drivers-table" hx-push-url="true">
+<form method="get" action="{{ url_for('drivers') }}" hx-get="{{ url_for('drivers') }}" hx-target="#drivers-table-body" hx-push-url="true">
 <div class="table-responsive">
 <table class="table table-bordered table-hover table-striped align-middle">
   <thead class="table-light">
     <tr>
-      <th>ID</th>
       <th>Name</th>
       <th>Phone</th>
       <th>Actions</th>
     </tr>
     <tr>
+      <th><input type="text" class="form-control form-control-sm" name="name" placeholder="Filter" value="{{ request.args.get('name', '') }}" hx-get="{{ url_for('drivers') }}" hx-target="#drivers-table-body" hx-trigger="keyup changed delay:400ms" autocomplete="off"></th>
+      <th><input type="text" class="form-control form-control-sm" name="phone" placeholder="Filter" value="{{ request.args.get('phone', '') }}" hx-get="{{ url_for('drivers') }}" hx-target="#drivers-table-body" hx-trigger="keyup changed delay:400ms" autocomplete="off"></th>
       <th></th>
-      <th><input type="text" class="form-control form-control-sm" name="name" placeholder="Filter" value="{{ request.args.get('name', '') }}"></th>
-      <th><input type="text" class="form-control form-control-sm" name="phone" placeholder="Filter" value="{{ request.args.get('phone', '') }}"></th>
-      <th><button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel"></i> Filter</button></th>
     </tr>
   </thead>
-  <tbody>
+  <tbody id="drivers-table-body">
     {% for driver in drivers %}
-    <tr>
-      <td>{{ driver.id }}</td>
+    <tr data-driver-id="{{ driver.id }}">
       <td>{{ driver.name }}</td>
       <td>{{ driver.phone }}</td>
       <td>

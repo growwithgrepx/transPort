@@ -7,7 +7,6 @@
 <table class="table table-bordered table-hover table-striped align-middle">
   <thead class="table-light">
     <tr>
-      <th>ID</th>
       <th>Code</th>
       <th>Percent</th>
       <th>Actions</th>
@@ -15,8 +14,7 @@
   </thead>
   <tbody>
     {% for discount in discounts %}
-    <tr>
-      <td>{{ discount.id }}</td>
+    <tr data-discount-id="{{ discount.id }}">
       <td>{{ discount.code }}</td>
       <td>{{ discount.percent }}</td>
       <td>

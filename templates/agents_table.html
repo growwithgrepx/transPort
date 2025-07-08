@@ -1,9 +1,8 @@
-<form method="get" action="{{ url_for('agents') }}" hx-get="{{ url_for('agents') }}" hx-target="#agents-table" hx-push-url="true">
+<form method="get" action="{{ url_for('agents') }}" hx-get="{{ url_for('agents') }}" hx-target="#agents-table-body" hx-push-url="true">
 <div class="table-responsive">
 <table class="table table-bordered table-hover table-striped align-middle">
   <thead class="table-light">
     <tr>
-      <th>Sr. No.</th>
       <th>Name</th>
       <th>Email</th>
       <th>Mobile</th>
@@ -12,25 +11,23 @@
       <th>Actions</th>
     </tr>
     <tr>
-      <th></th>
-      <th><input type="text" class="form-control form-control-sm" name="name" placeholder="Filter" value="{{ request.args.get('name', '') }}"></th>
-      <th><input type="text" class="form-control form-control-sm" name="email" placeholder="Filter" value="{{ request.args.get('email', '') }}"></th>
-      <th><input type="text" class="form-control form-control-sm" name="mobile" placeholder="Filter" value="{{ request.args.get('mobile', '') }}"></th>
-      <th><input type="text" class="form-control form-control-sm" name="type" placeholder="Filter" value="{{ request.args.get('type', '') }}"></th>
+      <th><input type="text" class="form-control form-control-sm" name="name" placeholder="Filter" value="{{ request.args.get('name', '') }}" hx-get="{{ url_for('agents') }}" hx-target="#agents-table-body" hx-trigger="keyup changed delay:400ms" autocomplete="off"></th>
+      <th><input type="text" class="form-control form-control-sm" name="email" placeholder="Filter" value="{{ request.args.get('email', '') }}" hx-get="{{ url_for('agents') }}" hx-target="#agents-table-body" hx-trigger="keyup changed delay:400ms" autocomplete="off"></th>
+      <th><input type="text" class="form-control form-control-sm" name="mobile" placeholder="Filter" value="{{ request.args.get('mobile', '') }}" hx-get="{{ url_for('agents') }}" hx-target="#agents-table-body" hx-trigger="keyup changed delay:400ms" autocomplete="off"></th>
+      <th><input type="text" class="form-control form-control-sm" name="type" placeholder="Filter" value="{{ request.args.get('type', '') }}" hx-get="{{ url_for('agents') }}" hx-target="#agents-table-body" hx-trigger="keyup changed delay:400ms" autocomplete="off"></th>
       <th>
-        <select class="form-select form-select-sm" name="status">
+        <select class="form-select form-select-sm" name="status" hx-get="{{ url_for('agents') }}" hx-target="#agents-table-body" hx-trigger="change">
           <option value="">All</option>
           <option value="Active" {% if request.args.get('status') == 'Active' %}selected{% endif %}>Active</option>
           <option value="Inactive" {% if request.args.get('status') == 'Inactive' %}selected{% endif %}>Inactive</option>
         </select>
       </th>
-      <th><button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel"></i> Filter</button></th>
+      <th></th>
     </tr>
   </thead>
-  <tbody>
+  <tbody id="agents-table-body">
     {% for agent in agents %}
-    <tr>
-      <td>{{ loop.index }}</td>
+    <tr data-agent-id="{{ agent.id }}">
       <td>{{ agent.name }}</td>
       <td>{{ agent.email }}</td>
       <td>{{ agent.mobile }}</td>

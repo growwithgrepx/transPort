@@ -1,13 +1,13 @@
 {% extends 'base.html' %}
 {% block title %}Billing - Admin Portal{% endblock %}
 {% block content %}
+<div class="container-fluid fw-normal fs-6">
 <h2>Billing</h2>
 <a href="{{ url_for('add_billing') }}" class="btn btn-success mb-3">Add Billing</a>
 <div class="table-responsive">
 <table class="table table-bordered table-hover table-striped align-middle">
   <thead class="table-light">
     <tr>
-      <th>ID</th>
       <th>Job ID</th>
       <th>Amount</th>
       <th>Discount ID</th>
@@ -16,8 +16,7 @@
   </thead>
   <tbody>
     {% for billing in billings %}
-    <tr>
-      <td>{{ billing.id }}</td>
+    <tr data-billing-id="{{ billing.id }}">
       <td>{{ billing.job_id }}</td>
       <td>{{ billing.amount }}</td>
       <td>{{ billing.discount_id }}</td>
@@ -34,5 +33,6 @@
     {% endfor %}
   </tbody>
 </table>
+</div>
 </div>
 {% endblock %} 

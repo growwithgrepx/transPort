@@ -637,6 +637,8 @@ def drivers():
     if phone:
         query = query.filter(Driver.phone.ilike(f'%{phone}%'))
     drivers = query.all()
+    if request.headers.get('HX-Request') == 'true':
+        return render_template('drivers_table.html', drivers=drivers)
     return render_template('drivers.html', drivers=drivers)
 
 
@@ -707,6 +709,8 @@ def agents():
     if status:
         query = query.filter(Agent.status == status)
     agents = query.all()
+    if request.headers.get('HX-Request') == 'true':
+        return render_template('agents_table.html', agents=agents)
     return render_template('agents.html', agents=agents)
 
 
@@ -860,6 +864,8 @@ def services():
     if status:
         query = query.filter(Service.status == status)
     services = query.all()
+    if request.headers.get('HX-Request') == 'true':
+        return render_template('services.html', services=services)
     return render_template('services.html', services=services)
 
 
@@ -917,6 +923,8 @@ def vehicles():
     if status:
         query = query.filter(Vehicle.status == status)
     vehicles = query.all()
+    if request.headers.get('HX-Request') == 'true':
+        return render_template('vehicles.html', vehicles=vehicles)
     return render_template('vehicles.html', vehicles=vehicles)
 
 

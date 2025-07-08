@@ -3,35 +3,32 @@
 {% block content %}
 <h2>Manage Services</h2>
 <a href="{{ url_for('add_service') }}" class="btn btn-success mb-3">Add Service</a>
-<form method="get" action="{{ url_for('services') }}">
+<form method="get" action="{{ url_for('services') }}" hx-get="{{ url_for('services') }}" hx-target="#services-table-body" hx-push-url="true">
 <div class="table-responsive">
 <table class="table table-bordered table-hover table-striped align-middle">
   <thead class="table-light">
     <tr>
-      <th>ID</th>
       <th>Name</th>
       <th>Description</th>
       <th>Status</th>
       <th>Actions</th>
     </tr>
     <tr>
-      <th></th>
-      <th><input type="text" class="form-control form-control-sm" name="name" placeholder="Filter" value="{{ request.args.get('name', '') }}"></th>
+      <th><input type="text" class="form-control form-control-sm" name="name" placeholder="Filter" value="{{ request.args.get('name', '') }}" hx-get="{{ url_for('services') }}" hx-target="#services-table-body" hx-trigger="keyup changed delay:400ms" autocomplete="off"></th>
       <th></th>
       <th>
-        <select class="form-select form-select-sm" name="status">
+        <select class="form-select form-select-sm" name="status" hx-get="{{ url_for('services') }}" hx-target="#services-table-body" hx-trigger="change">
           <option value="">All</option>
           <option value="Active" {% if request.args.get('status') == 'Active' %}selected{% endif %}>Active</option>
           <option value="Inactive" {% if request.args.get('status') == 'Inactive' %}selected{% endif %}>Inactive</option>
         </select>
       </th>
-      <th><button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel"></i> Filter</button></th>
+      <th></th>
     </tr>
   </thead>
-  <tbody>
+  <tbody id="services-table-body">
     {% for service in services %}
-    <tr>
-      <td>{{ service.id }}</td>
+    <tr data-service-id="{{ service.id }}">
       <td>{{ service.name }}</td>
       <td>{{ service.description }}</td>
       <td>
