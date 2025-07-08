@@ -118,4 +118,6 @@ Desktop.ini
 
 # Ignore migration cache, but keep migration scripts
 migrations/*.pyc
-migrations/__pycache__/ 
+migrations/__pycache__/ attached_assets
+logs
+.replit
