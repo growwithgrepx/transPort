@@ -51,7 +51,7 @@ with app.app_context():
     accountant_role = get_or_create(Role, name='accountant', defaults={'description': 'Accountant'})
     customer_service_role = get_or_create(Role, name='customer_service', defaults={'description': 'Customer Service'})
 
-    # Create users with Flask-Security's user_datastore
+    # Create users with Flask-Security's user_datastore (it handles password hashing automatically)
     fleet_manager = user_datastore.create_user(
         username='fleetmanager',
         email='fleetmanager@example.com',
