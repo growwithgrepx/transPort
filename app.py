@@ -13,15 +13,14 @@ from flask.cli import with_appcontext
 from flask_security.core import Security
 from flask_security.datastore import SQLAlchemyUserDatastore
 from flask_security.forms import LoginForm
-from flask_login import login_required, current_user, LoginManager, login_user
+from flask_login import login_required, current_user
 from wtforms import StringField
 from wtforms.validators import DataRequired
 from math import ceil
 from flask_admin import Admin, expose
 from flask_admin.contrib.sqla import ModelView
 from flask import abort
-from flask_wtf.csrf import generate_csrf
-from flask_security.utils import verify_and_update_password
+from flask_wtf.csrf import CSRFProtect
 from models import User
 
 app = Flask(__name__)
@@ -35,6 +34,16 @@ class Config:
         {"username": {"mapper": "username", "case_insensitive": True}},
         {"email": {"mapper": "email", "case_insensitive": True}},
     ]
+    # Flask-Security configuration
+    SECURITY_REGISTERABLE = False
+    SECURITY_RECOVERABLE = False
+    SECURITY_CHANGEABLE = False
+    SECURITY_CONFIRMABLE = False
+    SECURITY_TRACKABLE = False
+    SECURITY_PASSWORDLESS = False
+    SECURITY_FLASH_MESSAGES = True
+    SECURITY_POST_LOGIN_REDIRECT_ENDPOINT = 'dashboard'
+    WTF_CSRF_ENABLED = True
 
 class DevelopmentConfig(Config):
     pass
@@ -58,6 +67,7 @@ if not app.config['SQLALCHEMY_DATABASE_URI']:
     raise RuntimeError('DATABASE_URL environment variable must be set to a valid PostgreSQL connection string.')
 
 db.init_app(app)
+csrf = CSRFProtect(app)
 
 migrate = Migrate(app, db)
 
@@ -97,20 +107,7 @@ with app.app_context():
 def index():
     return redirect(url_for('dashboard'))
 
-@app.route('/reset_password', methods=['GET', 'POST'])
-def reset_password():
-    if request.method == 'POST':
-        email = request.form['email']
-        user = User.query.filter_by(email=email).first()
-        if user:
-            new_password = request.form['new_password']
-            user.set_password(new_password)
-            db.session.commit()
-            flash('Password reset successful. Please login.')
-            return redirect(url_for('security.login'))
-        else:
-            flash('Email not found.')
-    return render_template('reset_password.html')
+# Removed custom reset_password route - using Flask-Security's built-in functionality
 
 
 @app.route('/dashboard')
@@ -830,9 +827,7 @@ def create_admin(username, email, password):
     db.session.commit()
     click.echo(f'Admin user {username} created successfully.')
 
-@app.context_processor
-def inject_csrf_token():
-    return dict(csrf_token=generate_csrf)
+# CSRF token is automatically handled by Flask-WTF and Flask-Security
 
 if __name__ == '__main__':
     import os
