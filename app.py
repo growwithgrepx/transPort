@@ -71,14 +71,6 @@ user_datastore = SQLAlchemyUserDatastore(db, User, Role)
 app.config['SECURITY_LOGIN_FORM'] = ExtendedLoginForm
 security = Security(app, user_datastore)
 
-# Remove this line to avoid duplicate login managers:
-# login_manager = LoginManager(app)
-
-@security.login_manager.user_loader
-def load_user(user_id):
-    from models import User
-    return User.query.get(int(user_id))
-
 # Custom admin view to restrict access to admins only
 class AdminModelView(ModelView):
     def is_accessible(self):
@@ -104,27 +96,6 @@ with app.app_context():
 @login_required
 def index():
     return redirect(url_for('dashboard'))
-
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    error = None
-    if request.method == 'POST':
-        identity = request.form.get('identity')
-        password = request.form.get('password')
-        user = User.query.filter((User.username == identity) | (User.email == identity)).first()
-        if user and user.password == password:
-            login_user(user)
-            return redirect(url_for('dashboard'))
-        else:
-            error = "Invalid credentials"
-    return render_template('login.html', error=error)
-
-
-# @app.route('/logout')
-# def logout():
-#     ...
-
 
 @app.route('/reset_password', methods=['GET', 'POST'])
 def reset_password():
@@ -719,7 +690,8 @@ def add_vehicle():
         vehicle = Vehicle(name=name, number=number, type=type_, status=status)
         db.session.add(vehicle)
         db.session.commit()
-        return redirect(url_for('vehicles'))
+        return```python
+ redirect(url_for('vehicles'))
     return render_template('vehicle_form.html', action='Add', vehicle=None)
 
 
@@ -863,36 +835,7 @@ def create_admin(username, email, password):
 def inject_csrf_token():
     return dict(csrf_token=generate_csrf)
 
-# --- BEGIN: Insecure plain text password check for development only ---
-@security.login_manager.request_loader
-def load_user_from_request(request):
-    username_or_email = request.form.get('identity')
-    password = request.form.get('password')
-    print(f"Attempt login: {username_or_email} / {password}")
-    user = User.query.filter((User.username == username_or_email) | (User.email == username_or_email)).first()
-    if user and user.password == password:
-        print("Login success!")
-        return user
-    print("Login failed.")
-    return None
-# --- END: Insecure plain text password check ---
-
-@app.route('/custom_login', methods=['GET', 'POST'])
-def custom_login():
-    error = None
-    if request.method == 'POST':
-        identity = request.form.get('identity')
-        password = request.form.get('password')
-        user = User.query.filter((User.username == identity) | (User.email == identity)).first()
-        if user and user.password == password:
-            login_user(user)
-            return redirect(url_for('dashboard'))
-        else:
-            error = "Invalid credentials"
-    return render_template('security/login_user.html', login_user_form=None, error=error)
-
 if __name__ == '__main__':
     import os
     port = int(os.environ.get('PORT', 5000))
     app.run(debug=True, host='0.0.0.0', port=port)
-
