@@ -1,4 +1,6 @@
-<table class="table table-bordered table-hover">
+<div class="table-responsive">
+<form method="get" action="{{ url_for('jobs_table') }}" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-push-url="true">
+<table class="table table-bordered table-hover table-striped align-middle">
   <thead class="table-light">
     <tr>
       <th>ID</th>
@@ -62,7 +64,7 @@
           {% endfor %}
         </select>
       </th>
-      <th><button type="submit" class="btn btn-sm btn-primary">Filter</button></th>
+      <th><button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel"></i> Filter</button></th>
     </tr>
   </thead>
   <tbody>
@@ -85,18 +87,41 @@
       </td>
       <td>{{ job.vehicle_type }} {{ job.vehicle_number }}</td>
       <td>{{ job.driver_contact }}</td>
-      <td>{{ job.payment_status }}</td>
-      <td>{{ job.order_status }}</td>
       <td>
-        <a href="{{ url_for('edit_job', job_id=job.id) }}" class="btn btn-primary btn-sm">Edit</a>
-        <form action="{{ url_for('delete_job', job_id=job.id) }}" method="post" style="display:inline;">
-          <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Delete this job?');">Delete</button>
-        </form>
+        {% if job.payment_status == 'Paid' %}
+          <span class="badge bg-success">Paid</span>
+        {% elif job.payment_status == 'Unpaid' %}
+          <span class="badge bg-warning text-dark">Unpaid</span>
+        {% else %}
+          <span class="badge bg-secondary">{{ job.payment_status }}</span>
+        {% endif %}
+      </td>
+      <td>
+        {% if job.order_status == 'Completed' %}
+          <span class="badge bg-success">Completed</span>
+        {% elif job.order_status == 'New' %}
+          <span class="badge bg-primary">New</span>
+        {% elif job.order_status == 'Cancelled' %}
+          <span class="badge bg-danger">Cancelled</span>
+        {% else %}
+          <span class="badge bg-secondary">{{ job.order_status }}</span>
+        {% endif %}
+      </td>
+      <td>
+        <div class="d-flex gap-2">
+          <a href="{{ url_for('edit_job', job_id=job.id) }}" class="btn btn-outline-primary btn-sm" title="Edit"><i class="bi bi-pencil"></i></a>
+          <form action="{{ url_for('delete_job', job_id=job.id) }}" method="post" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-outline-danger btn-sm" title="Delete" onclick="return confirm('Delete this job?');"><i class="bi bi-trash"></i></button>
+          </form>
+        </div>
       </td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
+</form>
+</div>
 <nav aria-label="Jobs pagination" class="mt-3">
   <ul class="pagination justify-content-center">
     {% if pagination.has_prev %}

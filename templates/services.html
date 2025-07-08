@@ -4,8 +4,9 @@
 <h2>Manage Services</h2>
 <a href="{{ url_for('add_service') }}" class="btn btn-success mb-3">Add Service</a>
 <form method="get" action="{{ url_for('services') }}">
-<table class="table table-bordered">
-  <thead>
+<div class="table-responsive">
+<table class="table table-bordered table-hover table-striped align-middle">
+  <thead class="table-light">
     <tr>
       <th>ID</th>
       <th>Name</th>
@@ -24,7 +25,7 @@
           <option value="Inactive" {% if request.args.get('status') == 'Inactive' %}selected{% endif %}>Inactive</option>
         </select>
       </th>
-      <th><button type="submit" class="btn btn-sm btn-primary">Filter</button></th>
+      <th><button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel"></i> Filter</button></th>
     </tr>
   </thead>
   <tbody>
@@ -33,16 +34,28 @@
       <td>{{ service.id }}</td>
       <td>{{ service.name }}</td>
       <td>{{ service.description }}</td>
-      <td>{{ service.status }}</td>
       <td>
-        <a href="{{ url_for('edit_service', service_id=service.id) }}" class="btn btn-primary btn-sm">Edit</a>
-        <form action="{{ url_for('delete_service', service_id=service.id) }}" method="post" style="display:inline;">
-          <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Delete this service?');">Delete</button>
-        </form>
+        {% if service.status == 'Active' %}
+          <span class="badge bg-success">Active</span>
+        {% elif service.status == 'Inactive' %}
+          <span class="badge bg-secondary">Inactive</span>
+        {% else %}
+          <span class="badge bg-secondary">{{ service.status }}</span>
+        {% endif %}
+      </td>
+      <td>
+        <div class="d-flex gap-2">
+          <a href="{{ url_for('edit_service', service_id=service.id) }}" class="btn btn-outline-primary btn-sm" title="Edit"><i class="bi bi-pencil"></i></a>
+          <form action="{{ url_for('delete_service', service_id=service.id) }}" method="post" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-outline-danger btn-sm" title="Delete" onclick="return confirm('Delete this service?');"><i class="bi bi-trash"></i></button>
+          </form>
+        </div>
       </td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
+</div>
 </form>
 {% endblock %} 

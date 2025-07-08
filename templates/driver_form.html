@@ -1,19 +1,27 @@
-<form method="post" hx-post="" hx-target="#drivers-table" hx-swap="outerHTML" id="driver-form">
-  {{ csrf_token() }}
-  <div class="mb-3">
-    <label for="name" class="form-label">Name</label>
-    <input type="text" class="form-control" id="name" name="name" value="{{ driver.name if driver else '' }}" required>
-    {% if errors and errors.get('name') %}
-      <div class="text-danger small">{{ errors['name'][0] }}</div>
-    {% endif %}
+<form method="post" action="{{ action_url }}" {% if hx_post_url %}hx-post="{{ hx_post_url }}"{% endif %} {% if hx_target %}hx-target="{{ hx_target }}"{% endif %} {% if hx_swap %}hx-swap="{{ hx_swap }}"{% endif %} id="driver-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label for="name" class="form-label">Name <span class="text-danger">*</span></label>
+          <input type="text" class="form-control" id="name" name="name" value="{{ driver.name if driver else '' }}" required>
+          {% if errors and errors.get('name') %}
+            <div class="text-danger small">{{ errors['name'][0] }}</div>
+          {% endif %}
+        </div>
+        <div class="col-md-6">
+          <label for="phone" class="form-label">Phone <span class="text-danger">*</span></label>
+          <input type="text" class="form-control" id="phone" name="phone" value="{{ driver.phone if driver else '' }}" required>
+          {% if errors and errors.get('phone') %}
+            <div class="text-danger small">{{ errors['phone'][0] }}</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
   </div>
-  <div class="mb-3">
-    <label for="phone" class="form-label">Phone</label>
-    <input type="text" class="form-control" id="phone" name="phone" value="{{ driver.phone if driver else '' }}" required>
-    {% if errors and errors.get('phone') %}
-      <div class="text-danger small">{{ errors['phone'][0] }}</div>
-    {% endif %}
+  <div class="d-flex justify-content-end gap-2">
+    <button type="submit" class="btn btn-primary">{{ action }}</button>
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
   </div>
-  <button type="submit" class="btn btn-primary">{{ action }}</button>
-  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
 </form> 

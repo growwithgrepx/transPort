@@ -20,4 +20,10 @@
     </div>
   </div>
 </div>
+<script>
+  document.body.addEventListener('closeModal', function() {
+    var modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('driverModal'));
+    modal.hide();
+  });
+</script>
 {% endblock %} 

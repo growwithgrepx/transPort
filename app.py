@@ -1,6 +1,6 @@
 from dotenv import load_dotenv
 load_dotenv()
-from flask import Flask, render_template, redirect, url_for, request, flash, session, jsonify
+from flask import Flask, render_template, redirect, url_for, request, flash, session, jsonify, make_response
 from extensions import db
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
@@ -17,7 +17,7 @@ from math import ceil
 from flask_admin import Admin, expose
 from flask_admin.contrib.sqla import ModelView
 from flask import abort
-from flask_wtf.csrf import CSRFProtect
+from flask_wtf.csrf import CSRFProtect, generate_csrf
 from models import User
 import logging
 from logging.handlers import RotatingFileHandler
@@ -643,26 +643,38 @@ def drivers():
 @app.route('/drivers/add', methods=['GET', 'POST'])
 @login_required
 def add_driver():
+    errors = {}
     if request.method == 'POST':
         name = request.form['name']
         phone = request.form['phone']
         driver = Driver(name=name, phone=phone)
         db.session.add(driver)
         db.session.commit()
+        if request.headers.get('HX-Request') == 'true':
+            drivers = Driver.query.all()
+            response = make_response(render_template('drivers_table.html', drivers=drivers))
+            response.headers['HX-Trigger'] = 'closeModal'
+            return response
         return redirect(url_for('drivers'))
-    return render_template('driver_form.html', action='Add')
+    return render_template('driver_form.html', action='Add', driver=None, errors=errors,
+        action_url=url_for('add_driver'), hx_post_url=url_for('add_driver'), hx_target='#drivers-table', hx_swap='outerHTML')
 
 
 @app.route('/drivers/edit/<int:driver_id>', methods=['GET', 'POST'])
 @login_required
 def edit_driver(driver_id):
     driver = Driver.query.get_or_404(driver_id)
+    errors = {}
     if request.method == 'POST':
         driver.name = request.form['name']
         driver.phone = request.form['phone']
         db.session.commit()
         return redirect(url_for('drivers'))
-    return render_template('driver_form.html', action='Edit', driver=driver)
+    if request.headers.get('HX-Request') == 'true':
+        return render_template('driver_form.html', action='Edit', driver=driver, errors=errors,
+            action_url=url_for('edit_driver', driver_id=driver.id), hx_post_url=url_for('edit_driver', driver_id=driver.id), hx_target='#drivers-table', hx_swap='outerHTML')
+    return render_template('edit_driver_page.html', action='Edit', driver=driver, errors=errors,
+        action_url=url_for('edit_driver', driver_id=driver.id), hx_post_url=None, hx_target=None, hx_swap=None)
 
 
 @app.route('/drivers/delete/<int:driver_id>', methods=['POST'])
@@ -701,6 +713,7 @@ def agents():
 @app.route('/agents/add', methods=['GET', 'POST'])
 @login_required
 def add_agent():
+    errors = {}
     if request.method == 'POST':
         name = request.form['name']
         email = request.form['email']
@@ -710,14 +723,21 @@ def add_agent():
         agent = Agent(name=name, email=email, mobile=mobile, type=type_, status=status)
         db.session.add(agent)
         db.session.commit()
+        if request.headers.get('HX-Request') == 'true':
+            agents = Agent.query.all()
+            response = make_response(render_template('agents_table.html', agents=agents))
+            response.headers['HX-Trigger'] = 'closeModal'
+            return response
         return redirect(url_for('agents'))
-    return render_template('agent_form.html', action='Add', agent=None)
+    return render_template('agent_form.html', action='Add', agent=None, errors=errors,
+        action_url=url_for('add_agent'), hx_post_url=url_for('add_agent'), hx_target='#agents-table', hx_swap='outerHTML')
 
 
 @app.route('/agents/edit/<int:agent_id>', methods=['GET', 'POST'])
 @login_required
 def edit_agent(agent_id):
     agent = Agent.query.get_or_404(agent_id)
+    errors = {}
     if request.method == 'POST':
         agent.name = request.form['name']
         agent.email = request.form['email']
@@ -726,7 +746,11 @@ def edit_agent(agent_id):
         agent.status = request.form['status']
         db.session.commit()
         return redirect(url_for('agents'))
-    return render_template('agent_form.html', action='Edit', agent=agent)
+    if request.headers.get('HX-Request') == 'true':
+        return render_template('agent_form.html', action='Edit', agent=agent, errors=errors,
+            action_url=url_for('edit_agent', agent_id=agent.id), hx_post_url=url_for('edit_agent', agent_id=agent.id), hx_target='#agents-table', hx_swap='outerHTML')
+    return render_template('edit_agent_page.html', action='Edit', agent=agent, errors=errors,
+        action_url=url_for('edit_agent', agent_id=agent.id), hx_post_url=None, hx_target=None, hx_swap=None)
 
 
 @app.route('/agents/delete/<int:agent_id>', methods=['POST'])
@@ -899,6 +923,7 @@ def vehicles():
 @app.route('/vehicles/add', methods=['GET', 'POST'])
 @login_required
 def add_vehicle():
+    errors = {}
     if request.method == 'POST':
         name = request.form['name']
         number = request.form['number']
@@ -907,14 +932,15 @@ def add_vehicle():
         vehicle = Vehicle(name=name, number=number, type=type_, status=status)
         db.session.add(vehicle)
         db.session.commit()
-        redirect(url_for('vehicles'))
-    return render_template('vehicle_form.html', action='Add', vehicle=None)
+        return redirect(url_for('vehicles'))
+    return render_template('vehicle_form.html', action='Add', vehicle=None, errors=errors)
 
 
 @app.route('/vehicles/edit/<int:vehicle_id>', methods=['GET', 'POST'])
 @login_required
 def edit_vehicle(vehicle_id):
     vehicle = Vehicle.query.get_or_404(vehicle_id)
+    errors = {}
     if request.method == 'POST':
         vehicle.name = request.form['name']
         vehicle.number = request.form['number']
@@ -922,7 +948,7 @@ def edit_vehicle(vehicle_id):
         vehicle.status = request.form['status']
         db.session.commit()
         return redirect(url_for('vehicles'))
-    return render_template('vehicle_form.html', action='Edit', vehicle=vehicle)
+    return render_template('vehicle_form.html', action='Edit', vehicle=vehicle, errors=errors)
 
 
 @app.route('/vehicles/delete/<int:vehicle_id>', methods=['POST'])
@@ -1080,6 +1106,10 @@ def inject_role_helpers():
     def has_any_role(*role_names):
         return any(role.name in role_names for role in getattr(current_user, 'roles', []))
     return dict(has_role=has_role, has_any_role=has_any_role)
+
+@app.context_processor
+def inject_csrf_token():
+    return dict(csrf_token=generate_csrf)
 
 if __name__ == '__main__':
     import os
