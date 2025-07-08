@@ -8,7 +8,7 @@ except ImportError:
 from app import app, db, user_datastore
 from models import User, Role, Vehicle, Driver, Agent, Service, Job, Billing, Discount
 from sqlalchemy import text
-from flask_security import UserMixin
+from flask_security.core import UserMixin  # Fixed import: import UserMixin from flask_security.core
 
 def get_or_create(model, defaults=None, **kwargs):
     instance = model.query.filter_by(**kwargs).first()
@@ -36,11 +36,9 @@ with app.app_context():
     db.session.query(Role).delete()
     db.session.commit()
 
-    # Create roles
-    admin_role = Role(name='admin', description='Administrator')
-    user_role = Role(name='user', description='Standard User')
-    db.session.add_all([admin_role, user_role])
-    db.session.commit()
+    # Create roles using get_or_create to avoid self-dependency issues
+    admin_role = get_or_create(Role, name='admin', defaults={'description': 'Administrator'})
+    user_role = get_or_create(Role, name='user', defaults={'description': 'Standard User'})
 
     # Create users with Flask-Security's user_datastore
     admin = user_datastore.create_user(
@@ -116,14 +114,3 @@ class Config:
         {"username": {"mapper": "username", "case_insensitive": True}},
         {"email": {"mapper": "email", "case_insensitive": True}},
     ]
-
-class Role(db.Model):
-    id = db.Column(db.Integer(), primary_key=True)
-    name = db.Column(db.String(80), unique=True)
-    description = db.Column(db.String(255))
-    permissions = db.Column(db.UnicodeText)
-
-    def get_permissions(self):
-        if self.permissions:
-            return self.permissions.split(',')
-        return []
