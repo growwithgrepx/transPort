@@ -2,53 +2,22 @@
 {% block title %}Agents - Admin Portal{% endblock %}
 {% block content %}
 <h2>Agents</h2>
-<a href="{{ url_for('add_agent') }}" class="btn btn-success mb-3">Add Agent</a>
-<form method="get" action="{{ url_for('agents') }}">
-<table class="table table-bordered">
-  <thead>
-    <tr>
-      <th>Sr. No.</th>
-      <th>Name</th>
-      <th>Email</th>
-      <th>Mobile</th>
-      <th>Type</th>
-      <th>Status</th>
-      <th>Actions</th>
-    </tr>
-    <tr>
-      <th></th>
-      <th><input type="text" class="form-control form-control-sm" name="name" placeholder="Filter" value="{{ request.args.get('name', '') }}"></th>
-      <th><input type="text" class="form-control form-control-sm" name="email" placeholder="Filter" value="{{ request.args.get('email', '') }}"></th>
-      <th><input type="text" class="form-control form-control-sm" name="mobile" placeholder="Filter" value="{{ request.args.get('mobile', '') }}"></th>
-      <th><input type="text" class="form-control form-control-sm" name="type" placeholder="Filter" value="{{ request.args.get('type', '') }}"></th>
-      <th>
-        <select class="form-select form-select-sm" name="status">
-          <option value="">All</option>
-          <option value="Active" {% if request.args.get('status') == 'Active' %}selected{% endif %}>Active</option>
-          <option value="Inactive" {% if request.args.get('status') == 'Inactive' %}selected{% endif %}>Inactive</option>
-        </select>
-      </th>
-      <th><button type="submit" class="btn btn-sm btn-primary">Filter</button></th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for agent in agents %}
-    <tr>
-      <td>{{ loop.index }}</td>
-      <td>{{ agent.name }}</td>
-      <td>{{ agent.email }}</td>
-      <td>{{ agent.mobile }}</td>
-      <td>{{ agent.type }}</td>
-      <td>{{ agent.status }}</td>
-      <td>
-        <a href="{{ url_for('edit_agent', agent_id=agent.id) }}" class="btn btn-primary btn-sm">Edit</a>
-        <form action="{{ url_for('delete_agent', agent_id=agent.id) }}" method="post" style="display:inline;">
-          <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Delete this agent?');">Delete</button>
-        </form>
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-</form>
+<a href="#" class="btn btn-success mb-3" hx-get="{{ url_for('add_agent') }}" hx-target="#agent-modal-body" hx-trigger="click" data-bs-toggle="modal" data-bs-target="#agentModal">Add Agent</a>
+<div id="agents-table" hx-target="this">
+  {% include 'agents_table.html' %}
+</div>
+<!-- Modal for Add/Edit Agent -->
+<div class="modal fade" id="agentModal" tabindex="-1" aria-labelledby="agentModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="agentModalLabel">Agent</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="agent-modal-body">
+        <!-- Form will be loaded here by HTMX -->
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %} 

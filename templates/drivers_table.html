@@ -1,0 +1,31 @@
+<form method="get" action="{{ url_for('drivers') }}" hx-get="{{ url_for('drivers') }}" hx-target="#drivers-table" hx-push-url="true">
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Name</th>
+      <th>Phone</th>
+      <th>Actions</th>
+    </tr>
+    <tr>
+      <th></th>
+      <th><input type="text" class="form-control form-control-sm" name="name" placeholder="Filter" value="{{ request.args.get('name', '') }}"></th>
+      <th><input type="text" class="form-control form-control-sm" name="phone" placeholder="Filter" value="{{ request.args.get('phone', '') }}"></th>
+      <th><button type="submit" class="btn btn-sm btn-primary">Filter</button></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for driver in drivers %}
+    <tr>
+      <td>{{ driver.id }}</td>
+      <td>{{ driver.name }}</td>
+      <td>{{ driver.phone }}</td>
+      <td>
+        <a href="#" class="btn btn-primary btn-sm" hx-get="{{ url_for('edit_driver', driver_id=driver.id) }}" hx-target="#driver-modal-body" data-bs-toggle="modal" data-bs-target="#driverModal">Edit</a>
+        <button class="btn btn-danger btn-sm" hx-delete="{{ url_for('delete_driver', driver_id=driver.id) }}" hx-target="#drivers-table" hx-confirm="Delete this driver?" hx-headers='{"X-CSRFToken": "{{ csrf_token() }}"}'>Delete</button>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</form> 

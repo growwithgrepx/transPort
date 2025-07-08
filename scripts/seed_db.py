@@ -1,12 +1,15 @@
+import sys
 import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 try:
     from dotenv import load_dotenv
     load_dotenv()
 except ImportError:
     pass
 
-from app import app, db, user_datastore
-from models import User, Role, Vehicle, Driver, Agent, Service, Job, Billing, Discount
+import app
+from extensions import db
+from models import User, Role, Vehicle, Driver, Agent, Service, Job, Billing, Discount, Price, CustomerDiscount
 from sqlalchemy import text
 from flask_security.core import UserMixin  # Fixed import: import UserMixin from flask_security.core
 
@@ -22,10 +25,15 @@ def get_or_create(model, defaults=None, **kwargs):
         db.session.commit()
         return instance
 
+# Properly create Flask app context using the factory pattern
+from app import app, user_datastore
+
 with app.app_context():
     # Wipe all data in the correct order to avoid FK issues
     db.session.query(Billing).delete()
     db.session.query(Job).delete()
+    db.session.query(CustomerDiscount).delete()
+    db.session.query(Price).delete()
     db.session.query(Service).delete()
     db.session.query(Agent).delete()
     db.session.query(Driver).delete()
@@ -37,25 +45,53 @@ with app.app_context():
     db.session.commit()
 
     # Create roles using get_or_create to avoid self-dependency issues
-    admin_role = get_or_create(Role, name='admin', defaults={'description': 'Administrator'})
-    user_role = get_or_create(Role, name='user', defaults={'description': 'Standard User'})
+    fleet_manager_role = get_or_create(Role, name='fleet_manager', defaults={'description': 'Fleet Manager'})
+    system_admin_role = get_or_create(Role, name='system_admin', defaults={'description': 'System Administrator'})
+    fleet_employee_role = get_or_create(Role, name='fleet_employee', defaults={'description': 'Fleet Company Employee'})
+    accountant_role = get_or_create(Role, name='accountant', defaults={'description': 'Accountant'})
+    customer_service_role = get_or_create(Role, name='customer_service', defaults={'description': 'Customer Service'})
 
     # Create users with Flask-Security's user_datastore
-    admin = user_datastore.create_user(
-        username='admin',
-        email='admin@example.com',
-        password='admin123',
+    fleet_manager = user_datastore.create_user(
+        username='fleetmanager',
+        email='fleetmanager@example.com',
+        password='manager123',
         active=True,
-        roles=[admin_role]
+        roles=[fleet_manager_role]
     )
-    user = user_datastore.create_user(
-        username='user1',
-        email='user1@example.com',
-        password='user123',
+    system_admin = user_datastore.create_user(
+        username='sysadmin',
+        email='sysadmin@example.com',
+        password='sysadmin123',
         active=True,
-        roles=[user_role]
+        roles=[system_admin_role]
+    )
+    fleet_employee = user_datastore.create_user(
+        username='employee1',
+        email='employee1@example.com',
+        password='employee123',
+        active=True,
+        roles=[fleet_employee_role]
+    )
+    accountant = user_datastore.create_user(
+        username='accountant1',
+        email='accountant1@example.com',
+        password='accountant123',
+        active=True,
+        roles=[accountant_role]
+    )
+    customer_service = user_datastore.create_user(
+        username='custservice1',
+        email='custservice1@example.com',
+        password='custservice123',
+        active=True,
+        roles=[customer_service_role]
     )
     db.session.commit()
+
+    # After creating users, print their username and password hash for debugging
+    for user in [fleet_manager, system_admin, fleet_employee, accountant, customer_service]:
+        print(f"User: {user.username}, Password Hash: {user.password}")
 
     # Vehicles
     vehicle1 = get_or_create(Vehicle, number='SGX1234A', defaults={'name': 'Toyota Hiace', 'type': '13-Seater', 'status': 'Active'})
@@ -73,9 +109,17 @@ with app.app_context():
     service1 = get_or_create(Service, name='Airport Transfer', defaults={'description': 'Transfer to/from airport', 'status': 'Active'})
     service2 = get_or_create(Service, name='Corporate Charter', defaults={'description': 'Corporate transport', 'status': 'Active'})
 
+    # Prices for services
+    price1 = get_or_create(Price, service_id=service1.id, defaults={'amount': 50.0, 'currency': 'SGD'})
+    price2 = get_or_create(Price, service_id=service2.id, defaults={'amount': 80.0, 'currency': 'SGD'})
+
     # Discounts
     discount1 = get_or_create(Discount, code='WELCOME10', defaults={'percent': 10})
     discount2 = get_or_create(Discount, code='CORP5', defaults={'percent': 5})
+
+    # CustomerDiscounts for agents
+    customer_discount1 = get_or_create(CustomerDiscount, customer_id=agent1.id, discount_id=discount1.id, defaults={'valid_from': None, 'valid_to': None})
+    customer_discount2 = get_or_create(CustomerDiscount, customer_id=agent2.id, discount_id=discount2.id, defaults={'valid_from': None, 'valid_to': None})
 
     # Jobs
     job1 = get_or_create(Job, customer_reference='REF001', defaults={

@@ -106,3 +106,16 @@ Desktop.ini
 
 # Other
 *.log 
+
+# PyCharm project settings
+.idea/
+
+# Backup and temp files
+*.bak
+*.tmp
+*.pyo
+*.swp
+
+# Ignore migration cache, but keep migration scripts
+migrations/*.pyc
+migrations/__pycache__/ 

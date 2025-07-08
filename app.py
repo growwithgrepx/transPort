@@ -10,7 +10,19 @@ from datetime import datetime
 from flask_migrate import Migrate
 import click
 from flask.cli import with_appcontext
-from flask_security import Security, SQLAlchemyUserDatastore, login_required
+from flask_security.core import Security
+from flask_security.datastore import SQLAlchemyUserDatastore
+from flask_security.forms import LoginForm
+from flask_login import login_required, current_user, LoginManager, login_user
+from wtforms import StringField
+from wtforms.validators import DataRequired
+from math import ceil
+from flask_admin import Admin, expose
+from flask_admin.contrib.sqla import ModelView
+from flask import abort
+from flask_wtf.csrf import generate_csrf
+from flask_security.utils import verify_and_update_password
+from models import User
 
 app = Flask(__name__)
 
@@ -52,8 +64,41 @@ migrate = Migrate(app, db)
 with app.app_context():
     from models import User, Job, Driver, Agent, Billing, Discount, Service, Vehicle, Role
 
+class ExtendedLoginForm(LoginForm):
+    identity = StringField('Email or Username', validators=[DataRequired()])
+
 user_datastore = SQLAlchemyUserDatastore(db, User, Role)
+app.config['SECURITY_LOGIN_FORM'] = ExtendedLoginForm
 security = Security(app, user_datastore)
+
+# Remove this line to avoid duplicate login managers:
+# login_manager = LoginManager(app)
+
+@security.login_manager.user_loader
+def load_user(user_id):
+    from models import User
+    return User.query.get(int(user_id))
+
+# Custom admin view to restrict access to admins only
+class AdminModelView(ModelView):
+    def is_accessible(self):
+        return current_user.is_authenticated and any(role.name in ['fleet_manager', 'system_admin'] for role in current_user.roles)
+    def inaccessible_callback(self, name, **kwargs):
+        return abort(403)
+
+# Initialize Flask-Admin
+admin = Admin(app, name='Admin', template_mode='bootstrap4')
+
+with app.app_context():
+    admin.add_view(AdminModelView(User, db.session))
+    admin.add_view(AdminModelView(Role, db.session))
+    admin.add_view(AdminModelView(Job, db.session))
+    admin.add_view(AdminModelView(Driver, db.session))
+    admin.add_view(AdminModelView(Agent, db.session))
+    admin.add_view(AdminModelView(Vehicle, db.session))
+    admin.add_view(AdminModelView(Billing, db.session))
+    admin.add_view(AdminModelView(Discount, db.session))
+    admin.add_view(AdminModelView(Service, db.session))
 
 @app.route('/')
 @login_required
@@ -61,9 +106,19 @@ def index():
     return redirect(url_for('dashboard'))
 
 
-# @app.route('/login', methods=['GET', 'POST'])
-# def login():
-#     ...
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    error = None
+    if request.method == 'POST':
+        identity = request.form.get('identity')
+        password = request.form.get('password')
+        user = User.query.filter((User.username == identity) | (User.email == identity)).first()
+        if user and user.password == password:
+            login_user(user)
+            return redirect(url_for('dashboard'))
+        else:
+            error = "Invalid credentials"
+    return render_template('login.html', error=error)
 
 
 # @app.route('/logout')
@@ -97,7 +152,8 @@ def dashboard():
 @app.route('/jobs', methods=['GET', 'POST'])
 @login_required
 def jobs():
-    # Advanced search fields
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
     search_fields = [
         'customer_name', 'customer_email', 'customer_mobile', 'customer_reference',
         'passenger_name', 'passenger_email', 'passenger_mobile', 'type_of_service',
@@ -114,9 +170,9 @@ def jobs():
             filters.append(getattr(Job, field).ilike(f'%{value}%'))
     search_query = request.args.get('search', '')
     if advanced:
-        jobs = Job.query.filter(*filters).all()
+        query = Job.query.filter(*filters)
     elif search_query:
-        jobs = Job.query.filter(
+        query = Job.query.filter(
             (Job.customer_name.ilike(f'%{search_query}%')) |
             (Job.customer_email.ilike(f'%{search_query}%')) |
             (Job.customer_mobile.ilike(f'%{search_query}%')) |
@@ -139,10 +195,65 @@ def jobs():
             (Job.remarks.ilike(f'%{search_query}%')) |
             (Job.reference.ilike(f'%{search_query}%')) |
             (Job.status.ilike(f'%{search_query}%'))
-        ).all()
+        )
     else:
-        jobs = Job.query.all()
-    return render_template('jobs.html', jobs=jobs, search_query=search_query)
+        query = Job.query
+    pagination = query.order_by(Job.id.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    jobs = pagination.items
+    return render_template('jobs.html', jobs=jobs, search_query=search_query, pagination=pagination)
+
+@app.route('/jobs/table', methods=['GET'])
+@login_required
+def jobs_table():
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    search_fields = [
+        'customer_name', 'customer_email', 'customer_mobile', 'customer_reference',
+        'passenger_name', 'passenger_email', 'passenger_mobile', 'type_of_service',
+        'pickup_date', 'pickup_time', 'pickup_location', 'dropoff_location',
+        'vehicle_type', 'vehicle_number', 'driver_contact', 'payment_mode',
+        'payment_status', 'order_status', 'message', 'remarks', 'reference', 'status'
+    ]
+    filters = []
+    advanced = False
+    for field in search_fields:
+        value = request.args.get(field)
+        if value:
+            advanced = True
+            filters.append(getattr(Job, field).ilike(f'%{value}%'))
+    search_query = request.args.get('search', '')
+    if advanced:
+        query = Job.query.filter(*filters)
+    elif search_query:
+        query = Job.query.filter(
+            (Job.customer_name.ilike(f'%{search_query}%')) |
+            (Job.customer_email.ilike(f'%{search_query}%')) |
+            (Job.customer_mobile.ilike(f'%{search_query}%')) |
+            (Job.customer_reference.ilike(f'%{search_query}%')) |
+            (Job.passenger_name.ilike(f'%{search_query}%')) |
+            (Job.passenger_email.ilike(f'%{search_query}%')) |
+            (Job.passenger_mobile.ilike(f'%{search_query}%')) |
+            (Job.type_of_service.ilike(f'%{search_query}%')) |
+            (Job.pickup_date.ilike(f'%{search_query}%')) |
+            (Job.pickup_time.ilike(f'%{search_query}%')) |
+            (Job.pickup_location.ilike(f'%{search_query}%')) |
+            (Job.dropoff_location.ilike(f'%{search_query}%')) |
+            (Job.vehicle_type.ilike(f'%{search_query}%')) |
+            (Job.vehicle_number.ilike(f'%{search_query}%')) |
+            (Job.driver_contact.ilike(f'%{search_query}%')) |
+            (Job.payment_mode.ilike(f'%{search_query}%')) |
+            (Job.payment_status.ilike(f'%{search_query}%')) |
+            (Job.order_status.ilike(f'%{search_query}%')) |
+            (Job.message.ilike(f'%{search_query}%')) |
+            (Job.remarks.ilike(f'%{search_query}%')) |
+            (Job.reference.ilike(f'%{search_query}%')) |
+            (Job.status.ilike(f'%{search_query}%'))
+        )
+    else:
+        query = Job.query
+    pagination = query.order_by(Job.id.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    jobs = pagination.items
+    return render_template('jobs_table.html', jobs=jobs, pagination=pagination)
 
 
 @app.route('/jobs/add', methods=['GET', 'POST'])
@@ -640,6 +751,8 @@ def delete_vehicle(vehicle_id):
 def api_quick_add_agent():
     data = request.json
     from models import Agent
+    if not data:
+        return jsonify({'error': 'No input data provided'}), 400
     agent = Agent(
         name=data.get('name'),
         email=data.get('email'),
@@ -661,6 +774,8 @@ def api_quick_add_agent():
 def api_quick_add_service():
     data = request.json
     from models import Service
+    if not data:
+        return jsonify({'error': 'No input data provided'}), 400
     service = Service(
         name=data.get('name'),
         description=data.get('description'),
@@ -678,6 +793,8 @@ def api_quick_add_service():
 def api_quick_add_vehicle():
     data = request.json
     from models import Vehicle
+    if not data:
+        return jsonify({'error': 'No input data provided'}), 400
     vehicle = Vehicle(
         name=data.get('name'),
         number=data.get('number'),
@@ -698,6 +815,8 @@ def api_quick_add_vehicle():
 def api_quick_add_driver():
     data = request.json
     from models import Driver
+    if not data:
+        return jsonify({'error': 'No input data provided'}), 400
     driver = Driver(
         name=data.get('name'),
         phone=data.get('phone')
@@ -716,11 +835,17 @@ def api_quick_add_driver():
 @click.argument('password')
 @with_appcontext
 def create_admin(username, email, password):
-    from models import User, Role, db
-    admin_role = Role.query.filter_by(name='admin').first()
-    if not admin_role:
-        admin_role = Role(name='admin', description='Administrator')
-        db.session.add(admin_role)
+    from models import User, Role
+    from app import db
+    fleet_manager_role = Role.query.filter_by(name='fleet_manager').first()
+    if not fleet_manager_role:
+        fleet_manager_role = Role(name='fleet_manager', description='Fleet Manager')
+        db.session.add(fleet_manager_role)
+        db.session.commit()
+    system_admin_role = Role.query.filter_by(name='system_admin').first()
+    if not system_admin_role:
+        system_admin_role = Role(name='system_admin', description='System Administrator')
+        db.session.add(system_admin_role)
         db.session.commit()
     user = User.query.filter_by(username=username).first()
     if user:
@@ -728,10 +853,43 @@ def create_admin(username, email, password):
         return
     user = User(username=username, email=email, active=True)
     user.set_password(password)
-    user.roles.append(admin_role)
+    user.roles.append(fleet_manager_role)
+    user.roles.append(system_admin_role)
     db.session.add(user)
     db.session.commit()
     click.echo(f'Admin user {username} created successfully.')
+
+@app.context_processor
+def inject_csrf_token():
+    return dict(csrf_token=generate_csrf)
+
+# --- BEGIN: Insecure plain text password check for development only ---
+@security.login_manager.request_loader
+def load_user_from_request(request):
+    username_or_email = request.form.get('identity')
+    password = request.form.get('password')
+    print(f"Attempt login: {username_or_email} / {password}")
+    user = User.query.filter((User.username == username_or_email) | (User.email == username_or_email)).first()
+    if user and user.password == password:
+        print("Login success!")
+        return user
+    print("Login failed.")
+    return None
+# --- END: Insecure plain text password check ---
+
+@app.route('/custom_login', methods=['GET', 'POST'])
+def custom_login():
+    error = None
+    if request.method == 'POST':
+        identity = request.form.get('identity')
+        password = request.form.get('password')
+        user = User.query.filter((User.username == identity) | (User.email == identity)).first()
+        if user and user.password == password:
+            login_user(user)
+            return redirect(url_for('dashboard'))
+        else:
+            error = "Invalid credentials"
+    return render_template('security/login_user.html', login_user_form=None, error=error)
 
 if __name__ == '__main__':
     import os
