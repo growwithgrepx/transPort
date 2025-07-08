@@ -43,8 +43,8 @@ class Config:
     SECURITY_FLASH_MESSAGES = True
     SECURITY_POST_LOGIN_REDIRECT_ENDPOINT = 'dashboard'
     WTF_CSRF_ENABLED = True
-    # Ensure Flask-Security handles password hashing
-    SECURITY_PASSWORD_HASH = 'pbkdf2_sha256'
+    # Disable password hashing for now
+    SECURITY_PASSWORD_HASH = 'plaintext'
     SECURITY_PASSWORD_SALT = os.environ.get('SECURITY_PASSWORD_SALT', 'change-this-salt-in-production')
 
 class DevelopmentConfig(Config):

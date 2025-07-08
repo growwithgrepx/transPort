@@ -51,42 +51,44 @@ with app.app_context():
     accountant_role = get_or_create(Role, name='accountant', defaults={'description': 'Accountant'})
     customer_service_role = get_or_create(Role, name='customer_service', defaults={'description': 'Customer Service'})
 
-    # Create users with Flask-Security's user_datastore (it handles password hashing automatically)
-    fleet_manager = user_datastore.create_user(
+    # Create users with plaintext passwords for simplicity
+    fleet_manager = User(
         username='fleetmanager',
         email='fleetmanager@example.com',
         password='manager123',
         active=True,
         roles=[fleet_manager_role]
     )
-    system_admin = user_datastore.create_user(
+    system_admin = User(
         username='sysadmin',
         email='sysadmin@example.com',
         password='sysadmin123',
         active=True,
         roles=[system_admin_role]
     )
-    fleet_employee = user_datastore.create_user(
+    fleet_employee = User(
         username='employee1',
         email='employee1@example.com',
         password='employee123',
         active=True,
         roles=[fleet_employee_role]
     )
-    accountant = user_datastore.create_user(
+    accountant = User(
         username='accountant1',
         email='accountant1@example.com',
         password='accountant123',
         active=True,
         roles=[accountant_role]
     )
-    customer_service = user_datastore.create_user(
+    customer_service = User(
         username='custservice1',
         email='custservice1@example.com',
         password='custservice123',
         active=True,
         roles=[customer_service_role]
     )
+    
+    db.session.add_all([fleet_manager, system_admin, fleet_employee, accountant, customer_service])
     db.session.commit()
 
     # Vehicles

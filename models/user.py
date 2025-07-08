@@ -12,4 +12,8 @@ class User(UserMixin, db.Model):
     fs_uniquifier = db.Column(db.String(64), unique=True, nullable=False, default=lambda: str(uuid.uuid4()))
     username = db.Column(db.String(150), unique=True, nullable=True)
     confirmed_at = db.Column(db.DateTime())
-    roles = db.relationship('Role', secondary=roles_users, backref=db.backref('users', lazy='dynamic')) 
+    roles = db.relationship('Role', secondary=roles_users, backref=db.backref('users', lazy='dynamic'))
+    
+    def check_password(self, password):
+        """Simple plaintext password check - no hashing"""
+        return self.password == password 
