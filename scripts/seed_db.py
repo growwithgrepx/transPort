@@ -7,11 +7,10 @@ try:
 except ImportError:
     pass
 
-import app
 from extensions import db
 from models import User, Role, Vehicle, Driver, Agent, Service, Job, Billing, Discount, Price, CustomerDiscount
 from sqlalchemy import text
-from flask_security.core import UserMixin  # Fixed import: import UserMixin from flask_security.core
+import uuid
 
 def get_or_create(model, defaults=None, **kwargs):
     instance = model.query.filter_by(**kwargs).first()
@@ -25,8 +24,8 @@ def get_or_create(model, defaults=None, **kwargs):
         db.session.commit()
         return instance
 
-# Properly create Flask app context using the factory pattern
-from app import app, user_datastore
+# Import app after defining helper functions
+from app import app
 
 with app.app_context():
     # Wipe all data in the correct order to avoid FK issues
@@ -57,39 +56,52 @@ with app.app_context():
         email='fleetmanager@example.com',
         password='manager123',
         active=True,
-        roles=[fleet_manager_role]
+        fs_uniquifier=str(uuid.uuid4())
     )
+    fleet_manager.roles.append(fleet_manager_role)
+    
     system_admin = User(
         username='sysadmin',
         email='sysadmin@example.com',
         password='sysadmin123',
         active=True,
-        roles=[system_admin_role]
+        fs_uniquifier=str(uuid.uuid4())
     )
+    system_admin.roles.append(system_admin_role)
+    
     fleet_employee = User(
         username='employee1',
         email='employee1@example.com',
         password='employee123',
         active=True,
-        roles=[fleet_employee_role]
+        fs_uniquifier=str(uuid.uuid4())
     )
+    fleet_employee.roles.append(fleet_employee_role)
+    
     accountant = User(
         username='accountant1',
         email='accountant1@example.com',
         password='accountant123',
         active=True,
-        roles=[accountant_role]
+        fs_uniquifier=str(uuid.uuid4())
     )
+    accountant.roles.append(accountant_role)
+    
     customer_service = User(
         username='custservice1',
         email='custservice1@example.com',
         password='custservice123',
         active=True,
-        roles=[customer_service_role]
+        fs_uniquifier=str(uuid.uuid4())
     )
+    customer_service.roles.append(customer_service_role)
     
     db.session.add_all([fleet_manager, system_admin, fleet_employee, accountant, customer_service])
     db.session.commit()
+    
+    # Print created users for verification
+    for user in [fleet_manager, system_admin, fleet_employee, accountant, customer_service]:
+        print(f"{user.username}, Password: {user.password}")
 
     # Vehicles
     vehicle1 = get_or_create(Vehicle, number='SGX1234A', defaults={'name': 'Toyota Hiace', 'type': '13-Seater', 'status': 'Active'})
