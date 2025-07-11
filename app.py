@@ -721,6 +721,41 @@ def edit_job(job_id):
                            drivers=drivers, stops=stops)
 
 
+@app.route('/jobs/view/<int:job_id>', methods=['GET'])
+@login_required
+def view_job(job_id):
+    job = Job.query.get_or_404(job_id)
+    return render_template('view_job.html', job=job)
+
+
+@app.route('/jobs/view/<int:job_id>/update', methods=['POST'])
+@login_required
+def update_job_view(job_id):
+    job = Job.query.get_or_404(job_id)
+    
+    # Update job fields from form data
+    job.customer_name = request.form.get('customer_name', job.customer_name)
+    job.customer_email = request.form.get('customer_email', job.customer_email)
+    job.customer_mobile = request.form.get('customer_mobile', job.customer_mobile)
+    job.customer_reference = request.form.get('customer_reference', job.customer_reference)
+    job.type_of_service = request.form.get('type_of_service', job.type_of_service)
+    job.passenger_name = request.form.get('passenger_name', job.passenger_name)
+    job.passenger_email = request.form.get('passenger_email', job.passenger_email)
+    job.passenger_mobile = request.form.get('passenger_mobile', job.passenger_mobile)
+    job.pickup_date = request.form.get('pickup_date', job.pickup_date)
+    job.pickup_time = request.form.get('pickup_time', job.pickup_time)
+    job.pickup_location = request.form.get('pickup_location', job.pickup_location)
+    job.dropoff_location = request.form.get('dropoff_location', job.dropoff_location)
+    job.status = request.form.get('status', job.status)
+    job.payment_status = request.form.get('payment_status', job.payment_status)
+    job.message = request.form.get('message', job.message)
+    job.remarks = request.form.get('remarks', job.remarks)
+    
+    db.session.commit()
+    flash('Job updated successfully!', 'success')
+    return redirect(url_for('view_job', job_id=job.id))
+
+
 @app.route('/jobs/delete/<int:job_id>', methods=['POST'])
 @login_required
 def delete_job(job_id):

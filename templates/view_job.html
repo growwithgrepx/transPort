@@ -1,0 +1,236 @@
+{% extends 'base.html' %}
+{% block title %}Edit Job #{{ job.id }} - Admin Portal{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="fw-bold mb-0">
+    <i class="bi bi-pencil me-2"></i>Edit Job #{{ job.id }}
+  </h2>
+  <div class="d-flex gap-2">
+    <button type="submit" form="jobViewForm" class="btn btn-success">
+      <i class="bi bi-check me-1"></i>Save Changes
+    </button>
+    <a href="{{ url_for('jobs') }}" class="btn btn-secondary">
+      <i class="bi bi-arrow-left me-1"></i>Back to Jobs
+    </a>
+  </div>
+</div>
+
+<div class="row">
+  <!-- Job Details -->
+  <div class="col-lg-8">
+    <div class="card mb-4">
+      <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Job Details</h5>
+      </div>
+      <div class="card-body">
+        <form id="jobViewForm" method="post" action="{{ url_for('update_job_view', job_id=job.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          
+          <div class="row g-3">
+            <!-- Customer Information -->
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Customer Name</label>
+              <input type="text" class="form-control" name="customer_name" value="{{ job.customer_name or '' }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Customer Email</label>
+              <input type="email" class="form-control" name="customer_email" value="{{ job.customer_email or '' }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Customer Mobile</label>
+              <input type="text" class="form-control" name="customer_mobile" value="{{ job.customer_mobile or '' }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Customer Reference</label>
+              <input type="text" class="form-control" name="customer_reference" value="{{ job.customer_reference or '' }}">
+            </div>
+
+            <!-- Service Information -->
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Service Type</label>
+              <input type="text" class="form-control" name="type_of_service" value="{{ job.type_of_service or '' }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Agent</label>
+              <input type="text" class="form-control" name="agent_name" value="{{ job.agent.name if job.agent else '' }}">
+            </div>
+
+            <!-- Trip Details -->
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Pickup Date</label>
+              <input type="date" class="form-control" name="pickup_date" value="{{ job.pickup_date or '' }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Pickup Time</label>
+              <input type="time" class="form-control" name="pickup_time" value="{{ job.pickup_time or '' }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Pickup Location</label>
+              <input type="text" class="form-control" name="pickup_location" value="{{ job.pickup_location or '' }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Drop-off Location</label>
+              <input type="text" class="form-control" name="dropoff_location" value="{{ job.dropoff_location or '' }}">
+            </div>
+
+            <!-- Vehicle & Driver -->
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Vehicle</label>
+              <input type="text" class="form-control" name="vehicle_info" value="{{ job.vehicle.number if job.vehicle else job.vehicle_number or '' }} ({{ job.vehicle.name if job.vehicle else job.vehicle_type or '' }})">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Driver</label>
+              <input type="text" class="form-control" name="driver_info" value="{{ job.driver.name if job.driver else '' }} ({{ job.driver.phone if job.driver else job.driver_contact or '' }})">
+            </div>
+
+            <!-- Passenger Information -->
+            <div class="col-md-4">
+              <label class="form-label fw-bold">Passenger Name</label>
+              <input type="text" class="form-control" name="passenger_name" value="{{ job.passenger_name or '' }}">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-bold">Passenger Email</label>
+              <input type="email" class="form-control" name="passenger_email" value="{{ job.passenger_email or '' }}">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-bold">Passenger Mobile</label>
+              <input type="text" class="form-control" name="passenger_mobile" value="{{ job.passenger_mobile or '' }}">
+            </div>
+
+            <!-- Status Information -->
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Job Status</label>
+              <select class="form-select" name="status">
+                <option value="Scheduled" {% if job.status == 'Scheduled' %}selected{% endif %}>Scheduled</option>
+                <option value="In Progress" {% if job.status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                <option value="Completed" {% if job.status == 'Completed' %}selected{% endif %}>Completed</option>
+                <option value="Cancelled" {% if job.status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+                <option value="Failed" {% if job.status == 'Failed' %}selected{% endif %}>Failed</option>
+                <option value="No Show" {% if job.status == 'No Show' %}selected{% endif %}>No Show</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Payment Status</label>
+              <select class="form-select" name="payment_status">
+                <option value="Pending" {% if job.payment_status == 'Pending' %}selected{% endif %}>Pending</option>
+                <option value="Partially Paid" {% if job.payment_status == 'Partially Paid' %}selected{% endif %}>Partially Paid</option>
+                <option value="Paid" {% if job.payment_status == 'Paid' %}selected{% endif %}>Paid</option>
+                <option value="Overdue" {% if job.payment_status == 'Overdue' %}selected{% endif %}>Overdue</option>
+                <option value="Refunded" {% if job.payment_status == 'Refunded' %}selected{% endif %}>Refunded</option>
+                <option value="Cancelled" {% if job.payment_status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+              </select>
+            </div>
+
+            <!-- Additional Information -->
+            <div class="col-12">
+              <label class="form-label fw-bold">Message</label>
+              <textarea class="form-control" name="message" rows="3">{{ job.message or '' }}</textarea>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-bold">Remarks</label>
+              <textarea class="form-control" name="remarks" rows="3">{{ job.remarks or '' }}</textarea>
+            </div>
+          </div>
+
+
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pricing & Billing Information -->
+  <div class="col-lg-4">
+    <div class="card mb-4">
+      <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-currency-dollar me-2"></i>Pricing & Billing</h5>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label fw-bold">Base Price</label>
+            <div class="form-control-plaintext">SGD {{ "%.2f"|format(job.base_price or 0) }}</div>
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-bold">Base Discount</label>
+            <div class="form-control-plaintext">{{ "%.2f"|format(job.base_discount_percent or 0) }}%</div>
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-bold">Agent Discount</label>
+            <div class="form-control-plaintext">{{ "%.2f"|format(job.agent_discount_percent or 0) }}%</div>
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-bold">Additional Discount</label>
+            <div class="form-control-plaintext">{{ "%.2f"|format(job.additional_discount_percent or 0) }}%</div>
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-bold">Additional Charges</label>
+            <div class="form-control-plaintext">SGD {{ "%.2f"|format(job.additional_charges or 0) }}</div>
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-bold">Final Price</label>
+            <div class="form-control-plaintext fw-bold text-success">SGD {{ "%.2f"|format(job.final_price or 0) }}</div>
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-bold">Invoice Number</label>
+            <div class="form-control-plaintext">{{ job.invoice_number or 'Not generated' }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-lightning me-2"></i>Quick Actions</h5>
+      </div>
+      <div class="card-body">
+        <div class="d-grid gap-2">
+          <a href="{{ url_for('add_billing') }}?job_id={{ job.id }}" class="btn btn-outline-primary">
+            <i class="bi bi-receipt me-1"></i>Create Invoice
+          </a>
+          <a href="{{ url_for('edit_job', job_id=job.id) }}" class="btn btn-outline-secondary">
+            <i class="bi bi-pencil me-1"></i>Edit Job
+          </a>
+          <button class="btn btn-outline-info" onclick="printJobDetails()">
+            <i class="bi bi-printer me-1"></i>Print Details
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function printJobDetails() {
+  window.print();
+}
+
+// Form submission handling
+document.getElementById('jobViewForm').addEventListener('submit', function(e) {
+  // Show loading state
+  const submitBtn = this.querySelector('button[type="submit"]');
+  const originalText = submitBtn.innerHTML;
+  submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Saving...';
+  submitBtn.disabled = true;
+  
+  // Form will submit normally
+});
+</script>
+
+<style>
+@media print {
+  .btn, .card-header {
+    display: none !important;
+  }
+  
+  .card {
+    border: none !important;
+    box-shadow: none !important;
+  }
+  
+  .card-body {
+    padding: 0 !important;
+  }
+}
+</style>
+{% endblock %} 

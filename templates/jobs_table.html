@@ -68,7 +68,7 @@
     </thead>
     <tbody>
       {% for job in jobs %}
-      <tr data-job-id="{{ job.id }}">
+      <tr data-job-id="{{ job.id }}" onclick="openJobView('{{ job.id }}')" style="cursor: pointer;">
         <td>
           <input type="checkbox" name="selected_jobs" value="{{ job.id }}" class="form-check-input">
         </td>
@@ -109,7 +109,8 @@
           {% endif %}
         </td>
         <td>
-          <div class="d-flex justify-content-center align-items-center gap-2">
+          <div class="d-flex justify-content-center align-items-center gap-2" onclick="event.stopPropagation();">
+            <a href="{{ url_for('view_job', job_id=job.id) }}" class="btn btn-outline-info btn-sm d-flex align-items-center justify-content-center" title="View"><i class="bi bi-eye text-info"></i></a>
             <a href="{{ url_for('edit_job', job_id=job.id) }}" class="btn btn-outline-primary btn-sm d-flex align-items-center justify-content-center" title="Edit"><i class="bi bi-pencil text-primary"></i></a>
             <form action="{{ url_for('delete_job', job_id=job.id) }}" method="post" style="display:inline;">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -149,4 +150,29 @@
       <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
     {% endif %}
   </ul>
-</nav> 
+</nav>
+
+<style>
+tbody tr:hover {
+  background-color: #f8f9fa !important;
+  transform: scale(1.01);
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+</style>
+
+<script>
+function openJobView(jobId) {
+  window.location.href = '/jobs/view/' + jobId;
+}
+
+// Prevent row click when clicking on checkboxes
+document.addEventListener('DOMContentLoaded', function() {
+  const checkboxes = document.querySelectorAll('input[name="selected_jobs"]');
+  checkboxes.forEach(checkbox => {
+    checkbox.addEventListener('click', function(e) {
+      e.stopPropagation();
+    });
+  });
+});
+</script> 
