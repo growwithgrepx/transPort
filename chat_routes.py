@@ -158,14 +158,14 @@ def handle_vehicles_query(message):
     """Handle vehicle-related queries"""
     
     if re.search(r'\bavailable\b', message):
-        # Vehicles not assigned to active jobs
-        active_vehicle_ids = db.session.query(Job.vehicle_id).filter(
-            Job.order_status.in_(['New', 'In Progress'])
-        ).distinct().all()
-        active_ids = [id[0] for id in active_vehicle_ids if id[0]]
+        # Get vehicles that are not currently assigned to active jobs
+        # Since Job model doesn't have vehicle_id, we'll check by vehicle number
+        active_jobs = Job.query.filter(Job.order_status.in_(['New', 'In Progress'])).all()
+        active_vehicle_numbers = [job.vehicle_number for job in active_jobs if job.vehicle_number]
         
-        vehicles = Vehicle.query.filter(~Vehicle.id.in_(active_ids)).all()
-        return f"I found {len(vehicles)} available vehicles:", [format_vehicle(vehicle) for vehicle in vehicles]
+        # Get vehicles not in active jobs
+        available_vehicles = Vehicle.query.filter(~Vehicle.number.in_(active_vehicle_numbers)).all()
+        return f"I found {len(available_vehicles)} available vehicles:", [format_vehicle(vehicle) for vehicle in available_vehicles]
     
     else:
         vehicles = Vehicle.query.limit(10).all()
@@ -275,19 +275,16 @@ def format_driver(driver):
     return {
         'id': driver.id,
         'name': driver.name,
-        'phone': driver.phone,
-        'email': driver.email,
-        'license_number': driver.license_number
+        'phone': driver.phone
     }
 
 def format_vehicle(vehicle):
     return {
         'id': vehicle.id,
-        'registration_number': vehicle.registration_number,
-        'make': vehicle.make,
-        'model': vehicle.model,
-        'year': vehicle.year,
-        'fuel_type': vehicle.fuel_type
+        'name': vehicle.name,
+        'number': vehicle.number,
+        'type': vehicle.type,
+        'status': vehicle.status
     }
 
 def format_agent(agent):
@@ -295,8 +292,9 @@ def format_agent(agent):
         'id': agent.id,
         'name': agent.name,
         'email': agent.email,
-        'phone': agent.phone,
-        'commission_rate': agent.commission_rate
+        'mobile': agent.mobile,
+        'type': agent.type,
+        'status': agent.status
     }
 
 def format_service(service):
@@ -304,14 +302,13 @@ def format_service(service):
         'id': service.id,
         'name': service.name,
         'description': service.description,
-        'base_price': service.base_price
+        'status': service.status
     }
 
 def format_billing(billing):
     return {
         'id': billing.id,
-        'customer_name': billing.customer_name,
+        'job_id': billing.job_id,
         'amount': billing.amount,
-        'status': billing.status,
-        'due_date': billing.due_date
+        'discount_id': billing.discount_id
     } 
