@@ -54,8 +54,8 @@
               <select class="form-select" id="service_id" name="service_id" required>
                 <option value="">Select Service</option>
               {% for service in services %}
-                  <option value="{{ service.id }}" {% if job and (job.service_id == service.id or job.type_of_service == service.name) %}selected{% endif %}>
-                    {{ service.name }}
+                  <option value="{{ service.id }}" data-base-price="{{ service.base_price or 0 }}" {% if job and (job.service_id == service.id or job.type_of_service == service.name) %}selected{% endif %}>
+                    {{ service.name }} (SGD {{ "%.2f"|format(service.base_price or 0) }})
                   </option>
               {% endfor %}
               </select>
@@ -139,6 +139,57 @@
           <div class="col-md-4">
             <label for="passenger_mobile" class="form-label">Passenger Mobile</label>
             <input type="text" class="form-control" id="passenger_mobile" name="passenger_mobile" value="{{ job.passenger_mobile if job else '' }}" placeholder="Passenger mobile">
+          </div>
+        </div>
+        
+        <hr class="my-4">
+        <h5 class="mb-3">Pricing & Billing</h5>
+        <div class="row g-3">
+          <div class="col-md-3">
+            <label for="base_price" class="form-label">Base Price (SGD)</label>
+            <input type="number" class="form-control" id="base_price" name="base_price" value="{{ job.base_price if job else '' }}" step="0.01" readonly>
+            <small class="text-muted">Auto-calculated from service</small>
+          </div>
+          <div class="col-md-3">
+            <label for="base_discount_percent" class="form-label">Base Discount (%)</label>
+            <input type="number" class="form-control" id="base_discount_percent" name="base_discount_percent" value="{{ job.base_discount_percent if job else '' }}" step="0.01" readonly>
+            <small class="text-muted">System-wide discount</small>
+          </div>
+          <div class="col-md-3">
+            <label for="agent_discount_percent" class="form-label">Agent Discount (%)</label>
+            <input type="number" class="form-control" id="agent_discount_percent" name="agent_discount_percent" value="{{ job.agent_discount_percent if job else '' }}" step="0.01" readonly>
+            <small class="text-muted">Agent-specific discount</small>
+          </div>
+          <div class="col-md-3">
+            <label for="additional_discount_percent" class="form-label">Additional Discount (%)</label>
+            <input type="number" class="form-control" id="additional_discount_percent" name="additional_discount_percent" value="{{ job.additional_discount_percent if job else '' }}" step="0.01" min="0" max="100">
+            <small class="text-muted">Optional additional discount</small>
+          </div>
+          <div class="col-md-3">
+            <label for="additional_charges" class="form-label">Additional Charges (SGD)</label>
+            <input type="number" class="form-control" id="additional_charges" name="additional_charges" value="{{ job.additional_charges if job else '' }}" step="0.01" min="0">
+            <small class="text-muted">Extra charges (tolls, waiting, etc.)</small>
+          </div>
+          <div class="col-md-3">
+            <label for="final_price" class="form-label">Final Price (SGD)</label>
+            <input type="number" class="form-control" id="final_price" name="final_price" value="{{ job.final_price if job else '' }}" step="0.01" readonly>
+            <small class="text-muted">Calculated automatically</small>
+          </div>
+          <div class="col-md-6">
+            <label for="invoice_number" class="form-label">Invoice Number</label>
+            <input type="text" class="form-control" id="invoice_number" name="invoice_number" value="{{ job.invoice_number if job else '' }}" readonly>
+            <small class="text-muted">Generated when invoice is created</small>
+          </div>
+        </div>
+        
+        <div class="row mt-3">
+          <div class="col-12">
+            <div class="alert alert-info">
+              <strong>Pricing Breakdown:</strong>
+              <div id="pricing-breakdown">
+                <span class="text-muted">Select service and agent to see pricing details</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -534,6 +585,76 @@
     this.textContent = adv.style.display === 'none' ? 'Show more options' : 'Hide options';
   };
 
+  // Pricing calculation functionality
+  function calculatePricing() {
+    const serviceId = document.getElementById('service_id').value;
+    const agentId = document.getElementById('agent_id').value;
+    const additionalDiscount = parseFloat(document.getElementById('additional_discount_percent').value) || 0;
+    const additionalCharges = parseFloat(document.getElementById('additional_charges').value) || 0;
+
+    if (!serviceId || !agentId) {
+      document.getElementById('pricing-breakdown').innerHTML = '<span class="text-muted">Select service and agent to see pricing details</span>';
+      return;
+    }
+
+    const url = `/api/calculate_pricing?service_id=${serviceId}&agent_id=${agentId}&additional_discount=${additionalDiscount}&additional_charges=${additionalCharges}`;
+    
+    fetch(url)
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          const pricing = data.pricing;
+          
+          // Update form fields
+          document.getElementById('base_price').value = pricing.base_price.toFixed(2);
+          document.getElementById('base_discount_percent').value = pricing.base_discount_percent.toFixed(2);
+          document.getElementById('agent_discount_percent').value = pricing.agent_discount_percent.toFixed(2);
+          document.getElementById('final_price').value = pricing.final_price.toFixed(2);
+          
+          // Update pricing breakdown
+          document.getElementById('pricing-breakdown').innerHTML = `
+            <div class="row">
+              <div class="col-md-6">
+                <strong>Base Price:</strong> SGD ${pricing.base_price.toFixed(2)}<br>
+                <strong>Base Discount:</strong> ${pricing.base_discount_percent.toFixed(2)}% (-SGD ${pricing.base_discount_amount.toFixed(2)})<br>
+                <strong>Agent Discount:</strong> ${pricing.agent_discount_percent.toFixed(2)}% (-SGD ${pricing.agent_discount_amount.toFixed(2)})<br>
+                <strong>Additional Discount:</strong> ${pricing.additional_discount_percent.toFixed(2)}% (-SGD ${pricing.additional_discount_amount.toFixed(2)})
+              </div>
+              <div class="col-md-6">
+                <strong>Subtotal:</strong> SGD ${pricing.subtotal.toFixed(2)}<br>
+                <strong>Additional Charges:</strong> SGD ${pricing.additional_charges.toFixed(2)}<br>
+                <strong class="text-success">Final Price:</strong> SGD ${pricing.final_price.toFixed(2)}
+              </div>
+            </div>
+          `;
+        } else {
+          document.getElementById('pricing-breakdown').innerHTML = `<span class="text-danger">Error: ${data.error}</span>`;
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        document.getElementById('pricing-breakdown').innerHTML = '<span class="text-danger">Error calculating pricing</span>';
+      });
+  }
+
+  // Add event listeners for automatic pricing calculation
+  document.addEventListener('DOMContentLoaded', function() {
+    const serviceSelect = document.getElementById('service_id');
+    const agentSelect = document.getElementById('agent_id');
+    const additionalDiscountInput = document.getElementById('additional_discount_percent');
+    const additionalChargesInput = document.getElementById('additional_charges');
+
+    if (serviceSelect) serviceSelect.addEventListener('change', calculatePricing);
+    if (agentSelect) agentSelect.addEventListener('change', calculatePricing);
+    if (additionalDiscountInput) additionalDiscountInput.addEventListener('input', calculatePricing);
+    if (additionalChargesInput) additionalChargesInput.addEventListener('input', calculatePricing);
+
+    // Initial calculation if both service and agent are selected
+    if (serviceSelect && agentSelect && serviceSelect.value && agentSelect.value) {
+      calculatePricing();
+    }
+  });
+
   // Bootstrap validation
   (function () {
     'use strict';
@@ -578,6 +699,56 @@
       // You can add additional logic here if needed
     }
   });
+
+  // PRICING CALCULATION
+  function calculatePricing() {
+    const serviceId = document.getElementById('service_id').value;
+    const agentId = document.getElementById('agent_id').value;
+    const additionalDiscount = parseFloat(document.getElementById('additional_discount_percent').value) || 0;
+    const additionalCharges = parseFloat(document.getElementById('additional_charges').value) || 0;
+
+    if (serviceId && agentId) {
+      // Fetch pricing data from server
+      fetch(`/api/calculate_pricing?service_id=${serviceId}&agent_id=${agentId}&additional_discount=${additionalDiscount}&additional_charges=${additionalCharges}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            // Update form fields
+            document.getElementById('base_price').value = data.pricing.base_price.toFixed(2);
+            document.getElementById('base_discount_percent').value = data.pricing.base_discount_percent.toFixed(2);
+            document.getElementById('agent_discount_percent').value = data.pricing.agent_discount_percent.toFixed(2);
+            document.getElementById('final_price').value = data.pricing.final_price.toFixed(2);
+
+            // Update pricing breakdown
+            const breakdown = document.getElementById('pricing-breakdown');
+            breakdown.innerHTML = `
+              <div class="row">
+                <div class="col-md-6">
+                  <strong>Base Price:</strong> SGD ${data.pricing.base_price.toFixed(2)}<br>
+                  <strong>Base Discount:</strong> ${data.pricing.base_discount_percent.toFixed(2)}% (-SGD ${data.pricing.base_discount_amount.toFixed(2)})<br>
+                  <strong>Agent Discount:</strong> ${data.pricing.agent_discount_percent.toFixed(2)}% (-SGD ${data.pricing.agent_discount_amount.toFixed(2)})<br>
+                  <strong>Additional Discount:</strong> ${data.pricing.additional_discount_percent.toFixed(2)}% (-SGD ${data.pricing.additional_discount_amount.toFixed(2)})
+                </div>
+                <div class="col-md-6">
+                  <strong>Subtotal:</strong> SGD ${data.pricing.subtotal.toFixed(2)}<br>
+                  <strong>Additional Charges:</strong> SGD ${data.pricing.additional_charges.toFixed(2)}<br>
+                  <strong>Final Price:</strong> <span class="text-success fw-bold">SGD ${data.pricing.final_price.toFixed(2)}</span>
+                </div>
+              </div>
+            `;
+          }
+        })
+        .catch(error => {
+          console.error('Error calculating pricing:', error);
+        });
+    }
+  }
+
+  // Add event listeners for pricing calculation
+  document.getElementById('service_id').addEventListener('change', calculatePricing);
+  document.getElementById('agent_id').addEventListener('change', calculatePricing);
+  document.getElementById('additional_discount_percent').addEventListener('input', calculatePricing);
+  document.getElementById('additional_charges').addEventListener('input', calculatePricing);
 
   // Add/Edit Modal Functions
   var currentModalType = '';

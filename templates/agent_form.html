@@ -41,6 +41,14 @@
             <div class="text-danger small">{{ errors['status'][0] }}</div>
           {% endif %}
         </div>
+        <div class="col-md-6">
+          <label for="agent_discount_percent" class="form-label">Agent Discount (%)</label>
+          <input type="number" class="form-control" id="agent_discount_percent" name="agent_discount_percent" value="{{ agent.agent_discount_percent if agent else '' }}" step="0.01" min="0" max="100">
+          {% if errors and errors.get('agent_discount_percent') %}
+            <div class="text-danger small">{{ errors['agent_discount_percent'][0] }}</div>
+          {% endif %}
+          <small class="text-muted">Percentage discount for this agent</small>
+        </div>
       </div>
     </div>
   </div>

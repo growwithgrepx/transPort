@@ -106,6 +106,7 @@ migrate = Migrate(app, db)
 
 with app.app_context():
     from models import User, Job, Driver, Agent, Billing, Discount, Service, Vehicle, Role
+from services.billing_service import BillingService
 
 
 @login_manager.user_loader
@@ -965,7 +966,8 @@ def add_agent():
         mobile = request.form['mobile']
         type_ = request.form['type']
         status = request.form['status']
-        agent = Agent(name=name, email=email, mobile=mobile, type=type_, status=status)
+        agent_discount_percent = float(request.form.get('agent_discount_percent', 0))
+        agent = Agent(name=name, email=email, mobile=mobile, type=type_, status=status, agent_discount_percent=agent_discount_percent)
         db.session.add(agent)
         db.session.commit()
         if request.headers.get('HX-Request') == 'true':
@@ -995,7 +997,8 @@ def add_agent_ajax():
         # Render the form with errors for HTMX swap
         return render_template('agent_form.html', action='Add Agent', agent=None, errors=errors,
                                action_url=url_for('add_agent_ajax'), hx_post_url=url_for('add_agent_ajax'), hx_target='#agent-modal-body', hx_swap='outerHTML')
-    agent = Agent(name=name, email=email, mobile=mobile, type=type_, status=status)
+    agent_discount_percent = float(request.form.get('agent_discount_percent', 0))
+    agent = Agent(name=name, email=email, mobile=mobile, type=type_, status=status, agent_discount_percent=agent_discount_percent)
     db.session.add(agent)
     db.session.commit()
     # Return JSON for JS to update dropdown and close modal
@@ -1013,6 +1016,7 @@ def edit_agent(agent_id):
         agent.mobile = request.form['mobile']
         agent.type = request.form['type']
         agent.status = request.form['status']
+        agent.agent_discount_percent = float(request.form.get('agent_discount_percent', 0))
         db.session.commit()
         return redirect(url_for('agents'))
     if request.headers.get('HX-Request') == 'true':
@@ -1045,28 +1049,97 @@ def billing():
 @app.route('/billing/add', methods=['GET', 'POST'])
 @login_required
 def add_billing():
+    from models import Job
+    jobs = Job.query.all()
+    
     if request.method == 'POST':
-        job_id = request.form['job_id']
-        amount = request.form['amount']
-        discount_id = request.form['discount_id']
-        billing = Billing(job_id=job_id, amount=amount, discount_id=discount_id)
-        db.session.add(billing)
-        db.session.commit()
-        return redirect(url_for('billing'))
-    return render_template('billing_form.html', action='Add')
+        try:
+            # Get the selected job
+            job_id = request.form['job_id']
+            job = Job.query.get(job_id)
+            
+            if not job:
+                flash('Selected job not found', 'error')
+                return render_template('billing_form.html', action='Add', jobs=jobs)
+            
+            # Create billing record with all the new fields
+            billing = Billing(
+                job_id=job_id,
+                invoice_number=request.form.get('invoice_number') or f'INV-{job_id}-{datetime.now().strftime("%Y%m%d")}',
+                invoice_date=request.form.get('invoice_date'),
+                due_date=request.form.get('due_date'),
+                base_price=job.base_price or 0,
+                base_discount_amount=job.base_discount_percent * (job.base_price or 0) / 100 if job.base_discount_percent else 0,
+                agent_discount_amount=job.agent_discount_percent * (job.base_price or 0) / 100 if job.agent_discount_percent else 0,
+                additional_discount_amount=job.additional_discount_percent * (job.base_price or 0) / 100 if job.additional_discount_percent else 0,
+                additional_charges=float(request.form.get('additional_charges', 0)),
+                subtotal=(job.base_price or 0) - (job.base_discount_percent or 0) * (job.base_price or 0) / 100 - (job.agent_discount_percent or 0) * (job.base_price or 0) / 100 - (job.additional_discount_percent or 0) * (job.base_price or 0) / 100,
+                tax_amount=float(request.form.get('tax_amount', 0)),
+                total_amount=float(request.form.get('total_amount', 0)),
+                payment_status=request.form.get('payment_status', 'Pending'),
+                payment_date=request.form.get('payment_date'),
+                payment_method=request.form.get('payment_method'),
+                notes=request.form.get('notes'),
+                terms_conditions=request.form.get('terms_conditions')
+            )
+            
+            db.session.add(billing)
+            db.session.commit()
+            flash('Billing record created successfully', 'success')
+            return redirect(url_for('billing'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error creating billing record: {str(e)}', 'error')
+            return render_template('billing_form.html', action='Add', jobs=jobs)
+    
+    return render_template('billing_form.html', action='Add', jobs=jobs)
 
 
 @app.route('/billing/edit/<int:billing_id>', methods=['GET', 'POST'])
 @login_required
 def edit_billing(billing_id):
+    from models import Job
     billing = Billing.query.get_or_404(billing_id)
+    jobs = Job.query.all()
+    
     if request.method == 'POST':
-        billing.job_id = request.form['job_id']
-        billing.amount = request.form['amount']
-        billing.discount_id = request.form['discount_id']
-        db.session.commit()
-        return redirect(url_for('billing'))
-    return render_template('billing_form.html', action='Edit', billing=billing)
+        try:
+            # Get the selected job
+            job_id = request.form['job_id']
+            job = Job.query.get(job_id)
+            
+            if not job:
+                flash('Selected job not found', 'error')
+                return render_template('billing_form.html', action='Edit', billing=billing, jobs=jobs)
+            
+            # Update billing record with all the new fields
+            billing.job_id = job_id
+            billing.invoice_number = request.form.get('invoice_number') or billing.invoice_number
+            billing.invoice_date = request.form.get('invoice_date')
+            billing.due_date = request.form.get('due_date')
+            billing.base_price = job.base_price or 0
+            billing.base_discount_amount = job.base_discount_percent * (job.base_price or 0) / 100 if job.base_discount_percent else 0
+            billing.agent_discount_amount = job.agent_discount_percent * (job.base_price or 0) / 100 if job.agent_discount_percent else 0
+            billing.additional_discount_amount = job.additional_discount_percent * (job.base_price or 0) / 100 if job.additional_discount_percent else 0
+            billing.additional_charges = float(request.form.get('additional_charges', 0))
+            billing.subtotal = (job.base_price or 0) - (job.base_discount_percent or 0) * (job.base_price or 0) / 100 - (job.agent_discount_percent or 0) * (job.base_price or 0) / 100 - (job.additional_discount_percent or 0) * (job.base_price or 0) / 100
+            billing.tax_amount = float(request.form.get('tax_amount', 0))
+            billing.total_amount = float(request.form.get('total_amount', 0))
+            billing.payment_status = request.form.get('payment_status', 'Pending')
+            billing.payment_date = request.form.get('payment_date')
+            billing.payment_method = request.form.get('payment_method')
+            billing.notes = request.form.get('notes')
+            billing.terms_conditions = request.form.get('terms_conditions')
+            
+            db.session.commit()
+            flash('Billing record updated successfully', 'success')
+            return redirect(url_for('billing'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error updating billing record: {str(e)}', 'error')
+            return render_template('billing_form.html', action='Edit', billing=billing, jobs=jobs)
+    
+    return render_template('billing_form.html', action='Edit', billing=billing, jobs=jobs)
 
 
 @app.route('/billing/delete/<int:billing_id>', methods=['POST'])
@@ -1144,7 +1217,8 @@ def add_service():
         name = request.form['name']
         description = request.form['description']
         status = request.form['status']
-        service = Service(name=name, description=description, status=status)
+        base_price = float(request.form.get('base_price', 0))
+        service = Service(name=name, description=description, status=status, base_price=base_price)
         db.session.add(service)
         db.session.commit()
         return redirect(url_for('services'))
@@ -1159,6 +1233,7 @@ def edit_service(service_id):
         service.name = request.form['name']
         service.description = request.form['description']
         service.status = request.form['status']
+        service.base_price = float(request.form.get('base_price', 0))
         db.session.commit()
         return redirect(url_for('services'))
     return render_template('service_form.html', action='Edit', service=service)
@@ -1180,12 +1255,13 @@ def add_service_ajax():
     name = request.form.get('name', '').strip()
     description = request.form.get('description', '').strip()
     status = request.form.get('status', 'Active').strip()
+    base_price = float(request.form.get('base_price', 0))
     if not name:
         errors['name'] = ['Name is required.']
     if errors:
         return render_template('service_form.html', action='Add Service', service=None, errors=errors,
                                action_url=url_for('add_service_ajax'), hx_post_url=url_for('add_service_ajax'), hx_target='#service-modal-body', hx_swap='outerHTML')
-    service = Service(name=name, description=description, status=status)
+    service = Service(name=name, description=description, status=status, base_price=base_price)
     db.session.add(service)
     db.session.commit()
     return jsonify({'success': True, 'id': service.id, 'name': service.name})
@@ -1291,6 +1367,136 @@ def add_driver_ajax():
     db.session.add(driver)
     db.session.commit()
     return jsonify({'success': True, 'id': driver.id, 'name': f'{driver.name} ({driver.phone})'})
+
+
+@app.route('/api/calculate_pricing', methods=['GET'])
+@login_required
+def calculate_pricing():
+    """Calculate pricing for a service and agent combination"""
+    try:
+        service_id = request.args.get('service_id')
+        agent_id = request.args.get('agent_id')
+        additional_discount = float(request.args.get('additional_discount', 0))
+        additional_charges = float(request.args.get('additional_charges', 0))
+        
+        if not service_id or not agent_id:
+            return jsonify({'success': False, 'error': 'Service and agent are required'})
+        
+        # Get service base price
+        service = Service.query.get(service_id)
+        if not service:
+            return jsonify({'success': False, 'error': 'Service not found'})
+        
+        base_price = service.base_price
+        
+        # Get base discount (system-wide discount)
+        base_discount = Discount.query.filter_by(is_base_discount=True, is_active=True).first()
+        base_discount_percent = (base_discount.percent if base_discount else 0.0) or 0.0
+        
+        # Get agent discount
+        agent = Agent.query.get(agent_id)
+        agent_discount_percent = (agent.agent_discount_percent if agent else 0.0) or 0.0
+        
+        # Calculate discount amounts
+        base_discount_amount = (base_price * base_discount_percent) / 100
+        agent_discount_amount = (base_price * agent_discount_percent) / 100
+        additional_discount_amount = (base_price * additional_discount) / 100
+        
+        # Calculate final price
+        subtotal = base_price - base_discount_amount - agent_discount_amount - additional_discount_amount
+        final_price = subtotal + additional_charges
+        
+        return jsonify({
+            'success': True,
+            'pricing': {
+                'base_price': base_price,
+                'base_discount_percent': base_discount_percent,
+                'base_discount_amount': base_discount_amount,
+                'agent_discount_percent': agent_discount_percent,
+                'agent_discount_amount': agent_discount_amount,
+                'additional_discount_percent': additional_discount,
+                'additional_discount_amount': additional_discount_amount,
+                'additional_charges': additional_charges,
+                'subtotal': subtotal,
+                'final_price': final_price
+            }
+        })
+    except Exception as e:
+        app.logger.error(f'Error calculating pricing: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/invoice/<int:billing_id>', methods=['GET'])
+@login_required
+def get_invoice(billing_id):
+    """Get invoice details for modal display"""
+    try:
+        billing = Billing.query.get_or_404(billing_id)
+        html = render_template('invoice_details.html', billing=billing)
+        return jsonify({'success': True, 'html': html})
+    except Exception as e:
+        app.logger.error(f'Error getting invoice: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/invoice/<int:billing_id>/pdf', methods=['GET'])
+@login_required
+def download_invoice_pdf(billing_id):
+    """Download invoice as PDF"""
+    try:
+        billing = Billing.query.get_or_404(billing_id)
+        # This would generate actual PDF using a library like reportlab or weasyprint
+        # For now, return a simple text response
+        response = make_response(f"""
+        INVOICE
+        
+        Invoice Number: {billing.invoice_number or 'N/A'}
+        Date: {billing.invoice_date or 'N/A'}
+        
+        Job Details:
+        - From: {billing.job.pickup_location or 'N/A'}
+        - To: {billing.job.dropoff_location or 'N/A'}
+        - Date: {billing.job.pickup_date or 'N/A'}
+        - Time: {billing.job.pickup_time or 'N/A'}
+        
+        Pricing:
+        - Base Price: SGD {(billing.base_price or 0):.2f}
+        - Base Discount: SGD {(billing.base_discount_amount or 0):.2f}
+        - Agent Discount: SGD {(billing.agent_discount_amount or 0):.2f}
+        - Additional Discount: SGD {(billing.additional_discount_amount or 0):.2f}
+        - Additional Charges: SGD {(billing.additional_charges or 0):.2f}
+        - Total: SGD {(billing.total_amount or 0):.2f}
+        """)
+        response.headers['Content-Type'] = 'text/plain'
+        response.headers['Content-Disposition'] = f'attachment; filename=invoice_{billing.invoice_number}.txt'
+        return response
+    except Exception as e:
+        app.logger.error(f'Error generating PDF: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/billing/report/pdf', methods=['GET'])
+@login_required
+def generate_billing_report_pdf():
+    """Generate PDF report of all invoices"""
+    try:
+        billings = Billing.query.all()
+        # This would generate actual PDF using a library like reportlab or weasyprint
+        # For now, return a simple text response
+        report_content = "BILLING REPORT\n\n"
+        for billing in billings:
+            report_content += f"""
+            Invoice: {billing.invoice_number or 'N/A'}
+            Amount: SGD {(billing.total_amount or 0):.2f}
+            Status: {billing.payment_status or 'N/A'}
+            Date: {billing.invoice_date or 'N/A'}
+            ---
+            """
+        
+        response = make_response(report_content)
+        response.headers['Content-Type'] = 'text/plain'
+        response.headers['Content-Disposition'] = 'attachment; filename=billing_report.txt'
+        return response
+    except Exception as e:
+        app.logger.error(f'Error generating billing report: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)})
 
 
 # Import API routes

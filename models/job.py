@@ -10,6 +10,7 @@ class Job(db.Model):
     passenger_email = db.Column(db.String(128))
     passenger_mobile = db.Column(db.String(32))
     type_of_service = db.Column(db.String(128))
+    service_id = db.Column(db.Integer, db.ForeignKey('service.id'))  # Link to service
     pickup_date = db.Column(db.String(32))
     pickup_time = db.Column(db.String(32))
     pickup_location = db.Column(db.String(256))
@@ -29,4 +30,17 @@ class Job(db.Model):
     status = db.Column(db.String(32), default='Inactive')
     date = db.Column(db.String(64))
     driver_id = db.Column(db.Integer, db.ForeignKey('driver.id'))
-    agent_id = db.Column(db.Integer, db.ForeignKey('agent.id')) 
+    agent_id = db.Column(db.Integer, db.ForeignKey('agent.id'))
+    
+    # Billing fields
+    base_price = db.Column(db.Float, default=0.0)
+    base_discount_percent = db.Column(db.Float, default=0.0)
+    agent_discount_percent = db.Column(db.Float, default=0.0)
+    additional_discount_percent = db.Column(db.Float, default=0.0)
+    additional_charges = db.Column(db.Float, default=0.0)
+    final_price = db.Column(db.Float, default=0.0)
+    invoice_number = db.Column(db.String(128))
+    
+    # Relationships
+    service = db.relationship('Service', backref='jobs')
+    billing = db.relationship('Billing', backref='job', uselist=False) 

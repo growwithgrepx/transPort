@@ -14,11 +14,13 @@
             <tr>
               <th>Name</th>
               <th>Description</th>
+              <th>Base Price (SGD)</th>
               <th>Status</th>
               <th>Actions</th>
             </tr>
             <tr>
               <th><input type="text" class="form-control form-control-sm" name="name" placeholder="Filter" value="{{ request.args.get('name', '') }}" hx-get="{{ url_for('services') }}" hx-target="#services-table-body" hx-trigger="keyup changed delay:400ms" autocomplete="off"></th>
+              <th></th>
               <th></th>
               <th>
                 <select class="form-select form-select-sm" name="status" hx-get="{{ url_for('services') }}" hx-target="#services-table-body" hx-trigger="change">
@@ -35,6 +37,7 @@
             <tr data-service-id="{{ service.id }}">
               <td>{{ service.name }}</td>
               <td>{{ service.description }}</td>
+              <td class="text-end">SGD {{ "%.2f"|format(service.base_price or 0) }}</td>
               <td>
                 {% if service.status == 'Active' %}
                   <span class="badge bg-success">Active</span>
