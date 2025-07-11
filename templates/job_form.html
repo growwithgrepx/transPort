@@ -10,13 +10,19 @@
       <div class="row g-3">
         <div class="col-md-6 col-lg-4">
           <label for="agent_id" class="form-label">Agent <span class="text-danger">*</span></label>
-          <input class="form-control" id="agent_name" name="agent_name" list="agent-list" placeholder="Start typing agent name..." required value="{{ job.customer_name if job else '' }}">
-          <datalist id="agent-list">
+          <div class="input-group">
+            <select class="form-select" id="agent_id" name="agent_id" required>
+              <option value="">Select Agent</option>
             {% for agent in agents %}
-              <option value="{{ agent.name }}" data-id="{{ agent.id }}" data-email="{{ agent.email }}" data-mobile="{{ agent.mobile }}">
+                <option value="{{ agent.id }}" data-email="{{ agent.email }}" data-mobile="{{ agent.phone }}" {% if job and job.agent_id == agent.id %}selected{% endif %}>
+                  {{ agent.name }}
+                </option>
             {% endfor %}
-          </datalist>
-          <input type="hidden" id="agent_id" name="agent_id">
+            </select>
+            <button type="button" class="btn btn-outline-secondary" onclick="openAddEditModal('agent')">
+              <i class="fas fa-plus"></i> Add
+            </button>
+          </div>
           <input type="hidden" id="customer_name" name="customer_name">
           <div class="invalid-feedback">Agent is required.</div>
         </div>
@@ -30,13 +36,19 @@
         </div>
         <div class="col-md-6 col-lg-4">
           <label for="service_id" class="form-label">Service <span class="text-danger">*</span></label>
-          <input class="form-control" id="service_name" name="service_name" list="service-list" placeholder="Start typing service..." required value="{{ job.type_of_service if job else '' }}">
-          <datalist id="service-list">
+          <div class="input-group">
+            <select class="form-select" id="service_id" name="service_id" required>
+              <option value="">Select Service</option>
             {% for service in services %}
-              <option value="{{ service.name }}" data-id="{{ service.id }}">
+                <option value="{{ service.id }}" {% if job and job.service_id == service.id %}selected{% endif %}>
+                  {{ service.name }}
+                </option>
             {% endfor %}
-          </datalist>
-          <input type="hidden" id="service_id" name="service_id">
+            </select>
+            <button type="button" class="btn btn-outline-secondary" onclick="openAddEditModal('service')">
+              <i class="fas fa-plus"></i> Add
+            </button>
+          </div>
           <div class="invalid-feedback">Service is required.</div>
         </div>
         <div class="col-md-6 col-lg-4">
@@ -65,24 +77,36 @@
       <div class="row g-3">
         <div class="col-md-6">
           <label for="vehicle_id" class="form-label">Vehicle <span class="text-danger">*</span></label>
-          <input class="form-control" id="vehicle_name" name="vehicle_name" list="vehicle-list" placeholder="Start typing vehicle..." required value="{{ job.vehicle_number if job else '' }}">
-          <datalist id="vehicle-list">
+          <div class="input-group">
+            <select class="form-select" id="vehicle_id" name="vehicle_id" required>
+              <option value="">Select Vehicle</option>
             {% for vehicle in vehicles %}
-              <option value="{{ vehicle.name }} ({{ vehicle.number }})" data-id="{{ vehicle.id }}" data-type="{{ vehicle.type }}" data-number="{{ vehicle.number }}">
+                <option value="{{ vehicle.id }}" data-type="{{ vehicle.type }}" data-number="{{ vehicle.registration_number }}" {% if job and job.vehicle_id == vehicle.id %}selected{% endif %}>
+                  {{ vehicle.registration_number }} ({{ vehicle.make }} {{ vehicle.model }})
+                </option>
             {% endfor %}
-          </datalist>
-          <input type="hidden" id="vehicle_id" name="vehicle_id">
+            </select>
+            <button type="button" class="btn btn-outline-secondary" onclick="openAddEditModal('vehicle')">
+              <i class="fas fa-plus"></i> Add
+            </button>
+          </div>
           <div class="invalid-feedback">Vehicle is required.</div>
         </div>
         <div class="col-md-6">
           <label for="driver_id" class="form-label">Driver <span class="text-danger">*</span></label>
-          <input class="form-control" id="driver_name" name="driver_name" list="driver-list" placeholder="Start typing driver..." required value="{{ job.driver_contact if job else '' }}">
-          <datalist id="driver-list">
+          <div class="input-group">
+            <select class="form-select" id="driver_id" name="driver_id" required>
+              <option value="">Select Driver</option>
             {% for driver in drivers %}
-              <option value="{{ driver.name }} ({{ driver.phone }})" data-id="{{ driver.id }}" data-name="{{ driver.name }}" data-phone="{{ driver.phone }}">
+                <option value="{{ driver.id }}" data-name="{{ driver.name }}" data-phone="{{ driver.phone }}" {% if job and job.driver_id == driver.id %}selected{% endif %}>
+                  {{ driver.name }} ({{ driver.phone }})
+                </option>
             {% endfor %}
-          </datalist>
-          <input type="hidden" id="driver_id" name="driver_id">
+            </select>
+            <button type="button" class="btn btn-outline-secondary" onclick="openAddEditModal('driver')">
+              <i class="fas fa-plus"></i> Add
+            </button>
+          </div>
           <div class="invalid-feedback">Driver is required.</div>
         </div>
       </div>
@@ -174,6 +198,30 @@
   <button type="submit" class="btn btn-primary mt-3">{{ action }}</button>
   <a href="{{ url_for('jobs') }}" class="btn btn-secondary mt-3">Cancel</a>
 </form>
+
+<!-- Add/Edit Modal -->
+<div class="modal fade" id="addEditModal" tabindex="-1" aria-labelledby="addEditModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="addEditModalLabel">Add New</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="addEditForm">
+          <div id="modalFields">
+            <!-- Fields will be dynamically added here -->
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="saveNewItem()">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
   document.getElementById('toggle-advanced').onclick = function(e) {
     e.preventDefault();
@@ -181,6 +229,7 @@
     adv.style.display = adv.style.display === 'none' ? 'block' : 'none';
     this.textContent = adv.style.display === 'none' ? 'Show more options' : 'Hide options';
   };
+
   // Bootstrap validation
   (function () {
     'use strict';
@@ -195,72 +244,197 @@
       }, false);
     });
   })();
-  // AGENT AUTOCOMPLETE
-  document.getElementById('agent_name').addEventListener('input', function() {
-    var input = this.value;
-    var options = document.getElementById('agent-list').options;
-    var agentId = '';
-    var agentName = input;
-    for (var i = 0; i < options.length; i++) {
-      if (options[i].value === input) {
-        agentId = options[i].getAttribute('data-id');
-        agentName = options[i].value;
-        document.getElementById('customer_email').value = options[i].getAttribute('data-email') || '';
-        document.getElementById('customer_mobile').value = options[i].getAttribute('data-mobile') || '';
+
+  // AGENT DROPDOWN
+  document.getElementById('agent_id').addEventListener('change', function() {
+    var selectedOption = this.options[this.selectedIndex];
+    if (selectedOption.value) {
+      document.getElementById('customer_email').value = selectedOption.getAttribute('data-email') || '';
+      document.getElementById('customer_mobile').value = selectedOption.getAttribute('data-mobile') || '';
+      document.getElementById('customer_name').value = selectedOption.text;
+    } else {
+      document.getElementById('customer_email').value = '';
+      document.getElementById('customer_mobile').value = '';
+      document.getElementById('customer_name').value = '';
+    }
+  });
+
+  // VEHICLE DROPDOWN
+  document.getElementById('vehicle_id').addEventListener('change', function() {
+    var selectedOption = this.options[this.selectedIndex];
+    if (selectedOption.value) {
+      // You can add additional logic here if needed
+    }
+  });
+
+  // DRIVER DROPDOWN
+  document.getElementById('driver_id').addEventListener('change', function() {
+    var selectedOption = this.options[this.selectedIndex];
+    if (selectedOption.value) {
+      // You can add additional logic here if needed
+    }
+  });
+
+  // Add/Edit Modal Functions
+  var currentModalType = '';
+
+  function openAddEditModal(type) {
+    currentModalType = type;
+    var modal = document.getElementById('addEditModal');
+    var modalTitle = document.getElementById('addEditModalLabel');
+    var modalFields = document.getElementById('modalFields');
+    
+    // Set modal title
+    modalTitle.textContent = 'Add New ' + type.charAt(0).toUpperCase() + type.slice(1);
+    
+    // Clear previous fields
+    modalFields.innerHTML = '';
+    
+    // Add fields based on type
+    switch(type) {
+      case 'agent':
+        modalFields.innerHTML = `
+          <div class="mb-3">
+            <label for="modal_name" class="form-label">Name *</label>
+            <input type="text" class="form-control" id="modal_name" required>
+          </div>
+          <div class="mb-3">
+            <label for="modal_email" class="form-label">Email</label>
+            <input type="email" class="form-control" id="modal_email">
+          </div>
+          <div class="mb-3">
+            <label for="modal_phone" class="form-label">Phone</label>
+            <input type="text" class="form-control" id="modal_phone">
+          </div>
+          <div class="mb-3">
+            <label for="modal_commission_rate" class="form-label">Commission Rate</label>
+            <input type="number" class="form-control" id="modal_commission_rate" step="0.01">
+          </div>
+        `;
+        break;
+      case 'service':
+        modalFields.innerHTML = `
+          <div class="mb-3">
+            <label for="modal_name" class="form-label">Service Name *</label>
+            <input type="text" class="form-control" id="modal_name" required>
+          </div>
+          <div class="mb-3">
+            <label for="modal_description" class="form-label">Description</label>
+            <textarea class="form-control" id="modal_description"></textarea>
+          </div>
+          <div class="mb-3">
+            <label for="modal_base_price" class="form-label">Base Price</label>
+            <input type="number" class="form-control" id="modal_base_price" step="0.01">
+          </div>
+        `;
+        break;
+      case 'vehicle':
+        modalFields.innerHTML = `
+          <div class="mb-3">
+            <label for="modal_registration_number" class="form-label">Registration Number *</label>
+            <input type="text" class="form-control" id="modal_registration_number" required>
+          </div>
+          <div class="mb-3">
+            <label for="modal_make" class="form-label">Make</label>
+            <input type="text" class="form-control" id="modal_make">
+          </div>
+          <div class="mb-3">
+            <label for="modal_model" class="form-label">Model</label>
+            <input type="text" class="form-control" id="modal_model">
+          </div>
+          <div class="mb-3">
+            <label for="modal_year" class="form-label">Year</label>
+            <input type="number" class="form-control" id="modal_year">
+          </div>
+          <div class="mb-3">
+            <label for="modal_capacity" class="form-label">Capacity</label>
+            <input type="number" class="form-control" id="modal_capacity">
+          </div>
+          <div class="mb-3">
+            <label for="modal_fuel_type" class="form-label">Fuel Type</label>
+            <input type="text" class="form-control" id="modal_fuel_type">
+          </div>
+        `;
+        break;
+      case 'driver':
+        modalFields.innerHTML = `
+          <div class="mb-3">
+            <label for="modal_name" class="form-label">Name *</label>
+            <input type="text" class="form-control" id="modal_name" required>
+          </div>
+          <div class="mb-3">
+            <label for="modal_phone" class="form-label">Phone</label>
+            <input type="text" class="form-control" id="modal_phone">
+          </div>
+          <div class="mb-3">
+            <label for="modal_email" class="form-label">Email</label>
+            <input type="email" class="form-control" id="modal_email">
+          </div>
+          <div class="mb-3">
+            <label for="modal_license_number" class="form-label">License Number</label>
+            <input type="text" class="form-control" id="modal_license_number">
+          </div>
+        `;
         break;
       }
+    
+    // Show modal
+    var bootstrapModal = new bootstrap.Modal(modal);
+    bootstrapModal.show();
+  }
+
+  function saveNewItem() {
+    var formData = new FormData();
+    formData.append('type', currentModalType);
+    
+    // Get all input values from modal
+    var inputs = document.getElementById('modalFields').getElementsByTagName('input');
+    var textareas = document.getElementById('modalFields').getElementsByTagName('textarea');
+    
+    for (var i = 0; i < inputs.length; i++) {
+      formData.append(inputs[i].id.replace('modal_', ''), inputs[i].value);
     }
-    document.getElementById('agent_id').value = agentId;
-    document.getElementById('customer_name').value = agentName;
-  });
-  // SERVICE AUTOCOMPLETE
-  document.getElementById('service_name').addEventListener('input', function() {
-    var input = this.value;
-    var options = document.getElementById('service-list').options;
-    var serviceId = '';
-    for (var i = 0; i < options.length; i++) {
-      if (options[i].value === input) {
-        serviceId = options[i].getAttribute('data-id');
-        break;
+    
+    for (var i = 0; i < textareas.length; i++) {
+      formData.append(textareas[i].id.replace('modal_', ''), textareas[i].value);
+    }
+    
+    // Send AJAX request
+    fetch('/api/quick_add/' + currentModalType, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
       }
-    }
-    document.getElementById('service_id').value = serviceId;
-  });
-  // VEHICLE AUTOCOMPLETE
-  document.getElementById('vehicle_name').addEventListener('input', function() {
-    var input = this.value;
-    var options = document.getElementById('vehicle-list').options;
-    var vehicleId = '';
-    var vehicleType = '';
-    var vehicleNumber = '';
-    for (var i = 0; i < options.length; i++) {
-      if (options[i].value === input) {
-        vehicleId = options[i].getAttribute('data-id');
-        vehicleType = options[i].getAttribute('data-type');
-        vehicleNumber = options[i].getAttribute('data-number');
-        break;
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        // Add new option to dropdown
+        var selectElement = document.getElementById(currentModalType + '_id');
+        var newOption = document.createElement('option');
+        newOption.value = data[currentModalType].id;
+        newOption.textContent = data[currentModalType].name || data[currentModalType].registration_number;
+        selectElement.appendChild(newOption);
+        
+        // Select the new option
+        selectElement.value = data[currentModalType].id;
+        selectElement.dispatchEvent(new Event('change'));
+        
+        // Close modal
+        var modal = bootstrap.Modal.getInstance(document.getElementById('addEditModal'));
+        modal.hide();
+        
+        // Show success message
+        alert('New ' + currentModalType + ' added successfully!');
+      } else {
+        alert('Error: ' + data.error);
       }
-    }
-    document.getElementById('vehicle_id').value = vehicleId;
-    // If you have hidden fields for type/number, set them here as well
-    if (document.getElementById('vehicle_type')) document.getElementById('vehicle_type').value = vehicleType;
-    if (document.getElementById('vehicle_number')) document.getElementById('vehicle_number').value = vehicleNumber;
-  });
-  // DRIVER AUTOCOMPLETE
-  document.getElementById('driver_name').addEventListener('input', function() {
-    var input = this.value;
-    var options = document.getElementById('driver-list').options;
-    var driverId = '';
-    var driverName = '';
-    for (var i = 0; i < options.length; i++) {
-      if (options[i].value === input) {
-        driverId = options[i].getAttribute('data-id');
-        driverName = options[i].getAttribute('data-name');
-        break;
-      }
-    }
-    document.getElementById('driver_id').value = driverId;
-    if (document.getElementById('driver_contact')) document.getElementById('driver_contact').value = driverName;
-  });
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      alert('An error occurred while saving.');
+    });
+  }
 </script>
 {% endblock %} 

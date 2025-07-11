@@ -1,4 +1,5 @@
 from dotenv import load_dotenv
+
 load_dotenv()
 from flask import Flask, render_template, redirect, url_for, request, flash, session, jsonify, make_response
 from extensions import db
@@ -46,7 +47,7 @@ if sentry_dsn:
 if not app.debug:
     if not os.path.exists('logs'):
         os.mkdir('logs')
-    
+
     file_handler = RotatingFileHandler('logs/transport_app.log', maxBytes=10240, backupCount=10)
     file_handler.setFormatter(logging.Formatter(
         '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
@@ -56,20 +57,29 @@ if not app.debug:
     app.logger.setLevel(logging.INFO)
     app.logger.info('Transport Admin Portal startup')
 
+
 class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SECRET_KEY = os.environ.get('SECRET_KEY', 'your-secret-key-change-this-in-production')
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', '').replace('postgres://', 'postgresql://')
-    WTF_CSRF_ENABLED = True
+    db_url = os.environ.get('DATABASE_URL', '')
+    if db_url.startswith('postgres://'):
+        db_url = db_url.replace('postgres://', 'postgresql://')
+    if not db_url:
+        db_url = 'sqlite:///app.db'
+    SQLALCHEMY_DATABASE_URI = db_url
+
 
 class DevelopmentConfig(Config):
     pass
 
+
 class TestingConfig(Config):
     TESTING = True
 
+
 class ProductionConfig(Config):
     pass
+
 
 config_map = {
     'development': DevelopmentConfig,
@@ -97,9 +107,11 @@ migrate = Migrate(app, db)
 with app.app_context():
     from models import User, Job, Driver, Agent, Billing, Discount, Service, Vehicle, Role
 
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
+
 
 class LoginForm(Form):
     username = StringField('Username or Email', validators=[
@@ -110,6 +122,7 @@ class LoginForm(Form):
         DataRequired(message='Password is required'),
         Length(min=3, max=255, message='Password must be between 3 and 255 characters')
     ])
+
 
 # Input validation decorators
 def validate_json_input(f):
@@ -125,7 +138,9 @@ def validate_json_input(f):
         except Exception as e:
             app.logger.error(f'JSON validation error in {f.__name__}: {str(e)}')
             return jsonify({'error': 'Invalid JSON data'}), 400
+
     return decorated_function
+
 
 def validate_form_input(required_fields=None):
     def decorator(f):
@@ -138,8 +153,11 @@ def validate_form_input(required_fields=None):
                         flash(f'{field.replace("_", " ").title()} is required', 'error')
                         return redirect(request.url)
             return f(*args, **kwargs)
+
         return decorated_function
+
     return decorator
+
 
 def handle_database_errors(f):
     @wraps(f)
@@ -152,14 +170,19 @@ def handle_database_errors(f):
             app.logger.error(traceback.format_exc())
             flash('An error occurred while processing your request. Please try again.', 'error')
             return redirect(url_for('dashboard'))
+
     return decorated_function
+
 
 # Custom admin view to restrict access to admins only
 class AdminModelView(ModelView):
     def is_accessible(self):
-        return current_user.is_authenticated and any(role.name in ['fleet_manager', 'system_admin'] for role in current_user.roles)
+        return current_user.is_authenticated and any(
+            role.name in ['fleet_manager', 'system_admin'] for role in current_user.roles)
+
     def inaccessible_callback(self, name, **kwargs):
         return abort(403)
+
 
 # Initialize Flask-Admin
 admin = Admin(app, name='Admin', template_mode='bootstrap4')
@@ -175,21 +198,25 @@ with app.app_context():
     admin.add_view(AdminModelView(Discount, db.session))
     admin.add_view(AdminModelView(Service, db.session))
 
+
 # Error handlers
 @app.errorhandler(400)
 def bad_request(error):
     app.logger.error(f'Bad request: {error}')
     return render_template('errors/400.html'), 400
 
+
 @app.errorhandler(403)
 def forbidden(error):
     app.logger.error(f'Forbidden access: {error}')
     return render_template('errors/403.html'), 403
 
+
 @app.errorhandler(404)
 def not_found(error):
     app.logger.error(f'Page not found: {error}')
     return render_template('errors/404.html'), 404
+
 
 @app.errorhandler(500)
 def internal_error(error):
@@ -198,22 +225,23 @@ def internal_error(error):
     db.session.rollback()
     return render_template('errors/500.html'), 500
 
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
         app.logger.info(f'User {current_user.username} already authenticated, redirecting to dashboard')
         return redirect(url_for('dashboard'))
-    
+
     form = LoginForm(request.form)
     error = None
-    
+
     if request.method == 'POST':
         app.logger.info(f'Login attempt for user: {request.form.get("username", "unknown")}')
-        
+
         if form.validate():
             username = form.username.data.strip()
             password = form.password.data
-            
+
             # Input sanitization
             if not username or not password:
                 error = 'Username and password are required'
@@ -224,7 +252,7 @@ def login():
                     user = User.query.filter(
                         (User.username == username) | (User.email == username)
                     ).first()
-                    
+
                     if user and user.check_password(password):
                         if user.active:
                             login_user(user)
@@ -238,15 +266,16 @@ def login():
                     else:
                         error = 'Invalid username or password'
                         app.logger.warning(f'Failed login attempt for user: {username}')
-                        
+
                 except Exception as e:
                     app.logger.error(f'Login error: {str(e)}')
                     error = 'An error occurred during login. Please try again.'
         else:
             error = 'Please correct the errors below'
             app.logger.warning(f'Form validation failed: {form.errors}')
-    
+
     return render_template('login.html', form=form, error=error)
+
 
 @app.route('/logout')
 @login_required
@@ -255,10 +284,12 @@ def logout():
     flash('You have been logged out.', 'info')
     return redirect(url_for('login'))
 
+
 @app.route('/')
 @login_required
 def index():
     return redirect(url_for('dashboard'))
+
 
 @app.route('/dashboard')
 @login_required
@@ -272,20 +303,22 @@ def dashboard():
     # Total Vehicles
     total_vehicles = Vehicle.query.count()
     # Available Drivers: drivers not assigned to any active job (assuming jobs with order_status 'New' or 'In Progress')
-    active_driver_ids = [job.driver_id for job in Job.query.filter(Job.order_status.in_(['New', 'In Progress'])).all() if job.driver_id]
+    active_driver_ids = [job.driver_id for job in Job.query.filter(Job.order_status.in_(['New', 'In Progress'])).all()
+                         if job.driver_id]
     available_drivers = Driver.query.filter(~Driver.id.in_(active_driver_ids)).count()
     # Active Jobs: jobs with order_status 'New' or 'In Progress'
     active_jobs = Job.query.filter(Job.order_status.in_(['New', 'In Progress'])).count()
     # Completed Today: jobs with order_status 'Completed' and pickup_date is today
-    completed_today = Job.query.filter(Job.order_status == 'Completed', Job.pickup_date == date.today().isoformat()).count()
+    completed_today = Job.query.filter(Job.order_status == 'Completed',
+                                       Job.pickup_date == date.today().isoformat()).count()
     return render_template('dashboard.html',
-        unassigned_jobs=unassigned_jobs,
-        ready_to_invoice=ready_to_invoice,
-        total_vehicles=total_vehicles,
-        available_drivers=available_drivers,
-        active_jobs=active_jobs,
-        completed_today=completed_today
-    )
+                           unassigned_jobs=unassigned_jobs,
+                           ready_to_invoice=ready_to_invoice,
+                           total_vehicles=total_vehicles,
+                           available_drivers=available_drivers,
+                           active_jobs=active_jobs,
+                           completed_today=completed_today
+                           )
 
 
 # JOBS CRUD
@@ -341,6 +374,7 @@ def jobs():
     pagination = query.order_by(Job.id.desc()).paginate(page=page, per_page=per_page, error_out=False)
     jobs = pagination.items
     return render_template('jobs.html', jobs=jobs, search_query=search_query, pagination=pagination)
+
 
 @app.route('/jobs/table', methods=['GET'])
 @login_required
@@ -411,69 +445,69 @@ def add_job():
             # Validate and sanitize input
             agent_id = request.form.get('agent_id')
             agent = Agent.query.get(agent_id) if agent_id and agent_id.isdigit() else None
-            
+
             service_id = request.form.get('service_id')
             service = Service.query.get(service_id) if service_id and service_id.isdigit() else None
-            
+
             vehicle_id = request.form.get('vehicle_id')
             vehicle = Vehicle.query.get(vehicle_id) if vehicle_id and vehicle_id.isdigit() else None
-            
+
             driver_id = request.form.get('driver_id')
             driver = Driver.query.get(driver_id) if driver_id and driver_id.isdigit() else None
-            
+
             # Validate required fields
             customer_name = (agent.name if agent else request.form.get('customer_name', '').strip())
             pickup_location = request.form.get('pickup_location', '').strip()
             dropoff_location = request.form.get('dropoff_location', '').strip()
             pickup_date = request.form.get('pickup_date', '').strip()
-            
+
             if not customer_name:
                 flash('Customer name is required', 'error')
                 return redirect(request.url)
-            
+
             if not pickup_location:
                 flash('Pickup location is required', 'error')
                 return redirect(request.url)
-            
+
             if not dropoff_location:
                 flash('Dropoff location is required', 'error')
                 return redirect(request.url)
-            
+
             if not pickup_date:
                 flash('Pickup date is required', 'error')
                 return redirect(request.url)
-            
+
             # Validate date format
             try:
                 datetime.strptime(pickup_date, '%Y-%m-%d')
             except ValueError:
                 flash('Invalid pickup date format', 'error')
                 return redirect(request.url)
-            
+
             # Validate email if provided
             customer_email = (agent.email if agent else request.form.get('customer_email', '').strip())
             if customer_email and not re.match(r'^[^@]+@[^@]+\.[^@]+$', customer_email):
                 flash('Invalid customer email format', 'error')
                 return redirect(request.url)
-            
+
             passenger_email = request.form.get('passenger_email', '').strip()
             if passenger_email and not re.match(r'^[^@]+@[^@]+\.[^@]+$', passenger_email):
                 flash('Invalid passenger email format', 'error')
                 return redirect(request.url)
-            
+
             # Validate mobile numbers
             customer_mobile = (agent.mobile if agent else request.form.get('customer_mobile', '').strip())
             if customer_mobile and not re.match(r'^[\d\s\-\+\(\)]+$', customer_mobile):
                 flash('Invalid customer mobile number format', 'error')
                 return redirect(request.url)
-            
+
             passenger_mobile = request.form.get('passenger_mobile', '').strip()
             if passenger_mobile and not re.match(r'^[\d\s\-\+\(\)]+$', passenger_mobile):
                 flash('Invalid passenger mobile number format', 'error')
                 return redirect(request.url)
-            
+
             stops = request.form.getlist('additional_stops[]')
-            
+
             job = Job(
                 customer_name=customer_name,
                 customer_email=customer_email,
@@ -504,20 +538,21 @@ def add_job():
                 status=request.form.get('status', '').strip(),
                 date=pickup_date
             )
-            
+
             db.session.add(job)
             db.session.commit()
-            
+
             app.logger.info(f'Job created successfully by user {current_user.username}: {job.id}')
             flash('Job created successfully', 'success')
             return redirect(url_for('jobs'))
-            
+
         except Exception as e:
             db.session.rollback()
             app.logger.error(f'Error creating job: {str(e)}')
             flash('Error creating job. Please try again.', 'error')
             return redirect(request.url)
-    return render_template('job_form.html', action='Add', job=None, agents=agents, services=services, vehicles=vehicles, drivers=drivers, stops=[])
+    return render_template('job_form.html', action='Add', job=None, agents=agents, services=services, vehicles=vehicles,
+                           drivers=drivers, stops=[])
 
 
 @app.route('/jobs/edit/<int:job_id>', methods=['GET', 'POST'])
@@ -570,7 +605,8 @@ def edit_job(job_id):
         job.date = request.form.get('pickup_date')
         db.session.commit()
         return redirect(url_for('jobs'))
-    return render_template('job_form.html', action='Edit', job=job, agents=agents, services=services, vehicles=vehicles, drivers=drivers, stops=stops)
+    return render_template('job_form.html', action='Edit', job=job, agents=agents, services=services, vehicles=vehicles,
+                           drivers=drivers, stops=stops)
 
 
 @app.route('/jobs/delete/<int:job_id>', methods=['POST'])
@@ -580,6 +616,74 @@ def delete_job(job_id):
     db.session.delete(job)
     db.session.commit()
     return redirect(url_for('jobs'))
+
+@app.route('/jobs/download', methods=['POST'])
+@login_required
+def download_jobs():
+    import csv
+    from io import StringIO
+    from datetime import datetime
+    
+    selected_jobs = request.form.getlist('selected_jobs')
+    
+    if not selected_jobs:
+        flash('No jobs selected for download', 'error')
+        return redirect(url_for('jobs'))
+    
+    # Get the selected jobs
+    jobs = Job.query.filter(Job.id.in_(selected_jobs)).all()
+    
+    # Create CSV data
+    output = StringIO()
+    writer = csv.writer(output)
+    
+    # Write header
+    writer.writerow([
+        'Job ID', 'Customer Name', 'Customer Email', 'Customer Mobile', 'Customer Reference',
+        'Passenger Name', 'Passenger Email', 'Passenger Mobile', 'Type of Service',
+        'Pickup Date', 'Pickup Time', 'Pickup Location', 'Drop-off Location',
+        'Vehicle Type', 'Vehicle Number', 'Driver Contact', 'Driver ID',
+        'Payment Mode', 'Payment Status', 'Order Status', 'Message', 'Remarks',
+        'Reference', 'Status', 'Date'
+    ])
+    
+    # Write data rows
+    for job in jobs:
+        writer.writerow([
+            job.id,
+            job.customer_name or '',
+            job.customer_email or '',
+            job.customer_mobile or '',
+            job.customer_reference or '',
+            job.passenger_name or '',
+            job.passenger_email or '',
+            job.passenger_mobile or '',
+            job.type_of_service or '',
+            job.pickup_date or '',
+            job.pickup_time or '',
+            job.pickup_location or '',
+            job.dropoff_location or '',
+            job.vehicle_type or '',
+            job.vehicle_number or '',
+            job.driver_contact or '',
+            job.driver_id or '',
+            job.payment_mode or '',
+            job.payment_status or '',
+            job.order_status or '',
+            job.message or '',
+            job.remarks or '',
+            job.reference or '',
+            job.status or '',
+            job.date or ''
+        ])
+    
+    # Create response
+    output.seek(0)
+    response = make_response(output.getvalue())
+    response.headers['Content-Type'] = 'text/csv'
+    response.headers['Content-Disposition'] = f'attachment; filename=jobs_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+    
+    return response
 
 
 @app.route('/jobs/smart_add', methods=['GET', 'POST'])
@@ -681,7 +785,8 @@ def add_driver():
             return response
         return redirect(url_for('drivers'))
     return render_template('driver_form.html', action='Add', driver=None, errors=errors,
-        action_url=url_for('add_driver'), hx_post_url=url_for('add_driver'), hx_target='#drivers-table', hx_swap='outerHTML')
+                           action_url=url_for('add_driver'), hx_post_url=url_for('add_driver'),
+                           hx_target='#drivers-table', hx_swap='outerHTML')
 
 
 @app.route('/drivers/edit/<int:driver_id>', methods=['GET', 'POST'])
@@ -696,9 +801,12 @@ def edit_driver(driver_id):
         return redirect(url_for('drivers'))
     if request.headers.get('HX-Request') == 'true':
         return render_template('driver_form.html', action='Edit', driver=driver, errors=errors,
-            action_url=url_for('edit_driver', driver_id=driver.id), hx_post_url=url_for('edit_driver', driver_id=driver.id), hx_target='#drivers-table', hx_swap='outerHTML')
+                               action_url=url_for('edit_driver', driver_id=driver.id),
+                               hx_post_url=url_for('edit_driver', driver_id=driver.id), hx_target='#drivers-table',
+                               hx_swap='outerHTML')
     return render_template('edit_driver_page.html', action='Edit', driver=driver, errors=errors,
-        action_url=url_for('edit_driver', driver_id=driver.id), hx_post_url=None, hx_target=None, hx_swap=None)
+                           action_url=url_for('edit_driver', driver_id=driver.id), hx_post_url=None, hx_target=None,
+                           hx_swap=None)
 
 
 @app.route('/drivers/delete/<int:driver_id>', methods=['POST'])
@@ -756,7 +864,8 @@ def add_agent():
             return response
         return redirect(url_for('agents'))
     return render_template('agent_form.html', action='Add', agent=None, errors=errors,
-        action_url=url_for('add_agent'), hx_post_url=url_for('add_agent'), hx_target='#agents-table', hx_swap='outerHTML')
+                           action_url=url_for('add_agent'), hx_post_url=url_for('add_agent'), hx_target='#agents-table',
+                           hx_swap='outerHTML')
 
 
 @app.route('/agents/edit/<int:agent_id>', methods=['GET', 'POST'])
@@ -774,9 +883,12 @@ def edit_agent(agent_id):
         return redirect(url_for('agents'))
     if request.headers.get('HX-Request') == 'true':
         return render_template('agent_form.html', action='Edit', agent=agent, errors=errors,
-            action_url=url_for('edit_agent', agent_id=agent.id), hx_post_url=url_for('edit_agent', agent_id=agent.id), hx_target='#agents-table', hx_swap='outerHTML')
+                               action_url=url_for('edit_agent', agent_id=agent.id),
+                               hx_post_url=url_for('edit_agent', agent_id=agent.id), hx_target='#agents-table',
+                               hx_swap='outerHTML')
     return render_template('edit_agent_page.html', action='Edit', agent=agent, errors=errors,
-        action_url=url_for('edit_agent', agent_id=agent.id), hx_post_url=None, hx_target=None, hx_swap=None)
+                           action_url=url_for('edit_agent', agent_id=agent.id), hx_post_url=None, hx_target=None,
+                           hx_swap=None)
 
 
 @app.route('/agents/delete/<int:agent_id>', methods=['POST'])
@@ -990,112 +1102,9 @@ def delete_vehicle(vehicle_id):
     return redirect(url_for('vehicles'))
 
 
-@app.route('/api/quick_add/agent', methods=['POST'])
-@login_required
-@validate_json_input
-@handle_database_errors
-def api_quick_add_agent():
-    data = request.json
-    from models import Agent
-    
-    # Validate required fields
-    if not data.get('name'):
-        app.logger.warning('Agent creation failed: missing name')
-        return jsonify({'error': 'Agent name is required'}), 400
-    
-    # Validate email format if provided
-    email = data.get('email', '').strip()
-    if email and not re.match(r'^[^@]+@[^@]+\.[^@]+$', email):
-        app.logger.warning(f'Agent creation failed: invalid email format {email}')
-        return jsonify({'error': 'Invalid email format'}), 400
-    
-    # Validate mobile format if provided
-    mobile = data.get('mobile', '').strip()
-    if mobile and not re.match(r'^[\d\s\-\+\(\)]+$', mobile):
-        app.logger.warning(f'Agent creation failed: invalid mobile format {mobile}')
-        return jsonify({'error': 'Invalid mobile number format'}), 400
-    
-    try:
-        agent = Agent(
-            name=data.get('name', '').strip(),
-            email=email,
-            mobile=mobile,
-            type=data.get('type', '').strip(),
-            status=data.get('status', 'Active')
-        )
-        db.session.add(agent)
-        db.session.commit()
-        
-        app.logger.info(f'Agent created successfully by user {current_user.username}: {agent.id}')
-        return jsonify({
-            'id': agent.id,
-            'name': agent.name,
-            'email': agent.email,
-            'mobile': agent.mobile
-        })
-    except Exception as e:
-        app.logger.error(f'Error creating agent: {str(e)}')
-        return jsonify({'error': 'Failed to create agent'}), 500
+# Import API routes
+import api_routes
 
-@app.route('/api/quick_add/service', methods=['POST'])
-@login_required
-def api_quick_add_service():
-    data = request.json
-    from models import Service
-    if not data:
-        return jsonify({'error': 'No input data provided'}), 400
-    service = Service(
-        name=data.get('name'),
-        description=data.get('description'),
-        status=data.get('status', 'Active')
-    )
-    db.session.add(service)
-    db.session.commit()
-    return jsonify({
-        'id': service.id,
-        'name': service.name
-    })
-
-@app.route('/api/quick_add/vehicle', methods=['POST'])
-@login_required
-def api_quick_add_vehicle():
-    data = request.json
-    from models import Vehicle
-    if not data:
-        return jsonify({'error': 'No input data provided'}), 400
-    vehicle = Vehicle(
-        name=data.get('name'),
-        number=data.get('number'),
-        type=data.get('type'),
-        status=data.get('status', 'Active')
-    )
-    db.session.add(vehicle)
-    db.session.commit()
-    return jsonify({
-        'id': vehicle.id,
-        'name': vehicle.name,
-        'number': vehicle.number,
-        'type': vehicle.type
-    })
-
-@app.route('/api/quick_add/driver', methods=['POST'])
-@login_required
-def api_quick_add_driver():
-    data = request.json
-    from models import Driver
-    if not data:
-        return jsonify({'error': 'No input data provided'}), 400
-    driver = Driver(
-        name=data.get('name'),
-        phone=data.get('phone')
-    )
-    db.session.add(driver)
-    db.session.commit()
-    return jsonify({
-        'id': driver.id,
-        'name': driver.name,
-        'phone': driver.phone
-    })
 
 @app.cli.command('create-admin')
 @click.argument('username')
@@ -1127,21 +1136,27 @@ def create_admin(username, email, password):
     db.session.commit()
     click.echo(f'Admin user {username} created successfully.')
 
+
 # CSRF token is automatically handled by Flask-WTF and Flask-Security
 
 @app.context_processor
 def inject_role_helpers():
     def has_role(role_name):
         return any(role.name == role_name for role in getattr(current_user, 'roles', []))
+
     def has_any_role(*role_names):
         return any(role.name in role_names for role in getattr(current_user, 'roles', []))
+
     return dict(has_role=has_role, has_any_role=has_any_role)
+
 
 @app.context_processor
 def inject_csrf_token():
     return dict(csrf_token=generate_csrf)
 
+
 if __name__ == '__main__':
     import os
+
     port = int(os.environ.get('PORT', 5000))
     app.run(debug=True, host='0.0.0.0', port=port)

@@ -3,6 +3,9 @@
 <table class="table table-bordered table-hover table-striped align-middle">
   <thead class="table-light">
     <tr>
+      <th>
+        <input type="checkbox" id="selectAll" class="form-check-input" title="Select All">
+      </th>
       <th>Customer Name</th>
       <th>Customer Mobile</th>
       <th>Passenger Name</th>
@@ -18,6 +21,7 @@
       <th>Actions</th>
     </tr>
     <tr>
+      <th></th>
       <th><input type="text" class="form-control form-control-sm" name="customer_name" placeholder="Filter" value="{{ request.args.get('customer_name', '') }}" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="keyup changed delay:400ms" autocomplete="off"></th>
       <th><input type="text" class="form-control form-control-sm" name="customer_mobile" placeholder="Filter" value="{{ request.args.get('customer_mobile', '') }}" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="keyup changed delay:400ms" autocomplete="off"></th>
       <th><input type="text" class="form-control form-control-sm" name="passenger_name" placeholder="Filter" value="{{ request.args.get('passenger_name', '') }}" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="keyup changed delay:400ms" autocomplete="off"></th>
@@ -64,6 +68,9 @@
   <tbody>
     {% for job in jobs %}
     <tr data-job-id="{{ job.id }}">
+      <td>
+        <input type="checkbox" name="selected_jobs" value="{{ job.id }}" class="form-check-input">
+      </td>
       <td>{{ job.customer_name }}</td>
       <td>{{ job.customer_mobile }}</td>
       <td>{{ job.passenger_name }}</td>
