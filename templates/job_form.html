@@ -81,8 +81,8 @@
             <select class="form-select" id="vehicle_id" name="vehicle_id" required>
               <option value="">Select Vehicle</option>
             {% for vehicle in vehicles %}
-                <option value="{{ vehicle.id }}" data-type="{{ vehicle.type }}" data-number="{{ vehicle.registration_number }}" {% if job and job.vehicle_id == vehicle.id %}selected{% endif %}>
-                  {{ vehicle.registration_number }} ({{ vehicle.make }} {{ vehicle.model }})
+                <option value="{{ vehicle.id }}" data-type="{{ vehicle.type }}" data-number="{{ vehicle.number }}" {% if job and job.vehicle_id == vehicle.id %}selected{% endif %}>
+                  {{ vehicle.number }} ({{ vehicle.name }})
                 </option>
             {% endfor %}
             </select>

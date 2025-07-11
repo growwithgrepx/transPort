@@ -1105,6 +1105,9 @@ def delete_vehicle(vehicle_id):
 # Import API routes
 import api_routes
 
+# Import chat routes
+import chat_routes
+
 
 @app.cli.command('create-admin')
 @click.argument('username')

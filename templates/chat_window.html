@@ -1,0 +1,503 @@
+<!-- Chat Window -->
+<div id="chat-window" class="chat-window">
+  <!-- Chat Header -->
+  <div class="chat-header">
+    <div class="chat-title">
+      <i class="bi bi-chat-dots"></i>
+      <span>Fleet Assistant</span>
+    </div>
+    <div class="chat-controls">
+      <button class="btn btn-sm btn-outline-secondary" id="dockBtn" title="Dock">
+        <i class="bi bi-layout-sidebar"></i>
+      </button>
+      <button class="btn btn-sm btn-outline-secondary" id="minimizeBtn" title="Minimize">
+        <i class="bi bi-dash"></i>
+      </button>
+      <button class="btn btn-sm btn-outline-secondary" id="fullscreenBtn" title="Full Screen">
+        <i class="bi bi-arrows-fullscreen"></i>
+      </button>
+      <button class="btn btn-sm btn-outline-danger" id="closeBtn" title="Close">
+        <i class="bi bi-x"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Chat Messages -->
+  <div class="chat-messages" id="chatMessages">
+    <div class="message system">
+      <div class="message-content">
+        <i class="bi bi-robot"></i>
+        <div>
+          <strong>Fleet Assistant:</strong> Welcome! Click on any button below to view fleet data:
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chat Buttons -->
+  <div class="chat-buttons-container">
+    <!-- Jobs Section -->
+    <div class="button-group">
+      <h6 class="button-group-title">📋 Jobs</h6>
+      <div class="button-grid">
+        <button class="chat-btn" data-query="all jobs">
+          <i class="bi bi-list-ul"></i>
+          All Jobs
+        </button>
+        <button class="chat-btn" data-query="active jobs">
+          <i class="bi bi-play-circle"></i>
+          Active Jobs
+        </button>
+        <button class="chat-btn" data-query="pending jobs">
+          <i class="bi bi-clock"></i>
+          Pending Jobs
+        </button>
+        <button class="chat-btn" data-query="completed jobs">
+          <i class="bi bi-check-circle"></i>
+          Completed Jobs
+        </button>
+        <button class="chat-btn" data-query="unpaid jobs">
+          <i class="bi bi-exclamation-triangle"></i>
+          Unpaid Jobs
+        </button>
+        <button class="chat-btn" data-query="paid jobs">
+          <i class="bi bi-check-square"></i>
+          Paid Jobs
+        </button>
+      </div>
+    </div>
+
+    <!-- Drivers Section -->
+    <div class="button-group">
+      <h6 class="button-group-title">👨‍💼 Drivers</h6>
+      <div class="button-grid">
+        <button class="chat-btn" data-query="all drivers">
+          <i class="bi bi-people"></i>
+          All Drivers
+        </button>
+        <button class="chat-btn" data-query="available drivers">
+          <i class="bi bi-person-check"></i>
+          Available Drivers
+        </button>
+      </div>
+    </div>
+
+    <!-- Vehicles Section -->
+    <div class="button-group">
+      <h6 class="button-group-title">🚗 Vehicles</h6>
+      <div class="button-grid">
+        <button class="chat-btn" data-query="all vehicles">
+          <i class="bi bi-truck"></i>
+          All Vehicles
+        </button>
+        <button class="chat-btn" data-query="available vehicles">
+          <i class="bi bi-truck-flatbed"></i>
+          Available Vehicles
+        </button>
+      </div>
+    </div>
+
+    <!-- Other Entities Section -->
+    <div class="button-group">
+      <h6 class="button-group-title">📊 Other</h6>
+      <div class="button-grid">
+        <button class="chat-btn" data-query="all agents">
+          <i class="bi bi-person-badge"></i>
+          All Agents
+        </button>
+        <button class="chat-btn" data-query="all services">
+          <i class="bi bi-gear"></i>
+          All Services
+        </button>
+        <button class="chat-btn" data-query="billing records">
+          <i class="bi bi-receipt"></i>
+          Billing Records
+        </button>
+      </div>
+    </div>
+
+    <!-- Status & Summary Section -->
+    <div class="button-group">
+      <h6 class="button-group-title">📈 Status & Summary</h6>
+      <div class="button-grid">
+        <button class="chat-btn" data-query="payment status">
+          <i class="bi bi-credit-card"></i>
+          Payment Status
+        </button>
+        <button class="chat-btn" data-query="job status">
+          <i class="bi bi-graph-up"></i>
+          Job Status
+        </button>
+        <button class="chat-btn" data-query="dashboard summary">
+          <i class="bi bi-speedometer2"></i>
+          Dashboard Summary
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Download Section -->
+  <div class="download-section" id="downloadSection" style="display: none;">
+    <div class="download-header">
+      <h6>📥 Download Data</h6>
+      <button class="btn btn-sm btn-outline-primary" id="downloadBtn">
+        <i class="bi bi-download"></i>
+        Download CSV
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Chat Toggle Button -->
+<button id="chatToggle" class="chat-toggle-btn">
+  <i class="bi bi-chat-dots"></i>
+</button>
+
+<style>
+/* Chat Window Styles */
+.chat-window {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 450px;
+  height: 600px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+  transition: all 0.3s ease;
+  border: 1px solid #e0e0e0;
+}
+
+.chat-window.minimized {
+  height: 60px;
+}
+
+.chat-window.fullscreen {
+  top: 20px;
+  left: 20px;
+  right: 20px;
+  bottom: 20px;
+  width: auto;
+  height: auto;
+}
+
+.chat-window.docked {
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  bottom: 20px;
+  width: 450px;
+  height: auto;
+}
+
+.chat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 12px 12px 0 0;
+  cursor: move;
+}
+
+.chat-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.chat-controls {
+  display: flex;
+  gap: 5px;
+}
+
+.chat-controls .btn {
+  padding: 4px 8px;
+  font-size: 12px;
+  color: white;
+  border-color: rgba(255,255,255,0.3);
+}
+
+.chat-controls .btn:hover {
+  background: rgba(255,255,255,0.1);
+  border-color: rgba(255,255,255,0.5);
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  background: #f8f9fa;
+  max-height: 200px;
+}
+
+.chat-messages::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-messages::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.chat-messages::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.message {
+  margin-bottom: 15px;
+  display: flex;
+  flex-direction: column;
+}
+
+.message.user {
+  align-items: flex-end;
+}
+
+.message.assistant {
+  align-items: flex-start;
+}
+
+.message.system {
+  align-items: flex-start;
+}
+
+.message-content {
+  max-width: 80%;
+  padding: 12px 16px;
+  border-radius: 18px;
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.message.user .message-content {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-bottom-right-radius: 4px;
+}
+
+.message.assistant .message-content {
+  background: white;
+  color: #333;
+  border: 1px solid #e0e0e0;
+  border-bottom-left-radius: 4px;
+}
+
+.message.system .message-content {
+  background: #e3f2fd;
+  color: #1976d2;
+  border: 1px solid #bbdefb;
+  border-bottom-left-radius: 4px;
+}
+
+.message-content i {
+  margin-top: 2px;
+  font-size: 14px;
+}
+
+/* Chat Buttons Styles */
+.chat-buttons-container {
+  padding: 15px 20px;
+  background: white;
+  border-top: 1px solid #e0e0e0;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.button-group {
+  margin-bottom: 20px;
+}
+
+.button-group-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 10px;
+  padding-bottom: 5px;
+  border-bottom: 2px solid #e9ecef;
+}
+
+.button-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.chat-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  color: #495057;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.chat-btn:hover {
+  background: #e9ecef;
+  border-color: #adb5bd;
+  transform: translateY(-1px);
+}
+
+.chat-btn:active {
+  transform: translateY(0);
+}
+
+.chat-btn i {
+  font-size: 14px;
+  color: #6c757d;
+}
+
+/* Download Section */
+.download-section {
+  padding: 15px 20px;
+  background: #f8f9fa;
+  border-top: 1px solid #e0e0e0;
+}
+
+.download-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.download-header h6 {
+  margin: 0;
+  color: #495057;
+  font-weight: 600;
+}
+
+.chat-toggle-btn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+  font-size: 24px;
+  z-index: 999;
+  transition: all 0.3s ease;
+  display: none;
+}
+
+.chat-toggle-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+}
+
+/* Loading Animation */
+.typing-indicator {
+  display: flex;
+  gap: 4px;
+  padding: 8px 12px;
+}
+
+.typing-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #999;
+  animation: typing 1.4s infinite ease-in-out;
+}
+
+.typing-dot:nth-child(1) { animation-delay: -0.32s; }
+.typing-dot:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes typing {
+  0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
+  40% { transform: scale(1); opacity: 1; }
+}
+
+/* Data Table Styles */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  font-size: 12px;
+}
+
+.data-table th,
+.data-table td {
+  padding: 8px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+}
+
+.data-table th {
+  background: #f5f5f5;
+  font-weight: 600;
+}
+
+.data-table tr:hover {
+  background: #f9f9f9;
+}
+
+/* Status Badges */
+.status-badge {
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.status-active { background: #d4edda; color: #155724; }
+.status-pending { background: #fff3cd; color: #856404; }
+.status-completed { background: #d1ecf1; color: #0c5460; }
+.status-cancelled { background: #f8d7da; color: #721c24; }
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .chat-window {
+    width: calc(100vw - 40px);
+    height: calc(100vh - 120px);
+    bottom: 10px;
+    right: 20px;
+    left: 20px;
+  }
+  
+  .chat-window.fullscreen {
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+  }
+  
+  .chat-window.docked {
+    position: fixed;
+    top: 70px;
+    right: 10px;
+    left: 10px;
+    bottom: 10px;
+    width: auto;
+  }
+  
+  .chat-toggle-btn {
+    bottom: 10px;
+    right: 10px;
+    width: 50px;
+    height: 50px;
+    font-size: 20px;
+  }
+  
+  .button-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style> 
