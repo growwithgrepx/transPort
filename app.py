@@ -433,126 +433,237 @@ def jobs_table():
 @app.route('/jobs/add', methods=['GET', 'POST'])
 @login_required
 @handle_database_errors
-@validate_form_input(['customer_name', 'pickup_date', 'pickup_location', 'dropoff_location'])
 def add_job():
     from models import Agent, Service, Vehicle, Driver
     agents = Agent.query.filter_by(status='Active').all()
     services = Service.query.filter_by(status='Active').all()
     vehicles = Vehicle.query.filter_by(status='Active').all()
     drivers = Driver.query.all()
+    
     if request.method == 'POST':
-        try:
-            # Validate and sanitize input
-            agent_id = request.form.get('agent_id')
-            agent = Agent.query.get(agent_id) if agent_id and agent_id.isdigit() else None
-
-            service_id = request.form.get('service_id')
-            service = Service.query.get(service_id) if service_id and service_id.isdigit() else None
-
-            vehicle_id = request.form.get('vehicle_id')
-            vehicle = Vehicle.query.get(vehicle_id) if vehicle_id and vehicle_id.isdigit() else None
-
-            driver_id = request.form.get('driver_id')
-            driver = Driver.query.get(driver_id) if driver_id and driver_id.isdigit() else None
-
-            # Validate required fields
-            customer_name = (agent.name if agent else request.form.get('customer_name', '').strip())
-            pickup_location = request.form.get('pickup_location', '').strip()
-            dropoff_location = request.form.get('dropoff_location', '').strip()
-            pickup_date = request.form.get('pickup_date', '').strip()
-
-            if not customer_name:
-                flash('Customer name is required', 'error')
-                return redirect(request.url)
-
-            if not pickup_location:
-                flash('Pickup location is required', 'error')
-                return redirect(request.url)
-
-            if not dropoff_location:
-                flash('Dropoff location is required', 'error')
-                return redirect(request.url)
-
-            if not pickup_date:
-                flash('Pickup date is required', 'error')
-                return redirect(request.url)
-
-            # Validate date format
-            try:
-                datetime.strptime(pickup_date, '%Y-%m-%d')
-            except ValueError:
-                flash('Invalid pickup date format', 'error')
-                return redirect(request.url)
-
-            # Validate email if provided
-            customer_email = (agent.email if agent else request.form.get('customer_email', '').strip())
-            if customer_email and not re.match(r'^[^@]+@[^@]+\.[^@]+$', customer_email):
-                flash('Invalid customer email format', 'error')
-                return redirect(request.url)
-
-            passenger_email = request.form.get('passenger_email', '').strip()
-            if passenger_email and not re.match(r'^[^@]+@[^@]+\.[^@]+$', passenger_email):
-                flash('Invalid passenger email format', 'error')
-                return redirect(request.url)
-
-            # Validate mobile numbers
-            customer_mobile = (agent.mobile if agent else request.form.get('customer_mobile', '').strip())
-            if customer_mobile and not re.match(r'^[\d\s\-\+\(\)]+$', customer_mobile):
-                flash('Invalid customer mobile number format', 'error')
-                return redirect(request.url)
-
-            passenger_mobile = request.form.get('passenger_mobile', '').strip()
-            if passenger_mobile and not re.match(r'^[\d\s\-\+\(\)]+$', passenger_mobile):
-                flash('Invalid passenger mobile number format', 'error')
-                return redirect(request.url)
-
-            stops = request.form.getlist('additional_stops[]')
-
-            job = Job(
-                customer_name=customer_name,
-                customer_email=customer_email,
-                customer_mobile=customer_mobile,
-                agent_id=agent.id if agent else None,
-                type_of_service=service.name if service else request.form.get('type_of_service', '').strip(),
-                vehicle_type=vehicle.type if vehicle else request.form.get('vehicle_type', '').strip(),
-                vehicle_number=vehicle.number if vehicle else request.form.get('vehicle_number', '').strip(),
-                driver_contact=driver.name if driver else request.form.get('driver_contact', '').strip(),
-                driver_id=driver.id if driver else None,
-                customer_reference=request.form.get('customer_reference', '').strip(),
-                passenger_name=request.form.get('passenger_name', '').strip(),
-                passenger_email=passenger_email,
-                passenger_mobile=passenger_mobile,
-                pickup_date=pickup_date,
-                pickup_time=request.form.get('pickup_time', '').strip(),
-                pickup_location=pickup_location,
-                dropoff_location=dropoff_location,
-                payment_mode=request.form.get('payment_mode', '').strip(),
-                payment_status=request.form.get('payment_status', '').strip(),
-                order_status=request.form.get('order_status', '').strip(),
-                message=request.form.get('message', '').strip(),
-                remarks=request.form.get('remarks', '').strip(),
-                has_additional_stop=bool(request.form.get('has_additional_stop')),
-                additional_stops=json.dumps(stops) if stops else None,
-                has_request=bool(request.form.get('has_request')),
-                reference=request.form.get('reference', '').strip(),
-                status=request.form.get('status', '').strip(),
-                date=pickup_date
-            )
-
-            db.session.add(job)
-            db.session.commit()
-
-            app.logger.info(f'Job created successfully by user {current_user.username}: {job.id}')
-            flash('Job created successfully', 'success')
-            return redirect(url_for('jobs'))
-
-        except Exception as e:
-            db.session.rollback()
-            app.logger.error(f'Error creating job: {str(e)}')
-            flash('Error creating job. Please try again.', 'error')
-            return redirect(request.url)
+        # Check if this is bulk mode
+        if request.form.get('bulk_mode') == 'true':
+            return handle_bulk_job_creation()
+        else:
+            return handle_single_job_creation()
+    
     return render_template('job_form.html', action='Add', job=None, agents=agents, services=services, vehicles=vehicles,
                            drivers=drivers, stops=[])
+
+
+def handle_single_job_creation():
+    """Handle single job creation"""
+    try:
+        # Validate and sanitize input
+        agent_id = request.form.get('agent_id')
+        agent = Agent.query.get(agent_id) if agent_id and agent_id.isdigit() else None
+
+        service_id = request.form.get('service_id')
+        service = Service.query.get(service_id) if service_id and service_id.isdigit() else None
+
+        vehicle_id = request.form.get('vehicle_id')
+        vehicle = Vehicle.query.get(vehicle_id) if vehicle_id and vehicle_id.isdigit() else None
+
+        driver_id = request.form.get('driver_id')
+        driver = Driver.query.get(driver_id) if driver_id and driver_id.isdigit() else None
+
+        # Validate required fields
+        customer_name = (agent.name if agent else request.form.get('customer_name', '').strip())
+        pickup_location = request.form.get('pickup_location', '').strip()
+        dropoff_location = request.form.get('dropoff_location', '').strip()
+        pickup_date = request.form.get('pickup_date', '').strip()
+
+        if not customer_name:
+            flash('Customer name is required', 'error')
+            return redirect(request.url)
+
+        if not pickup_location:
+            flash('Pickup location is required', 'error')
+            return redirect(request.url)
+
+        if not dropoff_location:
+            flash('Dropoff location is required', 'error')
+            return redirect(request.url)
+
+        if not pickup_date:
+            flash('Pickup date is required', 'error')
+            return redirect(request.url)
+
+        # Validate date format
+        try:
+            datetime.strptime(pickup_date, '%Y-%m-%d')
+        except ValueError:
+            flash('Invalid pickup date format', 'error')
+            return redirect(request.url)
+
+        # Validate email if provided
+        customer_email = (agent.email if agent else request.form.get('customer_email', '').strip())
+        if customer_email and not re.match(r'^[^@]+@[^@]+\.[^@]+$', customer_email):
+            flash('Invalid customer email format', 'error')
+            return redirect(request.url)
+
+        passenger_email = request.form.get('passenger_email', '').strip()
+        if passenger_email and not re.match(r'^[^@]+@[^@]+\.[^@]+$', passenger_email):
+            flash('Invalid passenger email format', 'error')
+            return redirect(request.url)
+
+        # Validate mobile numbers
+        customer_mobile = (agent.mobile if agent else request.form.get('customer_mobile', '').strip())
+        if customer_mobile and not re.match(r'^[\d\s\-\+\(\)]+$', customer_mobile):
+            flash('Invalid customer mobile number format', 'error')
+            return redirect(request.url)
+
+        passenger_mobile = request.form.get('passenger_mobile', '').strip()
+        if passenger_mobile and not re.match(r'^[\d\s\-\+\(\)]+$', passenger_mobile):
+            flash('Invalid passenger mobile number format', 'error')
+            return redirect(request.url)
+
+        stops = request.form.getlist('additional_stops[]')
+
+        job = Job(
+            customer_name=customer_name,
+            customer_email=customer_email,
+            customer_mobile=customer_mobile,
+            agent_id=agent.id if agent else None,
+            type_of_service=service.name if service else request.form.get('type_of_service', '').strip(),
+            vehicle_type=vehicle.type if vehicle else request.form.get('vehicle_type', '').strip(),
+            vehicle_number=vehicle.number if vehicle else request.form.get('vehicle_number', '').strip(),
+            driver_contact=driver.name if driver else request.form.get('driver_contact', '').strip(),
+            driver_id=driver.id if driver else None,
+            customer_reference=request.form.get('customer_reference', '').strip(),
+            passenger_name=request.form.get('passenger_name', '').strip(),
+            passenger_email=passenger_email,
+            passenger_mobile=passenger_mobile,
+            pickup_date=pickup_date,
+            pickup_time=request.form.get('pickup_time', '').strip(),
+            pickup_location=pickup_location,
+            dropoff_location=dropoff_location,
+            payment_mode=request.form.get('payment_mode', '').strip(),
+            payment_status=request.form.get('payment_status', '').strip(),
+            order_status=request.form.get('order_status', '').strip(),
+            message=request.form.get('message', '').strip(),
+            remarks=request.form.get('remarks', '').strip(),
+            has_additional_stop=bool(request.form.get('has_additional_stop')),
+            additional_stops=json.dumps(stops) if stops else None,
+            has_request=bool(request.form.get('has_request')),
+            reference=request.form.get('reference', '').strip(),
+            status=request.form.get('status', '').strip(),
+            date=pickup_date
+        )
+
+        db.session.add(job)
+        db.session.commit()
+
+        app.logger.info(f'Job created successfully by user {current_user.username}: {job.id}')
+        flash('Job created successfully', 'success')
+        return redirect(url_for('jobs'))
+
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Error creating job: {str(e)}')
+        flash('Error creating job. Please try again.', 'error')
+        return redirect(request.url)
+
+
+def handle_bulk_job_creation():
+    """Handle bulk job creation"""
+    try:
+        jobs_data = request.form.get('jobs')
+        if not jobs_data:
+            flash('No jobs data received', 'error')
+            return redirect(request.url)
+        
+        # Parse jobs data from form
+        jobs = []
+        for key, value in request.form.items():
+            if key.startswith('jobs[') and key.endswith('][agent_id]'):
+                # Extract row number from key like "jobs[1][agent_id]"
+                row_num = key.split('[')[1].split(']')[0]
+                
+                # Get all data for this row
+                agent_id = request.form.get(f'jobs[{row_num}][agent_id]', '').strip()
+                service_id = request.form.get(f'jobs[{row_num}][service_id]', '').strip()
+                vehicle_id = request.form.get(f'jobs[{row_num}][vehicle_id]', '').strip()
+                driver_id = request.form.get(f'jobs[{row_num}][driver_id]', '').strip()
+                pickup_date = request.form.get(f'jobs[{row_num}][pickup_date]', '').strip()
+                pickup_time = request.form.get(f'jobs[{row_num}][pickup_time]', '').strip()
+                pickup_location = request.form.get(f'jobs[{row_num}][pickup_location]', '').strip()
+                dropoff_location = request.form.get(f'jobs[{row_num}][dropoff_location]', '').strip()
+                passenger_name = request.form.get(f'jobs[{row_num}][passenger_name]', '').strip()
+                
+                # Validate required fields
+                if not agent_id or not service_id or not vehicle_id or not driver_id or not pickup_date or not pickup_location or not dropoff_location:
+                    flash(f'Row {row_num}: All required fields must be filled', 'error')
+                    return redirect(request.url)
+                
+                # Get related objects
+                agent = Agent.query.get(agent_id) if agent_id and agent_id.isdigit() else None
+                service = Service.query.get(service_id) if service_id and service_id.isdigit() else None
+                vehicle = Vehicle.query.get(vehicle_id) if vehicle_id and vehicle_id.isdigit() else None
+                driver = Driver.query.get(driver_id) if driver_id and driver_id.isdigit() else None
+                
+                if not agent or not service or not vehicle or not driver:
+                    flash(f'Row {row_num}: Invalid agent, service, vehicle, or driver selection', 'error')
+                    return redirect(request.url)
+                
+                # Validate date format
+                try:
+                    datetime.strptime(pickup_date, '%Y-%m-%d')
+                except ValueError:
+                    flash(f'Row {row_num}: Invalid pickup date format', 'error')
+                    return redirect(request.url)
+                
+                jobs.append({
+                    'agent': agent,
+                    'service': service,
+                    'vehicle': vehicle,
+                    'driver': driver,
+                    'pickup_date': pickup_date,
+                    'pickup_time': pickup_time,
+                    'pickup_location': pickup_location,
+                    'dropoff_location': dropoff_location,
+                    'passenger_name': passenger_name
+                })
+        
+        if not jobs:
+            flash('No valid jobs to create', 'error')
+            return redirect(request.url)
+        
+        # Create all jobs
+        created_jobs = []
+        for job_data in jobs:
+            job = Job(
+                customer_name=job_data['agent'].name,
+                customer_email=job_data['agent'].email,
+                customer_mobile=job_data['agent'].mobile,
+                agent_id=job_data['agent'].id,
+                type_of_service=job_data['service'].name,
+                vehicle_type=job_data['vehicle'].type,
+                vehicle_number=job_data['vehicle'].number,
+                driver_contact=job_data['driver'].name,
+                driver_id=job_data['driver'].id,
+                passenger_name=job_data['passenger_name'],
+                pickup_date=job_data['pickup_date'],
+                pickup_time=job_data['pickup_time'],
+                pickup_location=job_data['pickup_location'],
+                dropoff_location=job_data['dropoff_location'],
+                status='Scheduled',
+                date=job_data['pickup_date']
+            )
+            db.session.add(job)
+            created_jobs.append(job)
+        
+        db.session.commit()
+        
+        app.logger.info(f'{len(created_jobs)} jobs created successfully by user {current_user.username}')
+        flash(f'{len(created_jobs)} jobs created successfully!', 'success')
+        return redirect(url_for('jobs'))
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Error creating bulk jobs: {str(e)}')
+        flash('Error creating jobs. Please try again.', 'error')
+        return redirect(request.url)
 
 
 @app.route('/jobs/edit/<int:job_id>', methods=['GET', 'POST'])

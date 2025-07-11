@@ -2,212 +2,343 @@
 {% block title %}{{ action }} Job - Admin Portal{% endblock %}
 {% block content %}
 <h2>{{ action }} Job</h2>
-<form method="post" id="jobForm" novalidate>
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <div class="card mb-4">
-    <div class="card-body">
-      <h5 class="mb-3">Job & Customer Details</h5>
-      <div class="row g-3">
-        <div class="col-md-6 col-lg-4">
-          <label for="agent_id" class="form-label">Agent <span class="text-danger">*</span></label>
-          <div class="input-group">
-            <select class="form-select" id="agent_id" name="agent_id" required>
-              <option value="">Select Agent</option>
-            {% for agent in agents %}
-                <option value="{{ agent.id }}" data-email="{{ agent.email }}" data-mobile="{{ agent.phone }}" {% if job and job.agent_id == agent.id %}selected{% endif %}>
-                  {{ agent.name }}
-                </option>
-            {% endfor %}
-            </select>
-            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#agentModal">
-              <i class="fas fa-plus"></i> Add
-            </button>
-          </div>
-          <input type="hidden" id="customer_name" name="customer_name">
-          <div class="invalid-feedback">Agent is required.</div>
-        </div>
-        <div class="col-md-6 col-lg-4">
-          <label for="customer_email" class="form-label">Agent Email</label>
-          <input type="email" class="form-control" id="customer_email" name="customer_email" value="{{ job.customer_email if job else '' }}" readonly placeholder="Auto-filled">
-        </div>
-        <div class="col-md-6 col-lg-4">
-          <label for="customer_mobile" class="form-label">Agent Mobile</label>
-          <input type="text" class="form-control" id="customer_mobile" name="customer_mobile" value="{{ job.customer_mobile if job else '' }}" readonly placeholder="Auto-filled">
-        </div>
-        <div class="col-md-6 col-lg-4">
-          <label for="service_id" class="form-label">Service <span class="text-danger">*</span></label>
-          <div class="input-group">
-            <select class="form-select" id="service_id" name="service_id" required>
-              <option value="">Select Service</option>
-            {% for service in services %}
-                <option value="{{ service.id }}" {% if job and (job.service_id == service.id or job.type_of_service == service.name) %}selected{% endif %}>
-                  {{ service.name }}
-                </option>
-            {% endfor %}
-            </select>
-            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#serviceModal">
-              <i class="fas fa-plus"></i> Add
-            </button>
-          </div>
-          <div class="invalid-feedback">Service is required.</div>
-        </div>
-        <div class="col-md-6 col-lg-4">
-          <label for="pickup_date" class="form-label">Date <span class="text-danger">*</span></label>
-          <input type="date" class="form-control" id="pickup_date" name="pickup_date" value="{{ job.pickup_date if job else '' }}" required>
-          <div class="invalid-feedback">Date is required.</div>
-        </div>
-        <div class="col-md-6 col-lg-4">
-          <label for="pickup_time" class="form-label">Time of Pick Up <span class="text-danger">*</span></label>
-          <input type="time" class="form-control" id="pickup_time" name="pickup_time" value="{{ job.pickup_time if job else '' }}" required>
-          <div class="invalid-feedback">Pick-up time is required.</div>
-        </div>
-        <div class="col-md-6 col-lg-6">
-          <label for="pickup_location" class="form-label">Pick-up Location <span class="text-danger">*</span></label>
-          <input type="text" class="form-control" id="pickup_location" name="pickup_location" value="{{ job.pickup_location if job else '' }}" placeholder="Pick-up location" required>
-          <div class="invalid-feedback">Pick-up location is required.</div>
-        </div>
-        <div class="col-md-6 col-lg-6">
-          <label for="dropoff_location" class="form-label">Drop-Off Location <span class="text-danger">*</span></label>
-          <input type="text" class="form-control" id="dropoff_location" name="dropoff_location" value="{{ job.dropoff_location if job else '' }}" placeholder="Drop-off location" required>
-          <div class="invalid-feedback">Drop-off location is required.</div>
-        </div>
-      </div>
-      <hr class="my-4">
-      <h5 class="mb-3">Vehicle & Driver</h5>
-      <div class="row g-3">
-        <div class="col-md-6">
-          <label for="vehicle_id" class="form-label">Vehicle <span class="text-danger">*</span></label>
-          <div class="input-group">
-            <select class="form-select" id="vehicle_id" name="vehicle_id" required>
-              <option value="">Select Vehicle</option>
-            {% for vehicle in vehicles %}
-                <option value="{{ vehicle.id }}" data-type="{{ vehicle.type }}" data-number="{{ vehicle.number }}"
-                  {% if job and (job.vehicle_id == vehicle.id or job.vehicle_number == vehicle.number) %}selected{% endif %}>
-                  {{ vehicle.number }} ({{ vehicle.name }})
-                </option>
-            {% endfor %}
-            </select>
-            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#vehicleModal">
-              <i class="fas fa-plus"></i> Add
-            </button>
-          </div>
-          <div class="invalid-feedback">Vehicle is required.</div>
-        </div>
-        <div class="col-md-6">
-          <label for="driver_id" class="form-label">Driver <span class="text-danger">*</span></label>
-          <div class="input-group">
-            <select class="form-select" id="driver_id" name="driver_id" required>
-              <option value="">Select Driver</option>
-            {% for driver in drivers %}
-                <option value="{{ driver.id }}" data-name="{{ driver.name }}" data-phone="{{ driver.phone }}" {% if job and job.driver_id == driver.id %}selected{% endif %}>
-                  {{ driver.name }} ({{ driver.phone }})
-                </option>
-            {% endfor %}
-            </select>
-            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#driverModal">
-              <i class="fas fa-plus"></i> Add
-            </button>
-          </div>
-          <div class="invalid-feedback">Driver is required.</div>
-        </div>
-      </div>
-      <hr class="my-4">
-      <h5 class="mb-3">Passenger</h5>
-      <div class="row g-3">
-        <div class="col-md-4">
-          <label for="passenger_name" class="form-label">Passenger Name</label>
-          <input type="text" class="form-control" id="passenger_name" name="passenger_name" value="{{ job.passenger_name if job else '' }}" placeholder="Passenger name">
-        </div>
-        <div class="col-md-4">
-          <label for="passenger_email" class="form-label">Passenger Email</label>
-          <input type="email" class="form-control" id="passenger_email" name="passenger_email" value="{{ job.passenger_email if job else '' }}" placeholder="Passenger email">
-        </div>
-        <div class="col-md-4">
-          <label for="passenger_mobile" class="form-label">Passenger Mobile</label>
-          <input type="text" class="form-control" id="passenger_mobile" name="passenger_mobile" value="{{ job.passenger_mobile if job else '' }}" placeholder="Passenger mobile">
-        </div>
-      </div>
-    </div>
+
+<!-- Mode Toggle -->
+<div class="mb-4">
+  <div class="btn-group" role="group">
+    <input type="radio" class="btn-check" name="formMode" id="singleMode" value="single" checked>
+    <label class="btn btn-outline-primary" for="singleMode">Single Job</label>
+    
+    <input type="radio" class="btn-check" name="formMode" id="bulkMode" value="bulk">
+    <label class="btn btn-outline-primary" for="bulkMode">Bulk Jobs (Multi-Row)</label>
   </div>
-  <a href="#" id="toggle-advanced" class="mb-2 d-block">Show more options</a>
-  <div id="advanced-fields" style="display:none;">
+</div>
+
+<!-- Single Job Form (Original) -->
+<div id="singleJobForm">
+  <form method="post" id="jobForm" novalidate>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="card mb-4">
       <div class="card-body">
-        <h5 class="mb-3">Advanced / Optional</h5>
+        <h5 class="mb-3">Job & Customer Details</h5>
+        <div class="row g-3">
+          <div class="col-md-6 col-lg-4">
+            <label for="agent_id" class="form-label">Agent <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <select class="form-select" id="agent_id" name="agent_id" required>
+                <option value="">Select Agent</option>
+              {% for agent in agents %}
+                  <option value="{{ agent.id }}" data-email="{{ agent.email }}" data-mobile="{{ agent.phone }}" {% if job and job.agent_id == agent.id %}selected{% endif %}>
+                    {{ agent.name }}
+                  </option>
+              {% endfor %}
+              </select>
+              <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#agentModal">
+                <i class="fas fa-plus"></i> Add
+              </button>
+            </div>
+            <input type="hidden" id="customer_name" name="customer_name">
+            <div class="invalid-feedback">Agent is required.</div>
+          </div>
+          <div class="col-md-6 col-lg-4">
+            <label for="customer_email" class="form-label">Agent Email</label>
+            <input type="email" class="form-control" id="customer_email" name="customer_email" value="{{ job.customer_email if job else '' }}" readonly placeholder="Auto-filled">
+          </div>
+          <div class="col-md-6 col-lg-4">
+            <label for="customer_mobile" class="form-label">Agent Mobile</label>
+            <input type="text" class="form-control" id="customer_mobile" name="customer_mobile" value="{{ job.customer_mobile if job else '' }}" readonly placeholder="Auto-filled">
+          </div>
+          <div class="col-md-6 col-lg-4">
+            <label for="service_id" class="form-label">Service <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <select class="form-select" id="service_id" name="service_id" required>
+                <option value="">Select Service</option>
+              {% for service in services %}
+                  <option value="{{ service.id }}" {% if job and (job.service_id == service.id or job.type_of_service == service.name) %}selected{% endif %}>
+                    {{ service.name }}
+                  </option>
+              {% endfor %}
+              </select>
+              <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#serviceModal">
+                <i class="fas fa-plus"></i> Add
+              </button>
+            </div>
+            <div class="invalid-feedback">Service is required.</div>
+          </div>
+          <div class="col-md-6 col-lg-4">
+            <label for="pickup_date" class="form-label">Date <span class="text-danger">*</span></label>
+            <input type="date" class="form-control" id="pickup_date" name="pickup_date" value="{{ job.pickup_date if job else '' }}" required>
+            <div class="invalid-feedback">Date is required.</div>
+          </div>
+          <div class="col-md-6 col-lg-4">
+            <label for="pickup_time" class="form-label">Time of Pick Up <span class="text-danger">*</span></label>
+            <input type="time" class="form-control" id="pickup_time" name="pickup_time" value="{{ job.pickup_time if job else '' }}" required>
+            <div class="invalid-feedback">Pick-up time is required.</div>
+          </div>
+          <div class="col-md-6 col-lg-6">
+            <label for="pickup_location" class="form-label">Pick-up Location <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="pickup_location" name="pickup_location" value="{{ job.pickup_location if job else '' }}" placeholder="Pick-up location" required>
+            <div class="invalid-feedback">Pick-up location is required.</div>
+          </div>
+          <div class="col-md-6 col-lg-6">
+            <label for="dropoff_location" class="form-label">Drop-Off Location <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="dropoff_location" name="dropoff_location" value="{{ job.dropoff_location if job else '' }}" placeholder="Drop-off location" required>
+            <div class="invalid-feedback">Drop-off location is required.</div>
+          </div>
+        </div>
+        <hr class="my-4">
+        <h5 class="mb-3">Vehicle & Driver</h5>
         <div class="row g-3">
           <div class="col-md-6">
-            <label for="customer_reference" class="form-label">Customer Reference</label>
-            <input type="text" class="form-control" id="customer_reference" name="customer_reference" value="{{ job.customer_reference if job else '' }}" placeholder="Customer reference">
-          </div>
-          <div class="col-md-6">
-            <label for="payment_mode" class="form-label">Payment Mode</label>
-            <input type="text" class="form-control" id="payment_mode" name="payment_mode" value="{{ job.payment_mode if job else '' }}" placeholder="Payment mode">
-          </div>
-          <div class="col-md-6">
-            <label for="payment_status" class="form-label">Payment Status</label>
-            <select class="form-select" id="payment_status" name="payment_status">
-              <option value="Pending" {% if job and job.payment_status == 'Pending' %}selected{% endif %}>Pending</option>
-              <option value="Partially Paid" {% if job and job.payment_status == 'Partially Paid' %}selected{% endif %}>Partially Paid</option>
-              <option value="Paid" {% if job and job.payment_status == 'Paid' %}selected{% endif %}>Paid</option>
-              <option value="Overdue" {% if job and job.payment_status == 'Overdue' %}selected{% endif %}>Overdue</option>
-              <option value="Refunded" {% if job and job.payment_status == 'Refunded' %}selected{% endif %}>Refunded</option>
-              <option value="Cancelled" {% if job and job.payment_status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
-            </select>
-          </div>
-          <div class="col-md-6">
-            <label for="order_status" class="form-label">Order Status</label>
-            <input type="text" class="form-control" id="order_status" name="order_status" value="{{ job.order_status if job else '' }}" placeholder="Order status">
-          </div>
-          <div class="col-md-6">
-            <label for="message" class="form-label">Message</label>
-            <textarea class="form-control" id="message" name="message" placeholder="Message">{{ job.message if job else '' }}</textarea>
-          </div>
-          <div class="col-md-6">
-            <label for="remarks" class="form-label">Remarks</label>
-            <textarea class="form-control" id="remarks" name="remarks" placeholder="Remarks">{{ job.remarks if job else '' }}</textarea>
-          </div>
-          <div class="col-md-6">
-            <div class="form-check mb-2">
-              <input class="form-check-input" type="checkbox" id="has_additional_stop" name="has_additional_stop" {% if job and job.has_additional_stop %}checked{% endif %}>
-              <label class="form-check-label" for="has_additional_stop">Has Additional Stop</label>
+            <label for="vehicle_id" class="form-label">Vehicle <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <select class="form-select" id="vehicle_id" name="vehicle_id" required>
+                <option value="">Select Vehicle</option>
+              {% for vehicle in vehicles %}
+                  <option value="{{ vehicle.id }}" data-type="{{ vehicle.type }}" data-number="{{ vehicle.number }}"
+                    {% if job and (job.vehicle_id == vehicle.id or job.vehicle_number == vehicle.number) %}selected{% endif %}>
+                    {{ vehicle.number }} ({{ vehicle.name }})
+                  </option>
+              {% endfor %}
+              </select>
+              <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#vehicleModal">
+                <i class="fas fa-plus"></i> Add
+              </button>
             </div>
-            <div id="additionalStopsSection" style="display: none;">
-              <label class="form-label">Additional Stops</label>
-              <div id="additionalStopsList">
-                {% for stop in stops %}
-                <div class="input-group mb-2 additional-stop-row">
-                  <input type="text" class="form-control" name="additional_stops[]" value="{{ stop }}" placeholder="Additional Stop">
-                  <button type="button" class="btn btn-danger remove-stop">Remove</button>
-                </div>
-                {% endfor %}
-              </div>
-              <button type="button" class="btn btn-secondary btn-sm" id="addStopBtn">Add Stop</button>
-            </div>
+            <div class="invalid-feedback">Vehicle is required.</div>
           </div>
           <div class="col-md-6">
-            <div class="form-check mb-2">
-              <input class="form-check-input" type="checkbox" id="has_request" name="has_request" {% if job and job.has_request %}checked{% endif %}>
-              <label class="form-check-label" for="has_request">Has Request</label>
+            <label for="driver_id" class="form-label">Driver <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <select class="form-select" id="driver_id" name="driver_id" required>
+                <option value="">Select Driver</option>
+              {% for driver in drivers %}
+                  <option value="{{ driver.id }}" data-name="{{ driver.name }}" data-phone="{{ driver.phone }}" {% if job and job.driver_id == driver.id %}selected{% endif %}>
+                    {{ driver.name }} ({{ driver.phone }})
+                  </option>
+              {% endfor %}
+              </select>
+              <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#driverModal">
+                <i class="fas fa-plus"></i> Add
+              </button>
             </div>
-            <label for="reference" class="form-label">Reference</label>
-            <input type="text" class="form-control" id="reference" name="reference" value="{{ job.reference if job else '' }}" placeholder="Reference">
-            <label for="status" class="form-label mt-2">Job Status</label>
-            <select class="form-select" id="status" name="status">
-              <option value="Scheduled" {% if job and job.status == 'Scheduled' %}selected{% endif %}>Scheduled</option>
-              <option value="In Progress" {% if job and job.status == 'In Progress' %}selected{% endif %}>In Progress</option>
-              <option value="Completed" {% if job and job.status == 'Completed' %}selected{% endif %}>Completed</option>
-              <option value="Cancelled" {% if job and job.status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
-              <option value="Failed" {% if job and job.status == 'Failed' %}selected{% endif %}>Failed</option>
-              <option value="No Show" {% if job and job.status == 'No Show' %}selected{% endif %}>No Show</option>
-            </select>
+            <div class="invalid-feedback">Driver is required.</div>
+          </div>
+        </div>
+        <hr class="my-4">
+        <h5 class="mb-3">Passenger</h5>
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label for="passenger_name" class="form-label">Passenger Name</label>
+            <input type="text" class="form-control" id="passenger_name" name="passenger_name" value="{{ job.passenger_name if job else '' }}" placeholder="Passenger name">
+          </div>
+          <div class="col-md-4">
+            <label for="passenger_email" class="form-label">Passenger Email</label>
+            <input type="email" class="form-control" id="passenger_email" name="passenger_email" value="{{ job.passenger_email if job else '' }}" placeholder="Passenger email">
+          </div>
+          <div class="col-md-4">
+            <label for="passenger_mobile" class="form-label">Passenger Mobile</label>
+            <input type="text" class="form-control" id="passenger_mobile" name="passenger_mobile" value="{{ job.passenger_mobile if job else '' }}" placeholder="Passenger mobile">
           </div>
         </div>
       </div>
     </div>
-  </div>
-  <button type="submit" class="btn btn-primary mt-3">{{ action }}</button>
-  <a href="{{ url_for('jobs') }}" class="btn btn-secondary mt-3">Cancel</a>
-</form>
+    <a href="#" id="toggle-advanced" class="mb-2 d-block">Show more options</a>
+    <div id="advanced-fields" style="display:none;">
+      <div class="card mb-4">
+        <div class="card-body">
+          <h5 class="mb-3">Advanced / Optional</h5>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label for="customer_reference" class="form-label">Customer Reference</label>
+              <input type="text" class="form-control" id="customer_reference" name="customer_reference" value="{{ job.customer_reference if job else '' }}" placeholder="Customer reference">
+            </div>
+            <div class="col-md-6">
+              <label for="payment_mode" class="form-label">Payment Mode</label>
+              <input type="text" class="form-control" id="payment_mode" name="payment_mode" value="{{ job.payment_mode if job else '' }}" placeholder="Payment mode">
+            </div>
+            <div class="col-md-6">
+              <label for="payment_status" class="form-label">Payment Status</label>
+              <select class="form-select" id="payment_status" name="payment_status">
+                <option value="Pending" {% if job and job.payment_status == 'Pending' %}selected{% endif %}>Pending</option>
+                <option value="Partially Paid" {% if job and job.payment_status == 'Partially Paid' %}selected{% endif %}>Partially Paid</option>
+                <option value="Paid" {% if job and job.payment_status == 'Paid' %}selected{% endif %}>Paid</option>
+                <option value="Overdue" {% if job and job.payment_status == 'Overdue' %}selected{% endif %}>Overdue</option>
+                <option value="Refunded" {% if job and job.payment_status == 'Refunded' %}selected{% endif %}>Refunded</option>
+                <option value="Cancelled" {% if job and job.payment_status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label for="order_status" class="form-label">Order Status</label>
+              <input type="text" class="form-control" id="order_status" name="order_status" value="{{ job.order_status if job else '' }}" placeholder="Order status">
+            </div>
+            <div class="col-md-6">
+              <label for="message" class="form-label">Message</label>
+              <textarea class="form-control" id="message" name="message" placeholder="Message">{{ job.message if job else '' }}</textarea>
+            </div>
+            <div class="col-md-6">
+              <label for="remarks" class="form-label">Remarks</label>
+              <textarea class="form-control" id="remarks" name="remarks" placeholder="Remarks">{{ job.remarks if job else '' }}</textarea>
+            </div>
+            <div class="col-md-6">
+              <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="has_additional_stop" name="has_additional_stop" {% if job and job.has_additional_stop %}checked{% endif %}>
+                <label class="form-check-label" for="has_additional_stop">Has Additional Stop</label>
+              </div>
+              <div id="additionalStopsSection" style="display: none;">
+                <label class="form-label">Additional Stops</label>
+                <div id="additionalStopsList">
+                  {% for stop in stops %}
+                  <div class="input-group mb-2 additional-stop-row">
+                    <input type="text" class="form-control" name="additional_stops[]" value="{{ stop }}" placeholder="Additional Stop">
+                    <button type="button" class="btn btn-danger remove-stop">Remove</button>
+                  </div>
+                  {% endfor %}
+                </div>
+                <button type="button" class="btn btn-secondary btn-sm" id="addStopBtn">Add Stop</button>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="has_request" name="has_request" {% if job and job.has_request %}checked{% endif %}>
+                <label class="form-check-label" for="has_request">Has Request</label>
+              </div>
+              <label for="reference" class="form-label">Reference</label>
+              <input type="text" class="form-control" id="reference" name="reference" value="{{ job.reference if job else '' }}" placeholder="Reference">
+              <label for="status" class="form-label mt-2">Job Status</label>
+              <select class="form-select" id="status" name="status">
+                <option value="Scheduled" {% if job and job.status == 'Scheduled' %}selected{% endif %}>Scheduled</option>
+                <option value="In Progress" {% if job and job.status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                <option value="Completed" {% if job and job.status == 'Completed' %}selected{% endif %}>Completed</option>
+                <option value="Cancelled" {% if job and job.status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+                <option value="Failed" {% if job and job.status == 'Failed' %}selected{% endif %}>Failed</option>
+                <option value="No Show" {% if job and job.status == 'No Show' %}selected{% endif %}>No Show</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary mt-3">{{ action }}</button>
+    <a href="{{ url_for('jobs') }}" class="btn btn-secondary mt-3">Cancel</a>
+  </form>
+</div>
+
+<!-- Bulk Jobs Form (New Multi-Row Interface) -->
+<div id="bulkJobsForm" style="display: none;">
+  <form method="post" id="bulkJobForm" novalidate>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="bulk_mode" value="true">
+    
+    <!-- Bulk Form Controls -->
+    <div class="card mb-4">
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-3">
+            <label for="bulk_agent_id" class="form-label">Default Agent</label>
+            <select class="form-select" id="bulk_agent_id">
+              <option value="">Select Agent</option>
+              {% for agent in agents %}
+                <option value="{{ agent.id }}" data-email="{{ agent.email }}" data-mobile="{{ agent.phone }}">
+                  {{ agent.name }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label for="bulk_service_id" class="form-label">Default Service</label>
+            <select class="form-select" id="bulk_service_id">
+              <option value="">Select Service</option>
+              {% for service in services %}
+                <option value="{{ service.id }}">{{ service.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label for="bulk_vehicle_id" class="form-label">Default Vehicle</label>
+            <select class="form-select" id="bulk_vehicle_id">
+              <option value="">Select Vehicle</option>
+              {% for vehicle in vehicles %}
+                <option value="{{ vehicle.id }}">{{ vehicle.number }} ({{ vehicle.name }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label for="bulk_driver_id" class="form-label">Default Driver</label>
+            <select class="form-select" id="bulk_driver_id">
+              <option value="">Select Driver</option>
+              {% for driver in drivers %}
+                <option value="{{ driver.id }}">{{ driver.name }} ({{ driver.phone }})</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="row g-3 mt-2">
+          <div class="col-md-3">
+            <label for="bulk_date" class="form-label">Default Date</label>
+            <input type="date" class="form-control" id="bulk_date">
+          </div>
+          <div class="col-md-3">
+            <label for="bulk_time" class="form-label">Default Time</label>
+            <input type="time" class="form-control" id="bulk_time">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">&nbsp;</label>
+            <div>
+              <button type="button" class="btn btn-success" id="applyDefaults">
+                <i class="fas fa-magic"></i> Apply to All Rows
+              </button>
+              <button type="button" class="btn btn-info" id="addRow">
+                <i class="fas fa-plus"></i> Add Row
+              </button>
+              <button type="button" class="btn btn-warning" id="clearAll">
+                <i class="fas fa-trash"></i> Clear All
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Jobs Table -->
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0">Jobs Table <span id="rowCount" class="badge bg-primary">0</span></h5>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-bordered table-hover" id="jobsTable">
+            <thead class="table-dark">
+              <tr>
+                <th style="width: 50px;">#</th>
+                <th>Agent</th>
+                <th>Service</th>
+                <th>Date</th>
+                <th>Time</th>
+                <th>Pickup Location</th>
+                <th>Dropoff Location</th>
+                <th>Vehicle</th>
+                <th>Driver</th>
+                <th>Passenger Name</th>
+                <th style="width: 80px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="jobsTableBody">
+              <!-- Rows will be added dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-4">
+      <button type="submit" class="btn btn-primary" id="submitBulkJobs">
+        <i class="fas fa-save"></i> Create All Jobs
+      </button>
+      <a href="{{ url_for('jobs') }}" class="btn btn-secondary">Cancel</a>
+    </div>
+  </form>
+</div>
 
 <!-- Add/Edit Modal -->
 <div class="modal fade" id="addEditModal" tabindex="-1" aria-labelledby="addEditModalLabel" aria-hidden="true">
@@ -238,6 +369,164 @@
 {% include 'modals/driver_modal.html' %}
 
 <script>
+  // Mode Toggle
+  document.querySelectorAll('input[name="formMode"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+      if (this.value === 'single') {
+        document.getElementById('singleJobForm').style.display = 'block';
+        document.getElementById('bulkJobsForm').style.display = 'none';
+      } else {
+        document.getElementById('singleJobForm').style.display = 'none';
+        document.getElementById('bulkJobsForm').style.display = 'block';
+        initializeBulkForm();
+      }
+    });
+  });
+
+  // Bulk Form Variables
+  let rowCounter = 0;
+  let jobsData = [];
+
+  function initializeBulkForm() {
+    // Add first row
+    addJobRow();
+    
+    // Set up event listeners
+    document.getElementById('applyDefaults').addEventListener('click', applyDefaultsToAll);
+    document.getElementById('addRow').addEventListener('click', addJobRow);
+    document.getElementById('clearAll').addEventListener('click', clearAllRows);
+    document.getElementById('submitBulkJobs').addEventListener('click', submitBulkJobs);
+  }
+
+  function addJobRow() {
+    rowCounter++;
+    const tbody = document.getElementById('jobsTableBody');
+    const row = document.createElement('tr');
+    row.id = `jobRow_${rowCounter}`;
+    
+    row.innerHTML = `
+      <td>${rowCounter}</td>
+      <td>
+        <select class="form-select form-select-sm job-agent" name="jobs[${rowCounter}][agent_id]" required>
+          <option value="">Select Agent</option>
+          {% for agent in agents %}
+            <option value="{{ agent.id }}" data-email="{{ agent.email }}" data-mobile="{{ agent.phone }}">
+              {{ agent.name }}
+            </option>
+          {% endfor %}
+        </select>
+      </td>
+      <td>
+        <select class="form-select form-select-sm job-service" name="jobs[${rowCounter}][service_id]" required>
+          <option value="">Select Service</option>
+          {% for service in services %}
+            <option value="{{ service.id }}">{{ service.name }}</option>
+          {% endfor %}
+        </select>
+      </td>
+      <td>
+        <input type="date" class="form-control form-control-sm job-date" name="jobs[${rowCounter}][pickup_date]" required>
+      </td>
+      <td>
+        <input type="time" class="form-control form-control-sm job-time" name="jobs[${rowCounter}][pickup_time]" required>
+      </td>
+      <td>
+        <input type="text" class="form-control form-control-sm job-pickup" name="jobs[${rowCounter}][pickup_location]" placeholder="Pickup location" required>
+      </td>
+      <td>
+        <input type="text" class="form-control form-control-sm job-dropoff" name="jobs[${rowCounter}][dropoff_location]" placeholder="Dropoff location" required>
+      </td>
+      <td>
+        <select class="form-select form-select-sm job-vehicle" name="jobs[${rowCounter}][vehicle_id]" required>
+          <option value="">Select Vehicle</option>
+          {% for vehicle in vehicles %}
+            <option value="{{ vehicle.id }}">{{ vehicle.number }} ({{ vehicle.name }})</option>
+          {% endfor %}
+        </select>
+      </td>
+      <td>
+        <select class="form-select form-select-sm job-driver" name="jobs[${rowCounter}][driver_id]" required>
+          <option value="">Select Driver</option>
+          {% for driver in drivers %}
+            <option value="{{ driver.id }}">{{ driver.name }} ({{ driver.phone }})</option>
+          {% endfor %}
+        </select>
+      </td>
+      <td>
+        <input type="text" class="form-control form-control-sm job-passenger" name="jobs[${rowCounter}][passenger_name]" placeholder="Passenger name">
+      </td>
+      <td>
+        <button type="button" class="btn btn-danger btn-sm" onclick="removeJobRow(${rowCounter})">
+          <i class="fas fa-trash"></i>
+        </button>
+      </td>
+    `;
+    
+    tbody.appendChild(row);
+    updateRowCount();
+  }
+
+  function removeJobRow(rowId) {
+    const row = document.getElementById(`jobRow_${rowId}`);
+    if (row) {
+      row.remove();
+      updateRowCount();
+    }
+  }
+
+  function updateRowCount() {
+    const count = document.getElementById('jobsTableBody').children.length;
+    document.getElementById('rowCount').textContent = count;
+  }
+
+  function applyDefaultsToAll() {
+    const defaultAgent = document.getElementById('bulk_agent_id').value;
+    const defaultService = document.getElementById('bulk_service_id').value;
+    const defaultVehicle = document.getElementById('bulk_vehicle_id').value;
+    const defaultDriver = document.getElementById('bulk_driver_id').value;
+    const defaultDate = document.getElementById('bulk_date').value;
+    const defaultTime = document.getElementById('bulk_time').value;
+
+    const rows = document.querySelectorAll('#jobsTableBody tr');
+    rows.forEach(row => {
+      if (defaultAgent) row.querySelector('.job-agent').value = defaultAgent;
+      if (defaultService) row.querySelector('.job-service').value = defaultService;
+      if (defaultVehicle) row.querySelector('.job-vehicle').value = defaultVehicle;
+      if (defaultDriver) row.querySelector('.job-driver').value = defaultDriver;
+      if (defaultDate) row.querySelector('.job-date').value = defaultDate;
+      if (defaultTime) row.querySelector('.job-time').value = defaultTime;
+    });
+  }
+
+  function clearAllRows() {
+    if (confirm('Are you sure you want to clear all rows?')) {
+      document.getElementById('jobsTableBody').innerHTML = '';
+      rowCounter = 0;
+      updateRowCount();
+    }
+  }
+
+  function submitBulkJobs(e) {
+    e.preventDefault();
+    
+    const form = document.getElementById('bulkJobForm');
+    const formData = new FormData(form);
+    
+    // Validate that we have at least one row
+    const rows = document.querySelectorAll('#jobsTableBody tr');
+    if (rows.length === 0) {
+      alert('Please add at least one job row.');
+      return;
+    }
+
+    // Show confirmation
+    if (confirm(`Are you sure you want to create ${rows.length} jobs?`)) {
+      // Submit the form
+      form.submit();
+    }
+  }
+
+  // Original form functionality
   document.getElementById('toggle-advanced').onclick = function(e) {
     e.preventDefault();
     var adv = document.getElementById('advanced-fields');
