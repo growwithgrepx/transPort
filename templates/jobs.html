@@ -99,5 +99,14 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 });
+
+window.reloadJobsTable = function() {
+  if (window.htmx) {
+    htmx.ajax('GET', '/jobs/table', {target: '#jobs-table'});
+  } else {
+    // fallback: reload the page
+    window.location.reload();
+  }
+};
 </script>
 {% endblock %} 

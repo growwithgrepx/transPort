@@ -24,7 +24,11 @@ class FleetChat {
   }
   
   init() {
-    this.restoreState();
+    // Always start hidden/minimized on every page load, regardless of previous state
+    this.isHidden = true;
+    this.isMinimized = false;
+    this.applyState(); // Apply the hidden/minimized state immediately
+
     this.bindEvents();
     this.showChatToggle();
   }
@@ -395,6 +399,30 @@ class FleetChat {
     const typingIndicator = document.getElementById('typing-indicator');
     if (typingIndicator) {
       typingIndicator.remove();
+    }
+  }
+
+  // New method to apply state to DOM
+  applyState() {
+    if (this.isHidden) {
+      this.chatWindow.style.display = 'none';
+      this.showChatToggle();
+    } else {
+      this.chatWindow.style.display = 'flex';
+      this.chatToggle.style.display = 'none';
+    }
+    if (this.isMinimized) {
+      this.chatWindow.classList.add('minimized');
+      this.chatMessages.style.display = 'none';
+      document.querySelector('.chat-buttons-container').style.display = 'none';
+      this.downloadSection.style.display = 'none';
+    } else {
+      this.chatWindow.classList.remove('minimized');
+      this.chatMessages.style.display = 'block';
+      document.querySelector('.chat-buttons-container').style.display = 'block';
+      if (this.currentData) {
+        this.downloadSection.style.display = 'block';
+      }
     }
   }
 }

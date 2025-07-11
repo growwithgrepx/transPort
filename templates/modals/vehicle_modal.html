@@ -1,0 +1,14 @@
+<!-- templates/modals/vehicle_modal.html -->
+<div class="modal fade" id="vehicleModal" tabindex="-1" aria-labelledby="vehicleModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content bg-dark text-light">
+      <div class="modal-header">
+        <h5 class="modal-title" id="vehicleModalLabel">Add Vehicle</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="vehicle-modal-body">
+        {% include 'vehicle_form.html' with context %}
+      </div>
+    </div>
+  </div>
+</div> 

@@ -1,8 +1,4 @@
-{% extends 'base.html' %}
-{% block title %}{{ action }} Vehicle - Admin Portal{% endblock %}
-{% block content %}
-<h2>{{ action }} Vehicle</h2>
-<form method="post">
+<form method="post" action="{{ action_url or url_for('add_vehicle_ajax') }}" {% if hx_post_url is defined %}hx-post="{{ hx_post_url }}"{% else %}hx-post="{{ url_for('add_vehicle_ajax') }}"{% endif %} {% if hx_target is defined %}hx-target="{{ hx_target }}"{% else %}hx-target="#vehicle-modal-body"{% endif %} {% if hx_swap is defined %}hx-swap="{{ hx_swap }}"{% else %}hx-swap="outerHTML"{% endif %} id="vehicle-form">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="card mb-3">
     <div class="card-body">
@@ -10,10 +6,16 @@
         <div class="col-md-6">
           <label for="name" class="form-label">Name <span class="text-danger">*</span></label>
           <input type="text" class="form-control" id="name" name="name" value="{{ vehicle.name if vehicle else '' }}" required>
+          {% if errors and errors.get('name') %}
+            <div class="text-danger small">{{ errors['name'][0] }}</div>
+          {% endif %}
         </div>
         <div class="col-md-6">
           <label for="number" class="form-label">Number <span class="text-danger">*</span></label>
           <input type="text" class="form-control" id="number" name="number" value="{{ vehicle.number if vehicle else '' }}" required>
+          {% if errors and errors.get('number') %}
+            <div class="text-danger small">{{ errors['number'][0] }}</div>
+          {% endif %}
         </div>
         <div class="col-md-6">
           <label for="type" class="form-label">Type</label>
@@ -30,8 +32,7 @@
     </div>
   </div>
   <div class="d-flex justify-content-end gap-2">
-    <button type="submit" class="btn btn-primary">{{ action }}</button>
-    <a href="{{ url_for('vehicles') }}" class="btn btn-secondary">Cancel</a>
+    <button type="submit" class="btn btn-primary">{{ action or 'Add Vehicle' }}</button>
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
   </div>
-</form>
-{% endblock %} 
+</form> 

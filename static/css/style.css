@@ -324,3 +324,7 @@ body {
   background-clip: padding-box;
   box-shadow: 0 2px 16px 0 rgba(60,80,120,0.18);
 } 
+
+#chat-window {
+  display: none;
+} 

@@ -1,119 +1,126 @@
 <div class="table-responsive">
+<!-- Search/filter form (outside the table) -->
 <form method="get" action="{{ url_for('jobs_table') }}" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-push-url="true">
-<table class="table table-bordered table-hover table-striped align-middle">
-  <thead class="table-light">
-    <tr>
-      <th>
-        <input type="checkbox" id="selectAll" class="form-check-input" title="Select All">
-      </th>
-      <th>Customer Name</th>
-      <th>Customer Mobile</th>
-      <th>Passenger Name</th>
-      <th>Type of Service</th>
-      <th>Date</th>
-      <th>Time</th>
-      <th>Pickup</th>
-      <th>Drop-off</th>
-      <th>Vehicle</th>
-      <th>Driver Contact</th>
-      <th>Payment Status</th>
-      <th>Status</th>
-      <th>Actions</th>
-    </tr>
-    <tr>
-      <th></th>
-      <th><input type="text" class="form-control form-control-sm" name="customer_name" placeholder="Filter" value="{{ request.args.get('customer_name', '') }}" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="keyup changed delay:400ms" autocomplete="off"></th>
-      <th><input type="text" class="form-control form-control-sm" name="customer_mobile" placeholder="Filter" value="{{ request.args.get('customer_mobile', '') }}" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="keyup changed delay:400ms" autocomplete="off"></th>
-      <th><input type="text" class="form-control form-control-sm" name="passenger_name" placeholder="Filter" value="{{ request.args.get('passenger_name', '') }}" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="keyup changed delay:400ms" autocomplete="off"></th>
-      <th>
-        <select class="form-select form-select-sm" name="type_of_service" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="change">
-          <option value="">All</option>
-          {% for val in jobs|map(attribute='type_of_service')|unique if val %}
-          <option value="{{ val }}" {% if request.args.get('type_of_service') == val %}selected{% endif %}>{{ val }}</option>
-          {% endfor %}
-        </select>
-      </th>
-      <th><input type="date" class="form-control form-control-sm" name="pickup_date" value="{{ request.args.get('pickup_date', '') }}" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="change"></th>
-      <th><input type="text" class="form-control form-control-sm" name="pickup_time" placeholder="Filter" value="{{ request.args.get('pickup_time', '') }}" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="keyup changed delay:400ms" autocomplete="off"></th>
-      <th><input type="text" class="form-control form-control-sm" name="pickup_location" placeholder="Filter" value="{{ request.args.get('pickup_location', '') }}" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="keyup changed delay:400ms" autocomplete="off"></th>
-      <th><input type="text" class="form-control form-control-sm" name="dropoff_location" placeholder="Filter" value="{{ request.args.get('dropoff_location', '') }}" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="keyup changed delay:400ms" autocomplete="off"></th>
-      <th>
-        <select class="form-select form-select-sm" name="vehicle_type" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="change">
-          <option value="">All</option>
-          {% for val in jobs|map(attribute='vehicle_type')|unique if val %}
-          <option value="{{ val }}" {% if request.args.get('vehicle_type') == val %}selected{% endif %}>{{ val }}</option>
-          {% endfor %}
-        </select>
-      </th>
-      <th><input type="text" class="form-control form-control-sm" name="driver_contact" placeholder="Filter" value="{{ request.args.get('driver_contact', '') }}" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="keyup changed delay:400ms" autocomplete="off"></th>
-      <th>
-        <select class="form-select form-select-sm" name="payment_status" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="change">
-          <option value="">All</option>
-          {% for val in jobs|map(attribute='payment_status')|unique if val %}
-          <option value="{{ val }}" {% if request.args.get('payment_status') == val %}selected{% endif %}>{{ val }}</option>
-          {% endfor %}
-        </select>
-      </th>
-      <th>
-        <select class="form-select form-select-sm" name="order_status" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="change">
-          <option value="">All</option>
-          {% for val in jobs|map(attribute='order_status')|unique if val %}
-          <option value="{{ val }}" {% if request.args.get('order_status') == val %}selected{% endif %}>{{ val }}</option>
-          {% endfor %}
-        </select>
-      </th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for job in jobs %}
-    <tr data-job-id="{{ job.id }}">
-      <td>
-        <input type="checkbox" name="selected_jobs" value="{{ job.id }}" class="form-check-input">
-      </td>
-      <td>{{ job.customer_name }}</td>
-      <td>{{ job.customer_mobile }}</td>
-      <td>{{ job.passenger_name }}</td>
-      <td>{{ job.type_of_service }}</td>
-      <td>{{ job.pickup_date }}</td>
-      <td>{{ job.pickup_time }}</td>
-      <td>{{ job.pickup_location }}</td>
-      <td>{{ job.dropoff_location }}</td>
-      <td>{{ job.vehicle_type }} {{ job.vehicle_number }}</td>
-      <td>{{ job.driver_contact }}</td>
-      <td>
-        {% if job.payment_status == 'Paid' %}
-          <span class="badge bg-success">Paid</span>
-        {% elif job.payment_status == 'Unpaid' %}
-          <span class="badge bg-warning text-dark">Unpaid</span>
-        {% else %}
-          <span class="badge bg-secondary">{{ job.payment_status }}</span>
-        {% endif %}
-      </td>
-      <td>
-        {% if job.order_status == 'Completed' %}
-          <span class="badge bg-success">Completed</span>
-        {% elif job.order_status == 'New' %}
-          <span class="badge bg-primary">New</span>
-        {% elif job.order_status == 'Cancelled' %}
-          <span class="badge bg-danger">Cancelled</span>
-        {% else %}
-          <span class="badge bg-secondary">{{ job.order_status }}</span>
-        {% endif %}
-      </td>
-      <td>
-        <div class="d-flex justify-content-center align-items-center gap-2">
-          <a href="{{ url_for('edit_job', job_id=job.id) }}" class="btn btn-outline-primary btn-sm d-flex align-items-center justify-content-center" title="Edit"><i class="bi bi-pencil text-primary"></i></a>
-          <form action="{{ url_for('delete_job', job_id=job.id) }}" method="post" style="display:inline;">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn btn-outline-danger btn-sm d-flex align-items-center justify-content-center" title="Delete" onclick="return confirm('Delete this job?');"><i class="bi bi-trash text-danger"></i></button>
-          </form>
-        </div>
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+  <table class="table table-bordered table-hover table-striped align-middle">
+    <thead class="table-light">
+      <tr>
+        <th>
+          <input type="checkbox" id="selectAll" class="form-check-input" title="Select All">
+        </th>
+        <th>Customer Name</th>
+        <th>Customer Mobile</th>
+        <th>Passenger Name</th>
+        <th>Type of Service</th>
+        <th>Date</th>
+        <th>Time</th>
+        <th>Pickup</th>
+        <th>Drop-off</th>
+        <th>Vehicle</th>
+        <th>Driver Contact</th>
+        <th>Payment Status</th>
+        <th>Job Status</th>
+        <th>Actions</th>
+      </tr>
+      <tr>
+        <th></th>
+        <th><input type="text" class="form-control form-control-sm" name="customer_name" placeholder="Filter" value="{{ request.args.get('customer_name', '') }}" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="keyup changed delay:400ms" autocomplete="off"></th>
+        <th><input type="text" class="form-control form-control-sm" name="customer_mobile" placeholder="Filter" value="{{ request.args.get('customer_mobile', '') }}" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="keyup changed delay:400ms" autocomplete="off"></th>
+        <th><input type="text" class="form-control form-control-sm" name="passenger_name" placeholder="Filter" value="{{ request.args.get('passenger_name', '') }}" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="keyup changed delay:400ms" autocomplete="off"></th>
+        <th>
+          <select class="form-select form-select-sm" name="type_of_service" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="change">
+            <option value="">All</option>
+            {% for val in jobs|map(attribute='type_of_service')|unique if val %}
+            <option value="{{ val }}" {% if request.args.get('type_of_service') == val %}selected{% endif %}>{{ val }}</option>
+            {% endfor %}
+          </select>
+        </th>
+        <th><input type="date" class="form-control form-control-sm" name="pickup_date" value="{{ request.args.get('pickup_date', '') }}" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="change"></th>
+        <th><input type="text" class="form-control form-control-sm" name="pickup_time" placeholder="Filter" value="{{ request.args.get('pickup_time', '') }}" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="keyup changed delay:400ms" autocomplete="off"></th>
+        <th><input type="text" class="form-control form-control-sm" name="pickup_location" placeholder="Filter" value="{{ request.args.get('pickup_location', '') }}" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="keyup changed delay:400ms" autocomplete="off"></th>
+        <th><input type="text" class="form-control form-control-sm" name="dropoff_location" placeholder="Filter" value="{{ request.args.get('dropoff_location', '') }}" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="keyup changed delay:400ms" autocomplete="off"></th>
+        <th>
+          <select class="form-select form-select-sm" name="vehicle_type" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="change">
+            <option value="">All</option>
+            {% for val in jobs|map(attribute='vehicle_type')|unique if val %}
+            <option value="{{ val }}" {% if request.args.get('vehicle_type') == val %}selected{% endif %}>{{ val }}</option>
+            {% endfor %}
+          </select>
+        </th>
+        <th><input type="text" class="form-control form-control-sm" name="driver_contact" placeholder="Filter" value="{{ request.args.get('driver_contact', '') }}" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="keyup changed delay:400ms" autocomplete="off"></th>
+        <th>
+          <select class="form-select form-select-sm" name="payment_status" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="change">
+            <option value="">All</option>
+            {% for val in jobs|map(attribute='payment_status')|unique if val %}
+            <option value="{{ val }}" {% if request.args.get('payment_status') == val %}selected{% endif %}>{{ val }}</option>
+            {% endfor %}
+          </select>
+        </th>
+        <th>
+          <select class="form-select form-select-sm" name="status" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="change">
+            <option value="">All</option>
+            {% for val in jobs|map(attribute='status')|unique if val %}
+            <option value="{{ val }}" {% if request.args.get('status') == val %}selected{% endif %}>{{ val }}</option>
+            {% endfor %}
+          </select>
+        </th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for job in jobs %}
+      <tr data-job-id="{{ job.id }}">
+        <td>
+          <input type="checkbox" name="selected_jobs" value="{{ job.id }}" class="form-check-input">
+        </td>
+        <td>{{ job.customer_name }}</td>
+        <td>{{ job.customer_mobile }}</td>
+        <td>{{ job.passenger_name }}</td>
+        <td>{{ job.type_of_service }}</td>
+        <td>{{ job.pickup_date }}</td>
+        <td>{{ job.pickup_time }}</td>
+        <td>{{ job.pickup_location }}</td>
+        <td>{{ job.dropoff_location }}</td>
+        <td>{{ job.vehicle_type }} {{ job.vehicle_number }}</td>
+        <td>{{ job.driver_contact }}</td>
+        <td>
+          {% if job.payment_status == 'Paid' %}
+            <span class="badge bg-success">Paid</span>
+          {% elif job.payment_status == 'Unpaid' %}
+            <span class="badge bg-warning text-dark">Unpaid</span>
+          {% else %}
+            <span class="badge bg-secondary">{{ job.payment_status }}</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if job.status == 'Completed' %}
+            <span class="badge bg-success">Completed</span>
+          {% elif job.status == 'Scheduled' %}
+            <span class="badge bg-primary">Scheduled</span>
+          {% elif job.status == 'In Progress' %}
+            <span class="badge bg-info text-dark">In Progress</span>
+          {% elif job.status == 'Cancelled' %}
+            <span class="badge bg-danger">Cancelled</span>
+          {% elif job.status == 'Failed' %}
+            <span class="badge bg-warning text-dark">Failed</span>
+          {% elif job.status == 'No Show' %}
+            <span class="badge bg-secondary">No Show</span>
+          {% else %}
+            <span class="badge bg-secondary">{{ job.status }}</span>
+          {% endif %}
+        </td>
+        <td>
+          <div class="d-flex justify-content-center align-items-center gap-2">
+            <a href="{{ url_for('edit_job', job_id=job.id) }}" class="btn btn-outline-primary btn-sm d-flex align-items-center justify-content-center" title="Edit"><i class="bi bi-pencil text-primary"></i></a>
+            <form action="{{ url_for('delete_job', job_id=job.id) }}" method="post" style="display:inline;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-outline-danger btn-sm d-flex align-items-center justify-content-center" title="Delete" onclick="return confirm('Delete this job?');"><i class="bi bi-trash text-danger"></i></button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 </form>
 </div>
 <nav aria-label="Jobs pagination" class="mt-3">

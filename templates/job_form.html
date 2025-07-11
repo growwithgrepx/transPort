@@ -19,7 +19,7 @@
                 </option>
             {% endfor %}
             </select>
-            <button type="button" class="btn btn-outline-secondary" onclick="openAddEditModal('agent')">
+            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#agentModal">
               <i class="fas fa-plus"></i> Add
             </button>
           </div>
@@ -40,12 +40,12 @@
             <select class="form-select" id="service_id" name="service_id" required>
               <option value="">Select Service</option>
             {% for service in services %}
-                <option value="{{ service.id }}" {% if job and job.service_id == service.id %}selected{% endif %}>
+                <option value="{{ service.id }}" {% if job and (job.service_id == service.id or job.type_of_service == service.name) %}selected{% endif %}>
                   {{ service.name }}
                 </option>
             {% endfor %}
             </select>
-            <button type="button" class="btn btn-outline-secondary" onclick="openAddEditModal('service')">
+            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#serviceModal">
               <i class="fas fa-plus"></i> Add
             </button>
           </div>
@@ -81,12 +81,13 @@
             <select class="form-select" id="vehicle_id" name="vehicle_id" required>
               <option value="">Select Vehicle</option>
             {% for vehicle in vehicles %}
-                <option value="{{ vehicle.id }}" data-type="{{ vehicle.type }}" data-number="{{ vehicle.number }}" {% if job and job.vehicle_id == vehicle.id %}selected{% endif %}>
+                <option value="{{ vehicle.id }}" data-type="{{ vehicle.type }}" data-number="{{ vehicle.number }}"
+                  {% if job and (job.vehicle_id == vehicle.id or job.vehicle_number == vehicle.number) %}selected{% endif %}>
                   {{ vehicle.number }} ({{ vehicle.name }})
                 </option>
             {% endfor %}
             </select>
-            <button type="button" class="btn btn-outline-secondary" onclick="openAddEditModal('vehicle')">
+            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#vehicleModal">
               <i class="fas fa-plus"></i> Add
             </button>
           </div>
@@ -103,7 +104,7 @@
                 </option>
             {% endfor %}
             </select>
-            <button type="button" class="btn btn-outline-secondary" onclick="openAddEditModal('driver')">
+            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#driverModal">
               <i class="fas fa-plus"></i> Add
             </button>
           </div>
@@ -144,7 +145,14 @@
           </div>
           <div class="col-md-6">
             <label for="payment_status" class="form-label">Payment Status</label>
-            <input type="text" class="form-control" id="payment_status" name="payment_status" value="{{ job.payment_status if job else '' }}" placeholder="Payment status">
+            <select class="form-select" id="payment_status" name="payment_status">
+              <option value="Pending" {% if job and job.payment_status == 'Pending' %}selected{% endif %}>Pending</option>
+              <option value="Partially Paid" {% if job and job.payment_status == 'Partially Paid' %}selected{% endif %}>Partially Paid</option>
+              <option value="Paid" {% if job and job.payment_status == 'Paid' %}selected{% endif %}>Paid</option>
+              <option value="Overdue" {% if job and job.payment_status == 'Overdue' %}selected{% endif %}>Overdue</option>
+              <option value="Refunded" {% if job and job.payment_status == 'Refunded' %}selected{% endif %}>Refunded</option>
+              <option value="Cancelled" {% if job and job.payment_status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+            </select>
           </div>
           <div class="col-md-6">
             <label for="order_status" class="form-label">Order Status</label>
@@ -183,12 +191,14 @@
             </div>
             <label for="reference" class="form-label">Reference</label>
             <input type="text" class="form-control" id="reference" name="reference" value="{{ job.reference if job else '' }}" placeholder="Reference">
-            <label for="status" class="form-label mt-2">Status</label>
+            <label for="status" class="form-label mt-2">Job Status</label>
             <select class="form-select" id="status" name="status">
-              <option value="Inactive" {% if not job or job.status == 'Inactive' %}selected{% endif %}>Inactive</option>
-              <option value="Pending" {% if job and job.status == 'Pending' %}selected{% endif %}>Pending</option>
+              <option value="Scheduled" {% if job and job.status == 'Scheduled' %}selected{% endif %}>Scheduled</option>
               <option value="In Progress" {% if job and job.status == 'In Progress' %}selected{% endif %}>In Progress</option>
               <option value="Completed" {% if job and job.status == 'Completed' %}selected{% endif %}>Completed</option>
+              <option value="Cancelled" {% if job and job.status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+              <option value="Failed" {% if job and job.status == 'Failed' %}selected{% endif %}>Failed</option>
+              <option value="No Show" {% if job and job.status == 'No Show' %}selected{% endif %}>No Show</option>
             </select>
           </div>
         </div>
@@ -221,6 +231,11 @@
     </div>
   </div>
 </div>
+
+{% include 'modals/agent_modal.html' %}
+{% include 'modals/service_modal.html' %}
+{% include 'modals/vehicle_modal.html' %}
+{% include 'modals/driver_modal.html' %}
 
 <script>
   document.getElementById('toggle-advanced').onclick = function(e) {

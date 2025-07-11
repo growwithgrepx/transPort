@@ -1,0 +1,14 @@
+<!-- templates/modals/service_modal.html -->
+<div class="modal fade" id="serviceModal" tabindex="-1" aria-labelledby="serviceModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content bg-dark text-light">
+      <div class="modal-header">
+        <h5 class="modal-title" id="serviceModalLabel">Add Service</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="service-modal-body">
+        {% include 'service_form.html' with context %}
+      </div>
+    </div>
+  </div>
+</div> 

@@ -99,7 +99,7 @@ csrf = CSRFProtect(app)
 # Flask-Login setup
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.login_view = 'login'
+setattr(login_manager, 'login_view', 'login')
 login_manager.login_message = 'Please log in to access this page.'
 
 migrate = Migrate(app, db)
@@ -239,8 +239,8 @@ def login():
         app.logger.info(f'Login attempt for user: {request.form.get("username", "unknown")}')
 
         if form.validate():
-            username = form.username.data.strip()
-            password = form.password.data
+            username = (form.username.data or '').strip()
+            password = form.password.data or ''
 
             # Input sanitization
             if not username or not password:
@@ -868,6 +868,29 @@ def add_agent():
                            hx_swap='outerHTML')
 
 
+@app.route('/agents/add_ajax', methods=['POST'])
+@login_required
+def add_agent_ajax():
+    errors = {}
+    name = request.form.get('name', '').strip()
+    email = request.form.get('email', '').strip()
+    mobile = request.form.get('mobile', '').strip()
+    type_ = request.form.get('type', '').strip()
+    status = request.form.get('status', 'Active').strip()
+    if not name:
+        errors['name'] = ['Name is required.']
+    # Optionally add more validation here
+    if errors:
+        # Render the form with errors for HTMX swap
+        return render_template('agent_form.html', action='Add Agent', agent=None, errors=errors,
+                               action_url=url_for('add_agent_ajax'), hx_post_url=url_for('add_agent_ajax'), hx_target='#agent-modal-body', hx_swap='outerHTML')
+    agent = Agent(name=name, email=email, mobile=mobile, type=type_, status=status)
+    db.session.add(agent)
+    db.session.commit()
+    # Return JSON for JS to update dropdown and close modal
+    return jsonify({'success': True, 'id': agent.id, 'name': agent.name})
+
+
 @app.route('/agents/edit/<int:agent_id>', methods=['GET', 'POST'])
 @login_required
 def edit_agent(agent_id):
@@ -1039,6 +1062,24 @@ def delete_service(service_id):
     return redirect(url_for('services'))
 
 
+@app.route('/services/add_ajax', methods=['POST'])
+@login_required
+def add_service_ajax():
+    errors = {}
+    name = request.form.get('name', '').strip()
+    description = request.form.get('description', '').strip()
+    status = request.form.get('status', 'Active').strip()
+    if not name:
+        errors['name'] = ['Name is required.']
+    if errors:
+        return render_template('service_form.html', action='Add Service', service=None, errors=errors,
+                               action_url=url_for('add_service_ajax'), hx_post_url=url_for('add_service_ajax'), hx_target='#service-modal-body', hx_swap='outerHTML')
+    service = Service(name=name, description=description, status=status)
+    db.session.add(service)
+    db.session.commit()
+    return jsonify({'success': True, 'id': service.id, 'name': service.name})
+
+
 # VEHICLES CRUD
 @app.route('/vehicles')
 @login_required
@@ -1102,6 +1143,45 @@ def delete_vehicle(vehicle_id):
     return redirect(url_for('vehicles'))
 
 
+@app.route('/vehicles/add_ajax', methods=['POST'])
+@login_required
+def add_vehicle_ajax():
+    errors = {}
+    name = request.form.get('name', '').strip()
+    number = request.form.get('number', '').strip()
+    type_ = request.form.get('type', '').strip()
+    status = request.form.get('status', 'Active').strip()
+    if not name:
+        errors['name'] = ['Name is required.']
+    if not number:
+        errors['number'] = ['Number is required.']
+    if errors:
+        return render_template('vehicle_form.html', action='Add Vehicle', vehicle=None, errors=errors,
+                               action_url=url_for('add_vehicle_ajax'), hx_post_url=url_for('add_vehicle_ajax'), hx_target='#vehicle-modal-body', hx_swap='outerHTML')
+    vehicle = Vehicle(name=name, number=number, type=type_, status=status)
+    db.session.add(vehicle)
+    db.session.commit()
+    return jsonify({'success': True, 'id': vehicle.id, 'name': f'{vehicle.number} ({vehicle.name})'})
+
+@app.route('/drivers/add_ajax', methods=['POST'])
+@login_required
+def add_driver_ajax():
+    errors = {}
+    name = request.form.get('name', '').strip()
+    phone = request.form.get('phone', '').strip()
+    if not name:
+        errors['name'] = ['Name is required.']
+    if not phone:
+        errors['phone'] = ['Phone is required.']
+    if errors:
+        return render_template('driver_form.html', action='Add Driver', driver=None, errors=errors,
+                               action_url=url_for('add_driver_ajax'), hx_post_url=url_for('add_driver_ajax'), hx_target='#driver-modal-body', hx_swap='outerHTML')
+    driver = Driver(name=name, phone=phone)
+    db.session.add(driver)
+    db.session.commit()
+    return jsonify({'success': True, 'id': driver.id, 'name': f'{driver.name} ({driver.phone})'})
+
+
 # Import API routes
 import api_routes
 
@@ -1131,7 +1211,10 @@ def create_admin(username, email, password):
     if user:
         click.echo(f'User {username} already exists.')
         return
-    user = User(username=username, email=email, active=True)
+    user = User()
+    user.username = username
+    user.email = email
+    user.active = True
     user.set_password(password)
     user.roles.append(fleet_manager_role)
     user.roles.append(system_admin_role)
@@ -1155,6 +1238,7 @@ def inject_role_helpers():
 
 @app.context_processor
 def inject_csrf_token():
+    from flask_wtf.csrf import generate_csrf
     return dict(csrf_token=generate_csrf)
 
 
