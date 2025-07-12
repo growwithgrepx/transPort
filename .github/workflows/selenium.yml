@@ -7,7 +7,7 @@ on:
     branches: [main, develop]
 
 env:
-  CACHE_VERSION: v1
+  PYTHON_VERSION: '3.11'
 
 permissions:
   contents: read
@@ -23,38 +23,30 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Cache Docker layers
-        uses: actions/cache@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ env.CACHE_VERSION }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-${{ env.CACHE_VERSION }}-
-            ${{ runner.os }}-buildx-
+          python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Build Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile
-          push: false
-          tags: selenium-tests:latest
-          cache-from: type=local,src=/tmp/.buildx-cache
-
-      - name: Move cache
+      - name: Install dependencies
         run: |
-          rm -rf /tmp/.buildx-cache || true
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install Chrome
+        run: |
+          wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+          sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list'
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
 
       - name: Run Selenium UI tests
         run: |
           mkdir -p test_results
-          docker run --rm \
-            -v ${{ github.workspace }}/test_results:/app/test_results \
-            --name selenium-test-run \
-            selenium-tests:latest
+          pytest tests/ \
+            --junitxml=test_results/results.xml \
+            --html=test_results/report.html \
+            --self-contained-html
 
       - name: Display test results summary
         if: always()
@@ -90,9 +82,9 @@ jobs:
               const xmlPath = path.join('test_results', 'results.xml');
               if (fs.existsSync(xmlPath)) {
                 const xml = fs.readFileSync(xmlPath, 'utf8');
-                const total = parseInt(xml.match(/tests=\"(\d+)\"/)?.[1] || '0', 10);
-                const failures = parseInt(xml.match(/failures=\"(\d+)\"/)?.[1] || '0', 10);
-                const errors = parseInt(xml.match(/errors=\"(\d+)\"/)?.[1] || '0', 10);
+                const total = parseInt(xml.match(/tests="(\d+)"/)?.[1] || '0', 10);
+                const failures = parseInt(xml.match(/failures="(\d+)"/)?.[1] || '0', 10);
+                const errors = parseInt(xml.match(/errors="(\d+)"/)?.[1] || '0', 10);
                 const passed = total - failures - errors;
 
                 comment += `**Summary**: ${passed}/${total} tests passed `;
