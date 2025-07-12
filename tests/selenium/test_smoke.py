@@ -7,8 +7,8 @@ import logging
 import os
 from typing import Dict, Any
 
-from .pages.login_page_v2 import LoginPage
-from .core.exceptions import AuthenticationException
+from tests.pages.login_page import LoginPage
+from tests.core.exceptions import AuthenticationException
 
 logger = logging.getLogger(__name__)
 

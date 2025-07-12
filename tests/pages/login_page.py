@@ -22,6 +22,7 @@ class LoginPage(BasePage):
             EC.presence_of_element_located((By.ID, "username"))
         )
         logger.info(f"Loaded login page: {self.driver.current_url}")
+        return self
     
     def login(self, username, password):
         """Login with provided credentials"""

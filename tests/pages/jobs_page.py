@@ -24,7 +24,7 @@ class JobsPage(BasePage):
         )
         logger.info(f"Loaded jobs page: {self.driver.current_url}")
     
-    def click_add_job(self):
+    def click_add_job_button(self):
         """Click the Add Job button"""
         try:
             # Try multiple selectors for the Add Job button
@@ -61,6 +61,7 @@ class JobsPage(BasePage):
                 EC.presence_of_element_located((By.ID, "jobForm"))
             )
             logger.info("Successfully clicked Add Job button")
+            return self
             
         except Exception as e:
             logger.error(f"Error clicking Add Job button: {str(e)}")
@@ -189,7 +190,7 @@ class JobsPage(BasePage):
                     lambda driver: "/jobs" in driver.current_url and "add" not in driver.current_url
                 )
                 logger.info("Job form submitted successfully, redirected to jobs page")
-                return True
+                return self
             except TimeoutException:
                 # Check if we're still on the form page (error case)
                 if "/jobs/add" in self.driver.current_url:
@@ -389,3 +390,129 @@ class JobsPage(BasePage):
         except Exception as e:
             logger.error(f"Error editing job: {str(e)}")
             raise
+    
+    # Fluent interface methods for chaining
+    def wait_for_job_form(self):
+        """Wait for job form to be present and return self for chaining"""
+        WebDriverWait(self.driver, 10).until(
+            EC.presence_of_element_located((By.ID, "jobForm"))
+        )
+        return self
+    
+    def fill_agent_name(self, agent_name):
+        """Fill agent name field and return self for chaining"""
+        field = self.driver.find_element(By.ID, "agent_name")
+        field.clear()
+        field.send_keys(agent_name)
+        self.driver.execute_script("arguments[0].dispatchEvent(new Event('input', { bubbles: true }));", field)
+        time.sleep(0.5)
+        return self
+    
+    def fill_service_name(self, service_name):
+        """Fill service name field and return self for chaining"""
+        field = self.driver.find_element(By.ID, "service_name")
+        field.clear()
+        field.send_keys(service_name)
+        self.driver.execute_script("arguments[0].dispatchEvent(new Event('input', { bubbles: true }));", field)
+        time.sleep(0.5)
+        return self
+    
+    def fill_vehicle_name(self, vehicle_name):
+        """Fill vehicle name field and return self for chaining"""
+        field = self.driver.find_element(By.ID, "vehicle_name")
+        field.clear()
+        field.send_keys(vehicle_name)
+        self.driver.execute_script("arguments[0].dispatchEvent(new Event('input', { bubbles: true }));", field)
+        time.sleep(0.5)
+        return self
+    
+    def fill_driver_name(self, driver_name):
+        """Fill driver name field and return self for chaining"""
+        field = self.driver.find_element(By.ID, "driver_name")
+        field.clear()
+        field.send_keys(driver_name)
+        self.driver.execute_script("arguments[0].dispatchEvent(new Event('input', { bubbles: true }));", field)
+        time.sleep(0.5)
+        return self
+    
+    def fill_pickup_date(self, pickup_date):
+        """Fill pickup date field and return self for chaining"""
+        field = self.driver.find_element(By.ID, "pickup_date")
+        self.driver.execute_script("arguments[0].value = arguments[1];", field, pickup_date)
+        self.driver.execute_script("arguments[0].dispatchEvent(new Event('input', { bubbles: true }));", field)
+        self.driver.execute_script("arguments[0].dispatchEvent(new Event('change', { bubbles: true }));", field)
+        time.sleep(0.2)
+        return self
+    
+    def fill_pickup_time(self, pickup_time):
+        """Fill pickup time field and return self for chaining"""
+        field = self.driver.find_element(By.ID, "pickup_time")
+        self.driver.execute_script("arguments[0].value = arguments[1];", field, pickup_time)
+        self.driver.execute_script("arguments[0].dispatchEvent(new Event('input', { bubbles: true }));", field)
+        self.driver.execute_script("arguments[0].dispatchEvent(new Event('change', { bubbles: true }));", field)
+        time.sleep(0.2)
+        return self
+    
+    def fill_pickup_location(self, pickup_location):
+        """Fill pickup location field and return self for chaining"""
+        field = self.driver.find_element(By.ID, "pickup_location")
+        field.clear()
+        field.send_keys(pickup_location)
+        return self
+    
+    def fill_dropoff_location(self, dropoff_location):
+        """Fill dropoff location field and return self for chaining"""
+        field = self.driver.find_element(By.ID, "dropoff_location")
+        field.clear()
+        field.send_keys(dropoff_location)
+        return self
+    
+    def click_submit_button(self):
+        """Click submit button and return self for chaining"""
+        submit_btn = self.driver.find_element(By.XPATH, "//form[@id='jobForm']//button[@type='submit']")
+        self.driver.execute_script("arguments[0].scrollIntoView(true);", submit_btn)
+        time.sleep(0.5)
+        submit_btn.click()
+        return self
+    
+    def is_job_in_table(self, search_criteria):
+        """Check if job exists in table based on search criteria"""
+        try:
+            # Wait for table to load
+            WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located((By.ID, "jobs-table"))
+            )
+            
+            # Debug: Log table content
+            rows = self.driver.find_elements(By.CSS_SELECTOR, "#jobs-table tbody tr")
+            logger.info(f"Found {len(rows)} rows in jobs table")
+            
+            for i, row in enumerate(rows):
+                row_text = row.text
+                logger.info(f"Row {i+1}: {row_text}")
+            
+            # Look for job by pickup and dropoff locations
+            pickup_location = search_criteria.get("pickup_location", "")
+            dropoff_location = search_criteria.get("dropoff_location", "")
+            
+            logger.info(f"Searching for pickup_location: '{pickup_location}'")
+            logger.info(f"Searching for dropoff_location: '{dropoff_location}'")
+            
+            # Check each row manually for better control
+            for row in rows:
+                row_text = row.text.lower()  # Convert to lowercase for case-insensitive search
+                
+                if pickup_location and pickup_location.lower() in row_text:
+                    logger.info(f"Found job with pickup_location: {pickup_location}")
+                    return True
+                
+                if dropoff_location and dropoff_location.lower() in row_text:
+                    logger.info(f"Found job with dropoff_location: {dropoff_location}")
+                    return True
+            
+            logger.info("Job not found in table")
+            return False
+            
+        except Exception as e:
+            logger.error(f"Error checking if job is in table: {str(e)}")
+            return False

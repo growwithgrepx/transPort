@@ -8,9 +8,9 @@ import logging
 from typing import Dict, Any
 from selenium.webdriver.common.by import By
 
-from .pages.login_page_v2 import LoginPage
-from .pages.jobs_page_v2 import JobsPage
-from .core.exceptions import (
+from tests.pages.login_page import LoginPage
+from tests.pages.jobs_page import JobsPage
+from tests.core.exceptions import (
     AuthenticationException,
     FormValidationException,
     ElementNotFoundException,

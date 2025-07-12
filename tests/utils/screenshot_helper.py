@@ -1,5 +1,5 @@
 import os
-
+ 
 def save_debug_artifacts(driver, name):
     os.makedirs("test_screenshots", exist_ok=True)
     driver.save_screenshot(f"test_screenshots/{name}.png")
