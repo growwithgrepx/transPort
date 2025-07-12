@@ -27,3 +27,9 @@ jobs:
         with:
           name: selenium-test-results
           path: test_results/results.xml
+
+      - name: Upload HTML test report
+        uses: actions/upload-artifact@v4
+        with:
+          name: selenium-html-report
+          path: test_results/report.html

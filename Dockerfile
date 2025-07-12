@@ -16,8 +16,13 @@ RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
 COPY . .
 
-CMD ["pytest", "tests/", "-v", "--tb=short", "--junitxml=/app/test_results/results.xml"]
+CMD ["pytest", "tests/", "-v", "--tb=short", \
+     "--junitxml=/app/test_results/results.xml", \
+     "--html=/app/test_results/report.html", \
+     "--self-contained-html"]
