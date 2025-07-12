@@ -442,13 +442,26 @@ def add_job():
     drivers = Driver.query.all()
     
     if request.method == 'POST':
-        # Check if this is bulk mode
-        if request.form.get('bulk_mode') == 'true':
-            return handle_bulk_job_creation()
-        else:
             return handle_single_job_creation()
     
     return render_template('view_job.html', job=None, agents=agents, services=services, vehicles=vehicles,
+                           drivers=drivers)
+
+
+@app.route('/jobs/add_bulk', methods=['GET', 'POST'])
+@login_required
+@handle_database_errors
+def add_bulk_jobs():
+    from models import Agent, Service, Vehicle, Driver
+    agents = Agent.query.filter_by(status='Active').all()
+    services = Service.query.filter_by(status='Active').all()
+    vehicles = Vehicle.query.filter_by(status='Active').all()
+    drivers = Driver.query.all()
+    
+    if request.method == 'POST':
+        return handle_bulk_job_creation()
+    
+    return render_template('bulk_jobs.html', agents=agents, services=services, vehicles=vehicles,
                            drivers=drivers)
 
 
@@ -1090,7 +1103,7 @@ def add_billing():
     if request.method == 'POST':
         try:
             # Get the selected job
-            job_id = request.form['job_id']
+        job_id = request.form['job_id']
             job = Job.query.get(job_id)
             
             if not job:
@@ -1118,10 +1131,10 @@ def add_billing():
                 terms_conditions=request.form.get('terms_conditions')
             )
             
-            db.session.add(billing)
-            db.session.commit()
+        db.session.add(billing)
+        db.session.commit()
             flash('Billing record created successfully', 'success')
-            return redirect(url_for('billing'))
+        return redirect(url_for('billing'))
         except Exception as e:
             db.session.rollback()
             flash(f'Error creating billing record: {str(e)}', 'error')
@@ -1166,9 +1179,9 @@ def edit_billing(billing_id):
             billing.notes = request.form.get('notes')
             billing.terms_conditions = request.form.get('terms_conditions')
             
-            db.session.commit()
+        db.session.commit()
             flash('Billing record updated successfully', 'success')
-            return redirect(url_for('billing'))
+        return redirect(url_for('billing'))
         except Exception as e:
             db.session.rollback()
             flash(f'Error updating billing record: {str(e)}', 'error')
@@ -1404,15 +1417,16 @@ def add_driver_ajax():
     return jsonify({'success': True, 'id': driver.id, 'name': f'{driver.name} ({driver.phone})'})
 
 
-@app.route('/api/calculate_pricing', methods=['GET'])
+@app.route('/api/calculate_pricing', methods=['POST'])
 @login_required
 def calculate_pricing():
     """Calculate pricing for a service and agent combination"""
     try:
-        service_id = request.args.get('service_id')
-        agent_id = request.args.get('agent_id')
-        additional_discount = float(request.args.get('additional_discount', 0))
-        additional_charges = float(request.args.get('additional_charges', 0))
+        data = request.get_json()
+        service_id = data.get('service_id')
+        agent_id = data.get('agent_id')
+        additional_discount = float(data.get('additional_discount_percent', 0))
+        additional_charges = float(data.get('additional_charges', 0))
         
         if not service_id or not agent_id:
             return jsonify({'success': False, 'error': 'Service and agent are required'})
