@@ -91,38 +91,22 @@
         <td>{{ job.vehicle_type }} {{ job.vehicle_number }}</td>
         <td>{{ job.driver_contact }}</td>
         <td>
-          {% if job.base_price %}
-            <span class="text-success fw-bold">${{ "%.2f"|format(job.base_price) }}</span>
-          {% else %}
-            <span class="text-muted">-</span>
-          {% endif %}
+          <span class="text-success fw-bold">${{ "%.2f"|format(job.base_price or 0) }}</span>
         </td>
         <td>
           {% set total_discount = (job.base_discount_percent or 0) + (job.agent_discount_percent or 0) + (job.additional_discount_percent or 0) %}
-          {% if total_discount > 0 %}
-            <span class="text-danger fw-bold">-{{ "%.1f"|format(total_discount) }}%</span>
-            <br><small class="text-muted">
-              {% if job.base_discount_percent %}(Base: {{ "%.1f"|format(job.base_discount_percent) }}%){% endif %}
-              {% if job.agent_discount_percent %}(Agent: {{ "%.1f"|format(job.agent_discount_percent) }}%){% endif %}
-              {% if job.additional_discount_percent %}(Add: {{ "%.1f"|format(job.additional_discount_percent) }}%){% endif %}
-            </small>
-          {% else %}
-            <span class="text-muted">-</span>
-          {% endif %}
+          <span class="text-danger fw-bold">-{{ "%.1f"|format(total_discount) }}%</span>
+          <br><small class="text-muted">
+            (Base: {{ "%.1f"|format(job.base_discount_percent or 0) }}%)
+            (Agent: {{ "%.1f"|format(job.agent_discount_percent or 0) }}%)
+            (Add: {{ "%.1f"|format(job.additional_discount_percent or 0) }}%)
+          </small>
         </td>
         <td>
-          {% if job.additional_charges and job.additional_charges > 0 %}
-            <span class="text-warning fw-bold">+${{ "%.2f"|format(job.additional_charges) }}</span>
-          {% else %}
-            <span class="text-muted">-</span>
-          {% endif %}
+          SGD {{ "%.2f"|format(job.additional_charges or 0) }}
         </td>
         <td>
-          {% if job.final_price %}
-            <span class="text-primary fw-bold fs-6">${{ "%.2f"|format(job.final_price) }}</span>
-          {% else %}
-            <span class="text-muted">-</span>
-          {% endif %}
+          <span class="fw-bold">${{ "%.2f"|format(job.final_price or 0) }}</span>
         </td>
         <td>
           {% if job.payment_status == 'Paid' %}

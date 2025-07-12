@@ -1166,19 +1166,28 @@ def add_billing():
                 return render_template('billing_form.html', action='Add', jobs=jobs)
             
             # Create billing record with all the new fields
+            base_price = job.base_price or 0
+            base_discount_amount = job.base_discount_percent * base_price / 100 if job.base_discount_percent else 0
+            agent_discount_amount = job.agent_discount_percent * base_price / 100 if job.agent_discount_percent else 0
+            additional_discount_amount = job.additional_discount_percent * base_price / 100 if job.additional_discount_percent else 0
+            additional_charges = float(request.form.get('additional_charges', 0))
+            subtotal = base_price - base_discount_amount - agent_discount_amount - additional_discount_amount
+            tax_amount = float(request.form.get('tax_amount', 0))
+            total_amount = subtotal + additional_charges + tax_amount
+            
             billing = Billing(
                 job_id=job_id,
-                invoice_number=request.form.get('invoice_number') or f'INV-{job_id}-{datetime.now().strftime("%Y%m%d")}',
+                invoice_number=request.form.get('invoice_number') or f'INV-{job_id}-{datetime.now().strftime("%Y%m%d%H%M%S")}',
                 invoice_date=request.form.get('invoice_date'),
                 due_date=request.form.get('due_date'),
-                base_price=job.base_price or 0,
-                base_discount_amount=job.base_discount_percent * (job.base_price or 0) / 100 if job.base_discount_percent else 0,
-                agent_discount_amount=job.agent_discount_percent * (job.base_price or 0) / 100 if job.agent_discount_percent else 0,
-                additional_discount_amount=job.additional_discount_percent * (job.base_price or 0) / 100 if job.additional_discount_percent else 0,
-                additional_charges=float(request.form.get('additional_charges', 0)),
-                subtotal=(job.base_price or 0) - (job.base_discount_percent or 0) * (job.base_price or 0) / 100 - (job.agent_discount_percent or 0) * (job.base_price or 0) / 100 - (job.additional_discount_percent or 0) * (job.base_price or 0) / 100,
-                tax_amount=float(request.form.get('tax_amount', 0)),
-                total_amount=float(request.form.get('total_amount', 0)),
+                base_price=base_price,
+                base_discount_amount=base_discount_amount,
+                agent_discount_amount=agent_discount_amount,
+                additional_discount_amount=additional_discount_amount,
+                additional_charges=additional_charges,
+                subtotal=subtotal,
+                tax_amount=tax_amount,
+                total_amount=total_amount,
                 payment_status=request.form.get('payment_status', 'Pending'),
                 payment_date=request.form.get('payment_date'),
                 payment_method=request.form.get('payment_method'),
@@ -1216,18 +1225,27 @@ def edit_billing(billing_id):
                 return render_template('billing_form.html', action='Edit', billing=billing, jobs=jobs)
             
             # Update billing record with all the new fields
+            base_price = job.base_price or 0
+            base_discount_amount = job.base_discount_percent * base_price / 100 if job.base_discount_percent else 0
+            agent_discount_amount = job.agent_discount_percent * base_price / 100 if job.agent_discount_percent else 0
+            additional_discount_amount = job.additional_discount_percent * base_price / 100 if job.additional_discount_percent else 0
+            additional_charges = float(request.form.get('additional_charges', 0))
+            subtotal = base_price - base_discount_amount - agent_discount_amount - additional_discount_amount
+            tax_amount = float(request.form.get('tax_amount', 0))
+            total_amount = subtotal + additional_charges + tax_amount
+            
             billing.job_id = job_id
-            billing.invoice_number = request.form.get('invoice_number') or billing.invoice_number
+            billing.invoice_number = request.form.get('invoice_number') or billing.invoice_number or f'INV-{job_id}-{datetime.now().strftime("%Y%m%d%H%M%S")}'
             billing.invoice_date = request.form.get('invoice_date')
             billing.due_date = request.form.get('due_date')
-            billing.base_price = job.base_price or 0
-            billing.base_discount_amount = job.base_discount_percent * (job.base_price or 0) / 100 if job.base_discount_percent else 0
-            billing.agent_discount_amount = job.agent_discount_percent * (job.base_price or 0) / 100 if job.agent_discount_percent else 0
-            billing.additional_discount_amount = job.additional_discount_percent * (job.base_price or 0) / 100 if job.additional_discount_percent else 0
-            billing.additional_charges = float(request.form.get('additional_charges', 0))
-            billing.subtotal = (job.base_price or 0) - (job.base_discount_percent or 0) * (job.base_price or 0) / 100 - (job.agent_discount_percent or 0) * (job.base_price or 0) / 100 - (job.additional_discount_percent or 0) * (job.base_price or 0) / 100
-            billing.tax_amount = float(request.form.get('tax_amount', 0))
-            billing.total_amount = float(request.form.get('total_amount', 0))
+            billing.base_price = base_price
+            billing.base_discount_amount = base_discount_amount
+            billing.agent_discount_amount = agent_discount_amount
+            billing.additional_discount_amount = additional_discount_amount
+            billing.additional_charges = additional_charges
+            billing.subtotal = subtotal
+            billing.tax_amount = tax_amount
+            billing.total_amount = total_amount
             billing.payment_status = request.form.get('payment_status', 'Pending')
             billing.payment_date = request.form.get('payment_date')
             billing.payment_method = request.form.get('payment_method')

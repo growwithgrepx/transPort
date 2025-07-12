@@ -154,8 +154,30 @@ with app.app_context():
     })
 
     # Billings
-    billing1 = get_or_create(Billing, job_id=job1.id, defaults={'amount': 100.0, 'discount_id': discount1.id})
-    billing2 = get_or_create(Billing, job_id=job2.id, defaults={'amount': 200.0, 'discount_id': discount2.id})
+    billing1 = get_or_create(Billing, job_id=job1.id, defaults={
+        'base_price': 100.0,
+        'base_discount_amount': 10.0,
+        'agent_discount_amount': 5.0,
+        'additional_discount_amount': 0.0,
+        'additional_charges': 0.0,
+        'subtotal': 85.0,
+        'tax_amount': 0.0,
+        'total_amount': 85.0,
+        'discount_id': discount1.id,
+        'payment_status': 'Paid'
+    })
+    billing2 = get_or_create(Billing, job_id=job2.id, defaults={
+        'base_price': 200.0,
+        'base_discount_amount': 20.0,
+        'agent_discount_amount': 10.0,
+        'additional_discount_amount': 0.0,
+        'additional_charges': 0.0,
+        'subtotal': 170.0,
+        'tax_amount': 0.0,
+        'total_amount': 170.0,
+        'discount_id': discount2.id,
+        'payment_status': 'Unpaid'
+    })
 
     print('Sample data inserted successfully.')
 

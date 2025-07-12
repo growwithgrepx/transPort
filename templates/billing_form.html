@@ -21,6 +21,10 @@
             {% for job in jobs %}
               <option value="{{ job.id }}" 
                       data-base-price="{{ job.base_price or 0 }}"
+                      data-base-discount-percent="{{ job.base_discount_percent or 0 }}"
+                      data-agent-discount-percent="{{ job.agent_discount_percent or 0 }}"
+                      data-additional-discount-percent="{{ job.additional_discount_percent or 0 }}"
+                      data-additional-charges="{{ job.additional_charges or 0 }}"
                       data-final-price="{{ job.final_price or 0 }}"
                       data-agent="{{ job.agent.name if job.agent else 'N/A' }}"
                       data-service="{{ job.service.name if job.service else job.type_of_service }}"
@@ -162,31 +166,60 @@
 document.addEventListener('DOMContentLoaded', function() {
   const jobSelect = document.getElementById('job_id');
   const basePriceInput = document.getElementById('base_price');
-  const finalPriceInput = document.getElementById('total_amount');
+  const baseDiscountAmountInput = document.getElementById('base_discount_amount');
+  const agentDiscountAmountInput = document.getElementById('agent_discount_amount');
+  const additionalDiscountAmountInput = document.getElementById('additional_discount_amount');
+  const subtotalInput = document.getElementById('subtotal');
   const additionalChargesInput = document.getElementById('additional_charges');
   const taxAmountInput = document.getElementById('tax_amount');
+  const totalAmountInput = document.getElementById('total_amount');
 
   function updatePricing() {
     const selectedOption = jobSelect.options[jobSelect.selectedIndex];
     if (selectedOption && selectedOption.value) {
       const basePrice = parseFloat(selectedOption.dataset.basePrice) || 0;
-      const finalPrice = parseFloat(selectedOption.dataset.finalPrice) || 0;
+      const baseDiscountPercent = parseFloat(selectedOption.dataset.baseDiscountPercent) || 0;
+      const agentDiscountPercent = parseFloat(selectedOption.dataset.agentDiscountPercent) || 0;
+      const additionalDiscountPercent = parseFloat(selectedOption.dataset.additionalDiscountPercent) || 0;
+      const additionalCharges = parseFloat(selectedOption.dataset.additionalCharges) || 0;
       
+      // Calculate discount amounts
+      const baseDiscountAmount = (basePrice * baseDiscountPercent) / 100;
+      const agentDiscountAmount = (basePrice * agentDiscountPercent) / 100;
+      const additionalDiscountAmount = (basePrice * additionalDiscountPercent) / 100;
+      
+      // Calculate subtotal
+      const subtotal = basePrice - baseDiscountAmount - agentDiscountAmount - additionalDiscountAmount;
+      
+      // Set values
       basePriceInput.value = basePrice.toFixed(2);
-      finalPriceInput.value = finalPrice.toFixed(2);
+      baseDiscountAmountInput.value = baseDiscountAmount.toFixed(2);
+      agentDiscountAmountInput.value = agentDiscountAmount.toFixed(2);
+      additionalDiscountAmountInput.value = additionalDiscountAmount.toFixed(2);
+      subtotalInput.value = subtotal.toFixed(2);
+      additionalChargesInput.value = additionalCharges.toFixed(2);
+      
+      // Calculate total
+      calculateTotal();
     } else {
+      // Clear all fields
       basePriceInput.value = '';
-      finalPriceInput.value = '';
+      baseDiscountAmountInput.value = '';
+      agentDiscountAmountInput.value = '';
+      additionalDiscountAmountInput.value = '';
+      subtotalInput.value = '';
+      additionalChargesInput.value = '';
+      totalAmountInput.value = '';
     }
   }
 
   function calculateTotal() {
-    const basePrice = parseFloat(basePriceInput.value) || 0;
+    const subtotal = parseFloat(subtotalInput.value) || 0;
     const additionalCharges = parseFloat(additionalChargesInput.value) || 0;
     const taxAmount = parseFloat(taxAmountInput.value) || 0;
     
-    const total = basePrice + additionalCharges + taxAmount;
-    finalPriceInput.value = total.toFixed(2);
+    const total = subtotal + additionalCharges + taxAmount;
+    totalAmountInput.value = total.toFixed(2);
   }
 
   if (jobSelect) {

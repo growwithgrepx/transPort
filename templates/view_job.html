@@ -208,35 +208,44 @@
       </div>
       <div class="card-body">
         {% if job %}
-          <!-- View Mode - Read-only pricing -->
+          <!-- Edit Mode - Editable pricing -->
           <div class="row g-3">
             <div class="col-12">
-              <label class="form-label fw-bold">Base Price</label>
-              <div class="form-control-plaintext">SGD {{ "%.2f"|format(job.base_price or 0) }}</div>
+              <label for="base_price" class="form-label fw-bold">Base Price</label>
+              <input type="number" class="form-control" id="base_price" name="base_price" step="0.01" value="{{ job.base_price or 0 }}">
             </div>
             <div class="col-12">
-              <label class="form-label fw-bold">Base Discount</label>
-              <div class="form-control-plaintext">{{ "%.2f"|format(job.base_discount_percent or 0) }}%</div>
+              <label for="base_discount_percent" class="form-label fw-bold">Base Discount (%)</label>
+              <input type="number" class="form-control" id="base_discount_percent" name="base_discount_percent" step="0.01" value="{{ job.base_discount_percent or 0 }}">
             </div>
             <div class="col-12">
-              <label class="form-label fw-bold">Agent Discount</label>
-              <div class="form-control-plaintext">{{ "%.2f"|format(job.agent_discount_percent or 0) }}%</div>
+              <label for="agent_discount_percent" class="form-label fw-bold">Agent Discount (%)</label>
+              <input type="number" class="form-control" id="agent_discount_percent" name="agent_discount_percent" step="0.01" value="{{ job.agent_discount_percent or 0 }}">
             </div>
             <div class="col-12">
-              <label class="form-label fw-bold">Additional Discount</label>
-              <div class="form-control-plaintext">{{ "%.2f"|format(job.additional_discount_percent or 0) }}%</div>
+              <label for="additional_discount_percent" class="form-label fw-bold">Additional Discount (%)</label>
+              <input type="number" class="form-control" id="additional_discount_percent" name="additional_discount_percent" step="0.01" value="{{ job.additional_discount_percent or 0 }}">
             </div>
             <div class="col-12">
-              <label class="form-label fw-bold">Additional Charges</label>
-              <div class="form-control-plaintext">SGD {{ "%.2f"|format(job.additional_charges or 0) }}</div>
+              <label for="additional_charges" class="form-label fw-bold">Additional Charges</label>
+              <input type="number" class="form-control" id="additional_charges" name="additional_charges" step="0.01" value="{{ job.additional_charges or 0 }}">
             </div>
             <div class="col-12">
-              <label class="form-label fw-bold">Final Price</label>
-              <div class="form-control-plaintext fw-bold text-success">SGD {{ "%.2f"|format(job.final_price or 0) }}</div>
+              <label for="final_price" class="form-label fw-bold">Final Price</label>
+              <input type="number" class="form-control" id="final_price" name="final_price" step="0.01" value="{{ job.final_price or 0 }}">
             </div>
             <div class="col-12">
-              <label class="form-label fw-bold">Invoice Number</label>
-              <div class="form-control-plaintext">{{ job.invoice_number or 'Not generated' }}</div>
+              <label for="invoice_number" class="form-label fw-bold">Invoice Number</label>
+              <input type="text" class="form-control" id="invoice_number" name="invoice_number" value="{{ job.invoice_number or '' }}">
+            </div>
+          </div>
+          
+          <div class="mt-3">
+            <div class="alert alert-info">
+              <strong>Pricing Breakdown:</strong>
+              <div id="pricing-breakdown">
+                <span class="text-muted">Select service and agent to see pricing details</span>
+              </div>
             </div>
           </div>
         {% else %}
