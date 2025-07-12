@@ -1,18 +1,26 @@
-name: Selenium Tests
-on: [push, pull_request]
+name: Selenium UI Tests
+
+on:
+  push:
+    branches: [fleet-enhancements]
+  pull_request:
+    branches: [fleet-enhancements]
 
 jobs:
-  test:
+  selenium-test:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-    - name: Build and run tests in Docker
-      run: |
-        docker build -t selenium-tests .
-        docker run --rm -v ${{ github.workspace }}/test_screenshots:/app/test_screenshots selenium-tests || true
-    - name: Upload screenshots on failure
-      if: failure()
-      uses: actions/upload-artifact@v3
-      with:
-        name: test-screenshots
-        path: test_screenshots/ 
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Build and run Selenium tests
+        run: |
+          docker build -t selenium-tests .
+          docker run --rm -v ${{ github.workspace }}/test_screenshots:/app/test_screenshots selenium-tests || true
+
+      - name: Upload screenshots if tests fail
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-screenshots
+          path: test_screenshots/
