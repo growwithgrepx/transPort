@@ -34,15 +34,33 @@ jobs:
 
       - name: Run unit tests
         run: |
-          pytest --junitxml=test-results.xml
+          pytest --junitxml=test-results.xml -v
 
-      - name: Publish Test Results
-        uses: dorny/test-reporter@v1
+      - name: Display test results
         if: always()
-        with:
-          name: Backend Tests
-          path: test-results.xml
-          reporter: java-junit
+        run: |
+          echo "## 🧪 Backend Test Results" >> $GITHUB_STEP_SUMMARY
+          if [ -f test-results.xml ]; then
+            tests=$(grep -o 'tests="[0-9]*"' test-results.xml | cut -d'"' -f2)
+            failures=$(grep -o 'failures="[0-9]*"' test-results.xml | cut -d'"' -f2)
+            errors=$(grep -o 'errors="[0-9]*"' test-results.xml | cut -d'"' -f2)
+            passed=$((tests - failures - errors))
+            
+            echo "- **Total Tests**: $tests" >> $GITHUB_STEP_SUMMARY
+            echo "- **Passed**: $passed ✅" >> $GITHUB_STEP_SUMMARY
+            echo "- **Failed**: $failures ❌" >> $GITHUB_STEP_SUMMARY
+            echo "- **Errors**: $errors ⚠️" >> $GITHUB_STEP_SUMMARY
+            
+            if [ "$failures" -gt 0 ] || [ "$errors" -gt 0 ]; then
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "### Failed Tests:" >> $GITHUB_STEP_SUMMARY
+              grep -A 10 '<failure\|<error' test-results.xml | head -20 >> $GITHUB_STEP_SUMMARY || true
+              exit 1
+            fi
+          else
+            echo "❌ No test results found" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
 
       - name: Upload test results
         uses: actions/upload-artifact@v4

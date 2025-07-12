@@ -6,6 +6,14 @@ on:
   pull_request:
     branches: [fleet-enhancements]
 
+# Add permissions for the workflow
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+  checks: write
+  pull-requests: write
+
 jobs:
   selenium-test:
     runs-on: ubuntu-latest
