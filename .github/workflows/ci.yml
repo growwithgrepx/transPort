@@ -1,30 +1,37 @@
-name: Backend CI
+name: CI Pipeline
 
 on:
   push:
-    branches: [fleet-enhancements]
+    branches: [main, develop, fleet-enhancements]
   pull_request:
-    branches: [fleet-enhancements]
+    branches: [main, develop]
+
+env:
+  PYTHON_VERSION: '3.11'
+  CACHE_VERSION: v1
 
 jobs:
-  python-tests:
+  # Backend tests job
+  backend-tests:
+    name: Backend Tests
     runs-on: ubuntu-latest
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Cache pip dependencies
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          key: ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-${{ hashFiles('requirements.txt') }}
           restore-keys: |
+            ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-
             ${{ runner.os }}-pip-
 
       - name: Install dependencies
@@ -32,39 +39,272 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run unit tests
+      - name: Run backend tests
         run: |
-          pytest --junitxml=test-results.xml -v
+          pytest tests/ -v --tb=short \
+            --junitxml=backend-results.xml \
+            --cov=src --cov-report=xml --cov-report=html
 
-      - name: Display test results
-        if: always()
-        run: |
-          echo "## 🧪 Backend Test Results" >> $GITHUB_STEP_SUMMARY
-          if [ -f test-results.xml ]; then
-            tests=$(grep -o 'tests="[0-9]*"' test-results.xml | cut -d'"' -f2)
-            failures=$(grep -o 'failures="[0-9]*"' test-results.xml | cut -d'"' -f2)
-            errors=$(grep -o 'errors="[0-9]*"' test-results.xml | cut -d'"' -f2)
-            passed=$((tests - failures - errors))
-            
-            echo "- **Total Tests**: $tests" >> $GITHUB_STEP_SUMMARY
-            echo "- **Passed**: $passed ✅" >> $GITHUB_STEP_SUMMARY
-            echo "- **Failed**: $failures ❌" >> $GITHUB_STEP_SUMMARY
-            echo "- **Errors**: $errors ⚠️" >> $GITHUB_STEP_SUMMARY
-            
-            if [ "$failures" -gt 0 ] || [ "$errors" -gt 0 ]; then
-              echo "" >> $GITHUB_STEP_SUMMARY
-              echo "### Failed Tests:" >> $GITHUB_STEP_SUMMARY
-              grep -A 10 '<failure\|<error' test-results.xml | head -20 >> $GITHUB_STEP_SUMMARY || true
-              exit 1
-            fi
-          else
-            echo "❌ No test results found" >> $GITHUB_STEP_SUMMARY
-            exit 1
-          fi
-
-      - name: Upload test results
+      - name: Upload backend test results
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: backend-test-results
-          path: test-results.xml
+          name: backend-test-results-${{ github.run_number }}
+          path: |
+            backend-results.xml
+            htmlcov/
+            coverage.xml
+          retention-days: 30
+
+      - name: Publish backend test results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Backend Tests
+          path: backend-results.xml
+          reporter: java-junit
+          fail-on-error: false
+
+  # Selenium UI tests job
+  selenium-tests:
+    name: Selenium UI Tests
+    runs-on: ubuntu-latest
+    needs: backend-tests
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Build test Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          tags: selenium-tests:latest
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+
+      - name: Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+      - name: Run Selenium tests
+        run: |
+          mkdir -p test_results
+          docker run --rm \
+            -v ${{ github.workspace }}/test_results:/app/test_results \
+            --name selenium-test-container \
+            selenium-tests:latest
+
+      - name: Upload Selenium test artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: selenium-test-results-${{ github.run_number }}
+          path: test_results/
+          retention-days: 30
+
+      - name: Publish Selenium test results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Selenium UI Tests
+          path: test_results/results.xml
+          reporter: java-junit
+          fail-on-error: false
+
+  # Test results summary job
+  test-summary:
+    name: Test Results Summary
+    runs-on: ubuntu-latest
+    needs: [backend-tests, selenium-tests]
+    if: always()
+    
+    permissions:
+      pull-requests: write
+      checks: write
+    
+    steps:
+      - name: Download backend test results
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-test-results-${{ github.run_number }}
+          path: backend-results
+
+      - name: Download Selenium test results
+        uses: actions/download-artifact@v4
+        with:
+          name: selenium-test-results-${{ github.run_number }}
+          path: selenium-results
+
+      - name: Create test summary
+        run: |
+          echo "## 🧪 Test Results Summary - Run #${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Backend tests summary
+          if [ -f backend-results/backend-results.xml ]; then
+            echo "### Backend Tests" >> $GITHUB_STEP_SUMMARY
+            tests=$(grep -o 'tests="[0-9]*"' backend-results/backend-results.xml | cut -d'"' -f2)
+            failures=$(grep -o 'failures="[0-9]*"' backend-results/backend-results.xml | cut -d'"' -f2)
+            errors=$(grep -o 'errors="[0-9]*"' backend-results/backend-results.xml | cut -d'"' -f2)
+            passed=$((tests - failures - errors))
+            
+            echo "- **Total**: $tests | **Passed**: $passed ✅ | **Failed**: $failures ❌ | **Errors**: $errors ⚠️" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Selenium tests summary  
+          if [ -f selenium-results/results.xml ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Selenium UI Tests" >> $GITHUB_STEP_SUMMARY
+            tests=$(grep -o 'tests="[0-9]*"' selenium-results/results.xml | cut -d'"' -f2)
+            failures=$(grep -o 'failures="[0-9]*"' selenium-results/results.xml | cut -d'"' -f2)
+            errors=$(grep -o 'errors="[0-9]*"' selenium-results/results.xml | cut -d'"' -f2)
+            passed=$((tests - failures - errors))
+            
+            echo "- **Total**: $tests | **Passed**: $passed ✅ | **Failed**: $failures ❌ | **Errors**: $errors ⚠️" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Comment PR with test results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            
+            let comment = `## 🧪 Test Results Summary - Run #${{ github.run_number }}\n\n`;
+            
+            // Backend test results
+            try {
+              const backendXml = fs.readFileSync('backend-results/backend-results.xml', 'utf8');
+              const bTests = backendXml.match(/tests="(\d+)"/)?.[1] || '0';
+              const bFailures = backendXml.match(/failures="(\d+)"/)?.[1] || '0';
+              const bErrors = backendXml.match(/errors="(\d+)"/)?.[1] || '0';
+              const bPassed = bTests - bFailures - bErrors;
+              
+              comment += `### 🐍 Backend Tests\n`;
+              comment += `**${bPassed}/${bTests} tests passed** `;
+              comment += (bFailures > 0 || bErrors > 0) ? `❌\n` : `✅\n`;
+              comment += `- Failures: ${bFailures} | Errors: ${bErrors}\n\n`;
+            } catch (error) {
+              comment += `### 🐍 Backend Tests\n❌ Results not available\n\n`;
+            }
+            
+            // Selenium test results
+            try {
+              const seleniumXml = fs.readFileSync('selenium-results/results.xml', 'utf8');
+              const sTests = seleniumXml.match(/tests="(\d+)"/)?.[1] || '0';
+              const sFailures = seleniumXml.match(/failures="(\d+)"/)?.[1] || '0';
+              const sErrors = seleniumXml.match(/errors="(\d+)"/)?.[1] || '0';
+              const sPassed = sTests - sFailures - sErrors;
+              
+              comment += `### 🌐 Selenium UI Tests\n`;
+              comment += `**${sPassed}/${sTests} tests passed** `;
+              comment += (sFailures > 0 || sErrors > 0) ? `❌\n` : `✅\n`;
+              comment += `- Failures: ${sFailures} | Errors: ${sErrors}\n\n`;
+            } catch (error) {
+              comment += `### 🌐 Selenium UI Tests\n❌ Results not available\n\n`;
+            }
+            
+            comment += `📊 **Artifacts**: [Backend Results](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) | [Selenium Results](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  # Deploy to GitHub Pages (only from main branch)
+  deploy-pages:
+    name: Deploy Test Reports to GitHub Pages
+    runs-on: ubuntu-latest
+    needs: [backend-tests, selenium-tests]
+    if: always() && github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    permissions:
+      pages: write
+      id-token: write
+      contents: read
+      
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download backend test results
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-test-results-${{ github.run_number }}
+          path: reports/backend
+
+      - name: Download Selenium test results
+        uses: actions/download-artifact@v4
+        with:
+          name: selenium-test-results-${{ github.run_number }}
+          path: reports/selenium
+
+      - name: Create index page
+        run: |
+          mkdir -p reports
+          cat > reports/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>Test Reports - Build #${{ github.run_number }}</title>
+              <style>
+                  body { font-family: Arial, sans-serif; margin: 40px; }
+                  .header { background: #f6f8fa; padding: 20px; border-radius: 6px; margin-bottom: 20px; }
+                  .section { margin: 20px 0; }
+                  .link { display: inline-block; margin: 10px; padding: 10px 20px; background: #0969da; color: white; text-decoration: none; border-radius: 6px; }
+                  .link:hover { background: #0860ca; }
+              </style>
+          </head>
+          <body>
+              <div class="header">
+                  <h1>Test Reports</h1>
+                  <p>Build #${{ github.run_number }} - ${{ github.sha }}</p>
+                  <p>Branch: ${{ github.ref_name }}</p>
+              </div>
+              
+              <div class="section">
+                  <h2>Backend Tests</h2>
+                  <a href="backend/htmlcov/index.html" class="link">Coverage Report</a>
+              </div>
+              
+              <div class="section">
+                  <h2>Selenium UI Tests</h2>
+                  <a href="selenium/report.html" class="link">Test Report</a>
+              </div>
+          </body>
+          </html>
+          EOF
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+      
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: reports
+      
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
