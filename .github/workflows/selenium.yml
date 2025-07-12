@@ -35,18 +35,18 @@ jobs:
             ${{ runner.os }}-buildx-${{ env.CACHE_VERSION }}-
             ${{ runner.os }}-buildx-
 
-      - name: Build Docker image for selenium-tests
-        run: |
-          docker build \
-            --cache-from=type=local,src=/tmp/.buildx-cache \
-            --cache-to=type=local,dest=/tmp/.buildx-cache-new,mode=max \
-            -t selenium-tests:latest \
-            -f Dockerfile .
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          tags: selenium-tests:latest
+          cache-from: type=local,src=/tmp/.buildx-cache
 
       - name: Move cache
         run: |
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+          rm -rf /tmp/.buildx-cache || true
 
       - name: Run Selenium UI tests
         run: |
@@ -60,7 +60,7 @@ jobs:
         if: always()
         run: |
           echo "## ✅ Test Summary" >> $GITHUB_STEP_SUMMARY
-          ls -lh test_results >> $GITHUB_STEP_SUMMARY
+          ls -lh test_results || echo "No test results found" >> $GITHUB_STEP_SUMMARY
 
       - name: Publish Test Results
         uses: dorny/test-reporter@v1
