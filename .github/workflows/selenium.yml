@@ -35,15 +35,13 @@ jobs:
             ${{ runner.os }}-buildx-${{ env.CACHE_VERSION }}-
             ${{ runner.os }}-buildx-
 
-      - name: Build Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile
-          push: false
-          tags: selenium-tests:latest
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+      - name: Build Docker image for selenium-tests
+        run: |
+          docker build \
+            --cache-from=type=local,src=/tmp/.buildx-cache \
+            --cache-to=type=local,dest=/tmp/.buildx-cache-new,mode=max \
+            -t selenium-tests:latest \
+            -f Dockerfile .
 
       - name: Move cache
         run: |
