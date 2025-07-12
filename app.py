@@ -534,6 +534,15 @@ def handle_single_job_creation():
 
         stops = request.form.getlist('additional_stops[]')
 
+        # Get pricing information
+        base_price = float(request.form.get('base_price', 0) or 0)
+        base_discount_percent = float(request.form.get('base_discount_percent', 0) or 0)
+        agent_discount_percent = float(request.form.get('agent_discount_percent', 0) or 0)
+        additional_discount_percent = float(request.form.get('additional_discount_percent', 0) or 0)
+        additional_charges = float(request.form.get('additional_charges', 0) or 0)
+        final_price = float(request.form.get('final_price', 0) or 0)
+        invoice_number = request.form.get('invoice_number', '').strip()
+
         job = Job(
             customer_name=customer_name,
             customer_email=customer_email,
@@ -562,7 +571,15 @@ def handle_single_job_creation():
             has_request=bool(request.form.get('has_request')),
             reference=request.form.get('reference', '').strip(),
             status=request.form.get('status', '').strip(),
-            date=pickup_date
+            date=pickup_date,
+            # Pricing fields
+            base_price=base_price,
+            base_discount_percent=base_discount_percent,
+            agent_discount_percent=agent_discount_percent,
+            additional_discount_percent=additional_discount_percent,
+            additional_charges=additional_charges,
+            final_price=final_price,
+            invoice_number=invoice_number
         )
 
         db.session.add(job)
@@ -646,6 +663,18 @@ def handle_bulk_job_creation():
         # Create all jobs
         created_jobs = []
         for job_data in jobs:
+            # Calculate pricing for each job
+            base_price = job_data['service'].base_price or 0
+            base_discount = Discount.query.filter_by(is_base_discount=True, is_active=True).first()
+            base_discount_percent = (base_discount.percent if base_discount else 0.0) or 0.0
+            agent_discount_percent = (job_data['agent'].agent_discount_percent if job_data['agent'] else 0.0) or 0.0
+            
+            # Calculate final price
+            base_discount_amount = (base_price * base_discount_percent) / 100
+            agent_discount_amount = (base_price * agent_discount_percent) / 100
+            subtotal = base_price - base_discount_amount - agent_discount_amount
+            final_price = subtotal
+            
             job = Job(
                 customer_name=job_data['agent'].name,
                 customer_email=job_data['agent'].email,
@@ -662,7 +691,14 @@ def handle_bulk_job_creation():
                 pickup_location=job_data['pickup_location'],
                 dropoff_location=job_data['dropoff_location'],
                 status='Scheduled',
-                date=job_data['pickup_date']
+                date=job_data['pickup_date'],
+                # Pricing fields
+                base_price=base_price,
+                base_discount_percent=base_discount_percent,
+                agent_discount_percent=agent_discount_percent,
+                additional_discount_percent=0.0,
+                additional_charges=0.0,
+                final_price=final_price
             )
             db.session.add(job)
             created_jobs.append(job)
@@ -728,6 +764,16 @@ def edit_job(job_id):
         job.reference = request.form.get('reference')
         job.status = request.form.get('status')
         job.date = request.form.get('pickup_date')
+        
+        # Update pricing fields
+        job.base_price = float(request.form.get('base_price', 0) or 0)
+        job.base_discount_percent = float(request.form.get('base_discount_percent', 0) or 0)
+        job.agent_discount_percent = float(request.form.get('agent_discount_percent', 0) or 0)
+        job.additional_discount_percent = float(request.form.get('additional_discount_percent', 0) or 0)
+        job.additional_charges = float(request.form.get('additional_charges', 0) or 0)
+        job.final_price = float(request.form.get('final_price', 0) or 0)
+        job.invoice_number = request.form.get('invoice_number', '').strip()
+        
         db.session.commit()
         return redirect(url_for('jobs'))
     return render_template('view_job.html', job=job, agents=agents, services=services, vehicles=vehicles,
@@ -763,6 +809,15 @@ def update_job_view(job_id):
     job.payment_status = request.form.get('payment_status', job.payment_status)
     job.message = request.form.get('message', job.message)
     job.remarks = request.form.get('remarks', job.remarks)
+    
+    # Update pricing fields
+    job.base_price = float(request.form.get('base_price', job.base_price or 0) or 0)
+    job.base_discount_percent = float(request.form.get('base_discount_percent', job.base_discount_percent or 0) or 0)
+    job.agent_discount_percent = float(request.form.get('agent_discount_percent', job.agent_discount_percent or 0) or 0)
+    job.additional_discount_percent = float(request.form.get('additional_discount_percent', job.additional_discount_percent or 0) or 0)
+    job.additional_charges = float(request.form.get('additional_charges', job.additional_charges or 0) or 0)
+    job.final_price = float(request.form.get('final_price', job.final_price or 0) or 0)
+    job.invoice_number = request.form.get('invoice_number', job.invoice_number or '').strip()
     
     db.session.commit()
     flash('Job updated successfully!', 'success')
@@ -1103,7 +1158,7 @@ def add_billing():
     if request.method == 'POST':
         try:
             # Get the selected job
-        job_id = request.form['job_id']
+            job_id = request.form['job_id']
             job = Job.query.get(job_id)
             
             if not job:
@@ -1131,10 +1186,10 @@ def add_billing():
                 terms_conditions=request.form.get('terms_conditions')
             )
             
-        db.session.add(billing)
-        db.session.commit()
+            db.session.add(billing)
+            db.session.commit()
             flash('Billing record created successfully', 'success')
-        return redirect(url_for('billing'))
+            return redirect(url_for('billing'))
         except Exception as e:
             db.session.rollback()
             flash(f'Error creating billing record: {str(e)}', 'error')
@@ -1179,9 +1234,9 @@ def edit_billing(billing_id):
             billing.notes = request.form.get('notes')
             billing.terms_conditions = request.form.get('terms_conditions')
             
-        db.session.commit()
+            db.session.commit()
             flash('Billing record updated successfully', 'success')
-        return redirect(url_for('billing'))
+            return redirect(url_for('billing'))
         except Exception as e:
             db.session.rollback()
             flash(f'Error updating billing record: {str(e)}', 'error')

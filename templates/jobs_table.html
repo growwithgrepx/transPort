@@ -17,6 +17,10 @@
         <th>Drop-off</th>
         <th>Vehicle</th>
         <th>Driver Contact</th>
+        <th>Base Price</th>
+        <th>Discounts</th>
+        <th>Additional Charges</th>
+        <th>Final Price</th>
         <th>Payment Status</th>
         <th>Job Status</th>
         <th>Actions</th>
@@ -47,6 +51,10 @@
           </select>
         </th>
         <th><input type="text" class="form-control form-control-sm" name="driver_contact" placeholder="Filter" value="{{ request.args.get('driver_contact', '') }}" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="keyup changed delay:400ms" autocomplete="off"></th>
+        <th><input type="number" class="form-control form-control-sm" name="base_price" placeholder="Filter" value="{{ request.args.get('base_price', '') }}" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="keyup changed delay:400ms" autocomplete="off"></th>
+        <th><input type="number" class="form-control form-control-sm" name="discount_percent" placeholder="Filter" value="{{ request.args.get('discount_percent', '') }}" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="keyup changed delay:400ms" autocomplete="off"></th>
+        <th><input type="number" class="form-control form-control-sm" name="additional_charges" placeholder="Filter" value="{{ request.args.get('additional_charges', '') }}" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="keyup changed delay:400ms" autocomplete="off"></th>
+        <th><input type="number" class="form-control form-control-sm" name="final_price" placeholder="Filter" value="{{ request.args.get('final_price', '') }}" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="keyup changed delay:400ms" autocomplete="off"></th>
         <th>
           <select class="form-select form-select-sm" name="payment_status" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-trigger="change">
             <option value="">All</option>
@@ -82,6 +90,40 @@
         <td>{{ job.dropoff_location }}</td>
         <td>{{ job.vehicle_type }} {{ job.vehicle_number }}</td>
         <td>{{ job.driver_contact }}</td>
+        <td>
+          {% if job.base_price %}
+            <span class="text-success fw-bold">${{ "%.2f"|format(job.base_price) }}</span>
+          {% else %}
+            <span class="text-muted">-</span>
+          {% endif %}
+        </td>
+        <td>
+          {% set total_discount = (job.base_discount_percent or 0) + (job.agent_discount_percent or 0) + (job.additional_discount_percent or 0) %}
+          {% if total_discount > 0 %}
+            <span class="text-danger fw-bold">-{{ "%.1f"|format(total_discount) }}%</span>
+            <br><small class="text-muted">
+              {% if job.base_discount_percent %}(Base: {{ "%.1f"|format(job.base_discount_percent) }}%){% endif %}
+              {% if job.agent_discount_percent %}(Agent: {{ "%.1f"|format(job.agent_discount_percent) }}%){% endif %}
+              {% if job.additional_discount_percent %}(Add: {{ "%.1f"|format(job.additional_discount_percent) }}%){% endif %}
+            </small>
+          {% else %}
+            <span class="text-muted">-</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if job.additional_charges and job.additional_charges > 0 %}
+            <span class="text-warning fw-bold">+${{ "%.2f"|format(job.additional_charges) }}</span>
+          {% else %}
+            <span class="text-muted">-</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if job.final_price %}
+            <span class="text-primary fw-bold fs-6">${{ "%.2f"|format(job.final_price) }}</span>
+          {% else %}
+            <span class="text-muted">-</span>
+          {% endif %}
+        </td>
         <td>
           {% if job.payment_status == 'Paid' %}
             <span class="badge bg-success">Paid</span>
