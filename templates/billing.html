@@ -1,36 +1,110 @@
 {% extends 'base.html' %}
 {% block title %}Billing - Admin Portal{% endblock %}
 {% block content %}
-<div class="container-fluid fw-normal fs-6">
 <div class="d-flex justify-content-between align-items-center mb-4">
-  <h2 class="mb-0"><i class="bi bi-receipt me-2"></i>Manage Billing</h2>
-  <a href="{{ url_for('add_billing') }}" class="btn btn-success btn-lg"><i class="bi bi-plus-circle me-1"></i>Add Billing</a>
+  <h2 class="fw-bold mb-0"><i class="bi bi-receipt me-2"></i>Billing & Invoices</h2>
+  <div>
+    <button class="btn btn-success btn-lg me-2" onclick="generateInvoicePDF()">
+      <i class="bi bi-file-pdf me-1"></i>Generate PDF
+    </button>
+    <a href="{{ url_for('add_billing') }}" class="btn btn-primary btn-lg">
+      <i class="bi bi-plus-circle me-1"></i>Create Invoice
+    </a>
+  </div>
 </div>
-<div class="card shadow-sm mb-4">
+
+<div class="card shadow-sm">
   <div class="card-body p-0">
     <div class="table-responsive">
       <table class="table table-bordered table-hover table-striped align-middle">
         <thead class="table-light">
           <tr>
-            <th>Job ID</th>
-            <th>Amount</th>
-            <th>Discount ID</th>
+            <th>Invoice #</th>
+            <th>Job Details</th>
+            <th>Agent</th>
+            <th>Service</th>
+            <th>Base Price</th>
+            <th>Discounts</th>
+            <th>Additional Charges</th>
+            <th>Total Amount</th>
+            <th>Payment Status</th>
+            <th>Invoice Date</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
           {% for billing in billings %}
           <tr data-billing-id="{{ billing.id }}">
-            <td>{{ billing.job_id }}</td>
-            <td>{{ billing.amount }}</td>
-            <td>{{ billing.discount_id }}</td>
             <td>
-              <div class="d-flex justify-content-center align-items-center gap-2">
-                <a href="{{ url_for('edit_billing', billing_id=billing.id) }}" class="btn btn-outline-primary btn-sm d-flex align-items-center justify-content-center" title="Edit"><i class="bi bi-pencil text-primary"></i></a>
-                <form action="{{ url_for('delete_billing', billing_id=billing.id) }}" method="post" style="display:inline;">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button type="submit" class="btn btn-outline-danger btn-sm d-flex align-items-center justify-content-center" title="Delete" onclick="return confirm('Delete this billing record?');"><i class="bi bi-trash text-danger"></i></button>
-                </form>
+              <strong>{{ billing.invoice_number or 'N/A' }}</strong>
+            </td>
+            <td>
+              <div class="small">
+                <strong>Job #{{ billing.job.id }}</strong><br>
+                {{ billing.job.pickup_location }} → {{ billing.job.dropoff_location }}<br>
+                <small class="text-muted">{{ billing.job.pickup_date }} {{ billing.job.pickup_time }}</small>
+              </div>
+            </td>
+            <td>
+              {{ billing.job.agent.name if billing.job.agent else 'N/A' }}
+            </td>
+            <td>
+              {{ billing.job.service.name if billing.job.service else billing.job.type_of_service }}
+            </td>
+            <td class="text-end">
+              SGD {{ "%.2f"|format(billing.base_price or 0) }}
+            </td>
+            <td>
+              <div class="small">
+                {% if (billing.base_discount_amount or 0) > 0 %}
+                  Base: -SGD {{ "%.2f"|format(billing.base_discount_amount or 0) }}<br>
+                {% endif %}
+                {% if (billing.agent_discount_amount or 0) > 0 %}
+                  Agent: -SGD {{ "%.2f"|format(billing.agent_discount_amount or 0) }}<br>
+                {% endif %}
+                {% if (billing.additional_discount_amount or 0) > 0 %}
+                  Additional: -SGD {{ "%.2f"|format(billing.additional_discount_amount or 0) }}
+                {% endif %}
+              </div>
+            </td>
+            <td class="text-end">
+              {% if (billing.additional_charges or 0) > 0 %}
+                SGD {{ "%.2f"|format(billing.additional_charges or 0) }}
+              {% else %}
+                -
+              {% endif %}
+            </td>
+            <td class="text-end">
+              <strong>SGD {{ "%.2f"|format(billing.total_amount or 0) }}</strong>
+            </td>
+            <td>
+              {% if billing.payment_status == 'Paid' %}
+                <span class="badge bg-success">Paid</span>
+              {% elif billing.payment_status == 'Pending' %}
+                <span class="badge bg-warning text-dark">Pending</span>
+              {% elif billing.payment_status == 'Overdue' %}
+                <span class="badge bg-danger">Overdue</span>
+              {% else %}
+                <span class="badge bg-secondary">{{ billing.payment_status }}</span>
+              {% endif %}
+            </td>
+            <td>
+              {{ billing.invoice_date.strftime('%Y-%m-%d') if billing.invoice_date else 'N/A' }}
+            </td>
+            <td>
+              <div class="btn-group btn-group-sm" role="group">
+                <button class="btn btn-outline-primary" onclick="viewInvoice({{ billing.id }})" title="View Invoice">
+                  <i class="bi bi-eye"></i>
+                </button>
+                <button class="btn btn-outline-success" onclick="downloadInvoicePDF({{ billing.id }})" title="Download PDF">
+                  <i class="bi bi-download"></i>
+                </button>
+                <button class="btn btn-outline-warning" onclick="editInvoice({{ billing.id }})" title="Edit">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-outline-danger" onclick="deleteInvoice({{ billing.id }})" title="Delete">
+                  <i class="bi bi-trash"></i>
+                </button>
               </div>
             </td>
           </tr>
@@ -40,5 +114,88 @@
     </div>
   </div>
 </div>
+
+<!-- Invoice Modal -->
+<div class="modal fade" id="invoiceModal" tabindex="-1" aria-labelledby="invoiceModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="invoiceModalLabel">Invoice Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="invoiceModalBody">
+        <!-- Invoice content will be loaded here -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-success" onclick="downloadCurrentInvoicePDF()">
+          <i class="bi bi-download"></i> Download PDF
+        </button>
+      </div>
+    </div>
+  </div>
 </div>
+
+<script>
+let currentInvoiceId = null;
+
+function viewInvoice(billingId) {
+  currentInvoiceId = billingId;
+  fetch(`/api/invoice/${billingId}`)
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        document.getElementById('invoiceModalBody').innerHTML = data.html;
+        new bootstrap.Modal(document.getElementById('invoiceModal')).show();
+      } else {
+        alert('Error loading invoice: ' + data.error);
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      alert('Error loading invoice');
+    });
+}
+
+function downloadInvoicePDF(billingId) {
+  window.open(`/api/invoice/${billingId}/pdf`, '_blank');
+}
+
+function downloadCurrentInvoicePDF() {
+  if (currentInvoiceId) {
+    downloadInvoicePDF(currentInvoiceId);
+  }
+}
+
+function editInvoice(billingId) {
+  window.location.href = `/billing/edit/${billingId}`;
+}
+
+function deleteInvoice(billingId) {
+  if (confirm('Are you sure you want to delete this invoice?')) {
+    fetch(`/billing/delete/${billingId}`, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+      }
+    })
+    .then(response => {
+      if (response.ok) {
+        location.reload();
+      } else {
+        alert('Error deleting invoice');
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      alert('Error deleting invoice');
+    });
+  }
+}
+
+function generateInvoicePDF() {
+  // This would generate a PDF report of all invoices
+  window.open('/api/billing/report/pdf', '_blank');
+}
+</script>
 {% endblock %} 

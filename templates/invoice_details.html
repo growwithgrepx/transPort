@@ -1,0 +1,134 @@
+<div class="invoice-details">
+  <div class="row">
+    <div class="col-md-6">
+      <h5>Invoice Information</h5>
+      <table class="table table-sm">
+        <tr>
+          <td><strong>Invoice Number:</strong></td>
+          <td>{{ billing.invoice_number }}</td>
+        </tr>
+        <tr>
+          <td><strong>Invoice Date:</strong></td>
+          <td>{{ billing.invoice_date.strftime('%Y-%m-%d') if billing.invoice_date else 'N/A' }}</td>
+        </tr>
+        <tr>
+          <td><strong>Due Date:</strong></td>
+          <td>{{ billing.due_date.strftime('%Y-%m-%d') if billing.due_date else 'N/A' }}</td>
+        </tr>
+        <tr>
+          <td><strong>Payment Status:</strong></td>
+          <td>
+            {% if billing.payment_status == 'Paid' %}
+              <span class="badge bg-success">Paid</span>
+            {% elif billing.payment_status == 'Pending' %}
+              <span class="badge bg-warning text-dark">Pending</span>
+            {% elif billing.payment_status == 'Overdue' %}
+              <span class="badge bg-danger">Overdue</span>
+            {% else %}
+              <span class="badge bg-secondary">{{ billing.payment_status }}</span>
+            {% endif %}
+          </td>
+        </tr>
+      </table>
+    </div>
+    <div class="col-md-6">
+      <h5>Job Information</h5>
+      <table class="table table-sm">
+        <tr>
+          <td><strong>Job ID:</strong></td>
+          <td>{{ billing.job.id }}</td>
+        </tr>
+        <tr>
+          <td><strong>Agent:</strong></td>
+          <td>{{ billing.job.agent.name if billing.job.agent else 'N/A' }}</td>
+        </tr>
+        <tr>
+          <td><strong>Service:</strong></td>
+          <td>{{ billing.job.service.name if billing.job.service else billing.job.type_of_service }}</td>
+        </tr>
+        <tr>
+          <td><strong>Route:</strong></td>
+          <td>{{ billing.job.pickup_location }} → {{ billing.job.dropoff_location }}</td>
+        </tr>
+        <tr>
+          <td><strong>Date & Time:</strong></td>
+          <td>{{ billing.job.pickup_date }} {{ billing.job.pickup_time }}</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+  
+  <hr>
+  
+  <div class="row">
+    <div class="col-12">
+      <h5>Pricing Breakdown</h5>
+      <table class="table table-bordered">
+        <thead class="table-light">
+          <tr>
+            <th>Description</th>
+            <th class="text-end">Amount (SGD)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Base Price</td>
+            <td class="text-end">{{ "%.2f"|format(billing.base_price or 0) }}</td>
+          </tr>
+          {% if (billing.base_discount_amount or 0) > 0 %}
+          <tr class="table-warning">
+            <td>Base Discount</td>
+            <td class="text-end text-danger">-{{ "%.2f"|format(billing.base_discount_amount or 0) }}</td>
+          </tr>
+          {% endif %}
+          {% if (billing.agent_discount_amount or 0) > 0 %}
+          <tr class="table-warning">
+            <td>Agent Discount</td>
+            <td class="text-end text-danger">-{{ "%.2f"|format(billing.agent_discount_amount or 0) }}</td>
+          </tr>
+          {% endif %}
+          {% if (billing.additional_discount_amount or 0) > 0 %}
+          <tr class="table-warning">
+            <td>Additional Discount</td>
+            <td class="text-end text-danger">-{{ "%.2f"|format(billing.additional_discount_amount or 0) }}</td>
+          </tr>
+          {% endif %}
+          <tr class="table-info">
+            <td><strong>Subtotal</strong></td>
+            <td class="text-end"><strong>{{ "%.2f"|format(billing.subtotal or 0) }}</strong></td>
+          </tr>
+          {% if (billing.additional_charges or 0) > 0 %}
+          <tr class="table-success">
+            <td>Additional Charges</td>
+            <td class="text-end text-success">+{{ "%.2f"|format(billing.additional_charges or 0) }}</td>
+          </tr>
+          {% endif %}
+          <tr class="table-primary">
+            <td><strong>Total Amount</strong></td>
+            <td class="text-end"><strong>SGD {{ "%.2f"|format(billing.total_amount or 0) }}</strong></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  
+  {% if billing.notes %}
+  <hr>
+  <div class="row">
+    <div class="col-12">
+      <h5>Notes</h5>
+      <p class="text-muted">{{ billing.notes }}</p>
+    </div>
+  </div>
+  {% endif %}
+  
+  {% if billing.terms_conditions %}
+  <hr>
+  <div class="row">
+    <div class="col-12">
+      <h5>Terms & Conditions</h5>
+      <p class="text-muted small">{{ billing.terms_conditions }}</p>
+    </div>
+  </div>
+  {% endif %}
+</div> 

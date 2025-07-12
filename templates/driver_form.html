@@ -1,4 +1,4 @@
-<form method="post" action="{{ action_url }}" {% if hx_post_url %}hx-post="{{ hx_post_url }}"{% endif %} {% if hx_target %}hx-target="{{ hx_target }}"{% endif %} {% if hx_swap %}hx-swap="{{ hx_swap }}"{% endif %} id="driver-form">
+<form method="post" action="{{ action_url or url_for('add_driver_ajax') }}" {% if hx_post_url is defined %}hx-post="{{ hx_post_url }}"{% else %}hx-post="{{ url_for('add_driver_ajax') }}"{% endif %} {% if hx_target is defined %}hx-target="{{ hx_target }}"{% else %}hx-target="#driver-modal-body"{% endif %} {% if hx_swap is defined %}hx-swap="{{ hx_swap }}"{% else %}hx-swap="outerHTML"{% endif %} id="driver-form">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="card mb-3">
     <div class="card-body">
@@ -21,7 +21,7 @@
     </div>
   </div>
   <div class="d-flex justify-content-end gap-2">
-    <button type="submit" class="btn btn-primary">{{ action }}</button>
+    <button type="submit" class="btn btn-primary">{{ action or 'Add Driver' }}</button>
     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
   </div>
 </form> 

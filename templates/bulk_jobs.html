@@ -1,0 +1,295 @@
+{% extends 'base.html' %}
+{% block title %}Create Bulk Jobs - Admin Portal{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="fw-bold mb-0">
+    <i class="bi bi-list-ul me-2"></i>Create Bulk Jobs
+  </h2>
+  <div class="d-flex gap-2">
+    <button type="submit" form="bulkJobForm" class="btn btn-primary">
+      <i class="bi bi-check me-1"></i>Create All Jobs
+    </button>
+    <a href="{{ url_for('jobs') }}" class="btn btn-secondary">
+      <i class="bi bi-arrow-left me-1"></i>Back to Jobs
+    </a>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-lg-8">
+    <div class="card mb-4">
+      <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+          <h5 class="mb-0"><i class="bi bi-list-ul me-2"></i>Bulk Job Creation</h5>
+          <div>
+            <button type="button" class="btn btn-sm btn-outline-primary" onclick="addJobRow()">
+              <i class="bi bi-plus me-1"></i>Add Job
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearAllJobs()">
+              <i class="bi bi-arrow-clockwise me-1"></i>Clear All
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="card-body">
+        <form id="bulkJobForm" method="post" action="{{ url_for('add_bulk_jobs') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          
+          <div id="jobRows">
+            <!-- Job rows will be added here -->
+          </div>
+          
+          <div class="text-center mt-4" id="noJobsMessage">
+            <div class="text-muted">
+              <i class="bi bi-info-circle me-2"></i>
+              Click "Add Job" to start creating multiple jobs
+            </div>
+          </div>
+          
+          <!-- Save Button -->
+          <div class="text-center mt-4" id="saveSection" style="display: none;">
+            <button type="submit" class="btn btn-primary btn-lg">
+              <i class="bi bi-check me-1"></i>Create All Jobs
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-lg-4">
+    <div class="card mb-4">
+      <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-gear me-2"></i>Quick Actions</h5>
+      </div>
+      <div class="card-body">
+        <div class="d-grid gap-2">
+          <button type="button" class="btn btn-outline-primary" onclick="duplicateLastJob()">
+            <i class="bi bi-copy me-1"></i>Duplicate Last Job
+          </button>
+          <button type="button" class="btn btn-outline-info" onclick="setTodayForAll()">
+            <i class="bi bi-calendar me-1"></i>Set Today for All
+          </button>
+          <button type="button" class="btn btn-outline-warning" onclick="validateAllJobs()">
+            <i class="bi bi-check-circle me-1"></i>Validate All Jobs
+          </button>
+        </div>
+      </div>
+    </div>
+    
+
+  </div>
+</div>
+
+<script>
+let jobCounter = 0;
+
+function addJobRow() {
+  jobCounter++;
+  const rowHtml = `
+    <div class="job-row border rounded p-3 mb-3" data-job="${jobCounter}">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="mb-0 text-primary">
+          <i class="bi bi-briefcase me-2"></i>Job ${jobCounter}
+        </h6>
+        <div>
+          <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeJob(${jobCounter})">
+            <i class="bi bi-trash"></i> Remove
+          </button>
+        </div>
+      </div>
+      
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label fw-bold">Agent <span class="text-danger">*</span></label>
+          <select class="form-select" name="jobs[${jobCounter}][agent_id]" required>
+            <option value="">Select Agent</option>
+            {% for agent in agents %}
+              <option value="{{ agent.id }}">{{ agent.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-bold">Service <span class="text-danger">*</span></label>
+          <select class="form-select" name="jobs[${jobCounter}][service_id]" required>
+            <option value="">Select Service</option>
+            {% for service in services %}
+              <option value="{{ service.id }}">{{ service.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-bold">Vehicle <span class="text-danger">*</span></label>
+          <select class="form-select" name="jobs[${jobCounter}][vehicle_id]" required>
+            <option value="">Select Vehicle</option>
+            {% for vehicle in vehicles %}
+              <option value="{{ vehicle.id }}">{{ vehicle.number }} ({{ vehicle.name }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-bold">Driver <span class="text-danger">*</span></label>
+          <select class="form-select" name="jobs[${jobCounter}][driver_id]" required>
+            <option value="">Select Driver</option>
+            {% for driver in drivers %}
+              <option value="{{ driver.id }}">{{ driver.name }} ({{ driver.phone }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-bold">Pickup Date <span class="text-danger">*</span></label>
+          <input type="date" class="form-control" name="jobs[${jobCounter}][pickup_date]" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-bold">Pickup Time <span class="text-danger">*</span></label>
+          <input type="time" class="form-control" name="jobs[${jobCounter}][pickup_time]" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-bold">Pickup Location <span class="text-danger">*</span></label>
+          <input type="text" class="form-control" name="jobs[${jobCounter}][pickup_location]" placeholder="Pickup location" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-bold">Drop-off Location <span class="text-danger">*</span></label>
+          <input type="text" class="form-control" name="jobs[${jobCounter}][dropoff_location]" placeholder="Drop-off location" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-bold">Passenger Name</label>
+          <input type="text" class="form-control" name="jobs[${jobCounter}][passenger_name]" placeholder="Passenger name">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-bold">Status</label>
+          <select class="form-select" name="jobs[${jobCounter}][status]">
+            <option value="Scheduled">Scheduled</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Completed">Completed</option>
+            <option value="Cancelled">Cancelled</option>
+            <option value="Failed">Failed</option>
+            <option value="No Show">No Show</option>
+          </select>
+        </div>
+        <div class="col-12">
+          <label class="form-label fw-bold">Remarks</label>
+          <textarea class="form-control" name="jobs[${jobCounter}][remarks]" rows="2" placeholder="Additional remarks"></textarea>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  document.getElementById('jobRows').insertAdjacentHTML('beforeend', rowHtml);
+  document.getElementById('noJobsMessage').style.display = 'none';
+  document.getElementById('saveSection').style.display = 'block';
+  updateJobNumbers();
+}
+
+function removeJob(jobNumber) {
+  const row = document.querySelector(`[data-job="${jobNumber}"]`);
+  if (row) {
+    row.remove();
+    updateJobNumbers();
+    
+    // Show message if no jobs left
+    if (document.querySelectorAll('.job-row').length === 0) {
+      document.getElementById('noJobsMessage').style.display = 'block';
+      document.getElementById('saveSection').style.display = 'none';
+    }
+  }
+}
+
+function updateJobNumbers() {
+  const jobRows = document.querySelectorAll('.job-row');
+  jobRows.forEach((row, index) => {
+    const jobNumber = index + 1;
+    row.setAttribute('data-job', jobNumber);
+    row.querySelector('h6').innerHTML = `<i class="bi bi-briefcase me-2"></i>Job ${jobNumber}`;
+    
+    // Update all form field names
+    row.querySelectorAll('select, input, textarea').forEach(field => {
+      const oldName = field.name;
+      if (oldName && oldName.includes('[')) {
+        const fieldName = oldName.split('[')[1].split(']')[0];
+        field.name = `jobs[${jobNumber}][${fieldName}]`;
+      }
+    });
+  });
+}
+
+function clearAllJobs() {
+  if (confirm('Are you sure you want to clear all job entries?')) {
+    document.getElementById('jobRows').innerHTML = '';
+    document.getElementById('noJobsMessage').style.display = 'block';
+    document.getElementById('saveSection').style.display = 'none';
+    jobCounter = 0;
+  }
+}
+
+function duplicateLastJob() {
+  const lastJob = document.querySelector('.job-row:last-child');
+  if (lastJob) {
+    addJobRow();
+    const newJob = document.querySelector('.job-row:last-child');
+    
+    // Copy values from last job to new job
+    lastJob.querySelectorAll('select, input, textarea').forEach((field, index) => {
+      const newField = newJob.querySelectorAll('select, input, textarea')[index];
+      if (newField && field.type !== 'file') {
+        newField.value = field.value;
+      }
+    });
+  } else {
+    alert('No jobs to duplicate. Please add a job first.');
+  }
+}
+
+function setTodayForAll() {
+  const today = new Date().toISOString().split('T')[0];
+  document.querySelectorAll('input[name*="[pickup_date]"]').forEach(field => {
+    field.value = today;
+  });
+}
+
+function validateAllJobs() {
+  const jobRows = document.querySelectorAll('.job-row');
+  let isValid = true;
+  let errorMessage = '';
+  
+  if (jobRows.length === 0) {
+    alert('No jobs to validate. Please add at least one job.');
+    return;
+  }
+  
+  jobRows.forEach((row, index) => {
+    const requiredFields = row.querySelectorAll('[required]');
+    requiredFields.forEach(field => {
+      if (!field.value.trim()) {
+        isValid = false;
+        errorMessage += `Job ${index + 1}: ${field.previousElementSibling.textContent.replace('*', '').trim()} is required.\n`;
+      }
+    });
+  });
+  
+  if (isValid) {
+    alert('All jobs are valid! ✅');
+  } else {
+    alert('Validation errors found:\n' + errorMessage);
+  }
+}
+
+// Set today's date as default for new jobs
+document.addEventListener('DOMContentLoaded', function() {
+  const today = new Date().toISOString().split('T')[0];
+  
+  // Override addJobRow to set default date
+  const originalAddJobRow = addJobRow;
+  addJobRow = function() {
+    originalAddJobRow();
+    const lastJob = document.querySelector('.job-row:last-child');
+    if (lastJob) {
+      const dateField = lastJob.querySelector('input[name*="[pickup_date]"]');
+      if (dateField) {
+        dateField.value = today;
+      }
+    }
+  };
+});
+</script>
+{% endblock %} 

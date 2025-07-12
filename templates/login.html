@@ -94,9 +94,14 @@
 </head>
 <body>
     <script>
-      // Always set dark theme on login
-      document.documentElement.setAttribute('data-theme', 'dark');
+      // Load saved theme or default to dark
       document.addEventListener('DOMContentLoaded', function() {
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        
+        // Update toggle button icon based on current theme
+        updateThemeIcon(savedTheme);
+        
         var toggle = document.getElementById('theme-toggle');
         if (toggle) {
           toggle.addEventListener('click', function() {
@@ -104,9 +109,28 @@
             const next = current === 'dark' ? 'light' : 'dark';
             document.documentElement.setAttribute('data-theme', next);
             localStorage.setItem('theme', next);
+            updateThemeIcon(next);
           });
         }
       });
+      
+      function updateThemeIcon(theme) {
+        const toggle = document.getElementById('theme-toggle');
+        if (toggle) {
+          const icon = toggle.querySelector('i');
+          if (icon) {
+            icon.className = theme === 'dark' ? 'bi bi-moon' : 'bi bi-sun';
+          }
+        }
+        // Also update the floating button icon
+        const floatingToggle = document.getElementById('theme-toggle');
+        if (floatingToggle) {
+          const floatingIcon = floatingToggle.querySelector('i');
+          if (floatingIcon) {
+            floatingIcon.className = theme === 'dark' ? 'bi bi-moon' : 'bi bi-sun';
+          }
+        }
+      }
     </script>
     <button id="theme-toggle" class="theme-toggle-btn-floating" aria-label="Toggle dark mode"><i class="bi bi-moon"></i></button>
     <div class="container">
