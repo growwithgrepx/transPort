@@ -56,31 +56,6 @@ jobs:
           path: test_results/
           retention-days: 30
 
-      # Option 1: Using GitHub Pages with proper token
-      - name: Deploy HTML Report to GitHub Pages
-        if: always()
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          personal_token: ${{ secrets.GITHUB_TOKEN }}  # Changed from github_token
-          publish_dir: test_results
-          destination_dir: selenium-reports/${{ github.run_number }}
-
-      # Option 2: Alternative - Upload Pages artifact (recommended for newer GitHub Pages)
-      # - name: Setup Pages
-      #   if: always()
-      #   uses: actions/configure-pages@v4
-      
-      # - name: Upload artifact
-      #   if: always()
-      #   uses: actions/upload-pages-artifact@v3
-      #   with:
-      #     path: test_results
-      
-      # - name: Deploy to GitHub Pages
-      #   if: always()
-      #   id: deployment
-      #   uses: actions/deploy-pages@v4
-
       - name: Comment PR with test results
         if: github.event_name == 'pull_request' && always()
         uses: actions/github-script@v7
@@ -127,3 +102,38 @@ jobs:
             } catch (error) {
               console.error('Error posting comment:', error);
             }
+
+  # Separate job for GitHub Pages deployment
+  deploy-pages:
+    runs-on: ubuntu-latest
+    needs: selenium-test
+    if: always()
+    
+    # Grant GITHUB_TOKEN the permissions required to make a Pages deployment
+    permissions:
+      pages: write      # to deploy to Pages
+      id-token: write   # to verify the deployment originates from an appropriate source
+      
+    # Deploy to the github-pages environment
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+      
+    steps:
+      - name: Download test artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: selenium-test-results-${{ github.run_number }}
+          path: test_results
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+      
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: test_results
+      
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
