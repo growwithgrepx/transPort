@@ -13,6 +13,7 @@ permissions:
   id-token: write
   checks: write
   pull-requests: write
+  actions: read  # Added for GitHub Pages
 
 jobs:
   selenium-test:
@@ -55,13 +56,30 @@ jobs:
           path: test_results/
           retention-days: 30
 
+      # Option 1: Using GitHub Pages with proper token
       - name: Deploy HTML Report to GitHub Pages
         if: always()
         uses: peaceiris/actions-gh-pages@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          personal_token: ${{ secrets.GITHUB_TOKEN }}  # Changed from github_token
           publish_dir: test_results
           destination_dir: selenium-reports/${{ github.run_number }}
+
+      # Option 2: Alternative - Upload Pages artifact (recommended for newer GitHub Pages)
+      # - name: Setup Pages
+      #   if: always()
+      #   uses: actions/configure-pages@v4
+      
+      # - name: Upload artifact
+      #   if: always()
+      #   uses: actions/upload-pages-artifact@v3
+      #   with:
+      #     path: test_results
+      
+      # - name: Deploy to GitHub Pages
+      #   if: always()
+      #   id: deployment
+      #   uses: actions/deploy-pages@v4
 
       - name: Comment PR with test results
         if: github.event_name == 'pull_request' && always()
