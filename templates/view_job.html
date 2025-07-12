@@ -1,13 +1,13 @@
 {% extends 'base.html' %}
-{% block title %}Edit Job #{{ job.id }} - Admin Portal{% endblock %}
+{% block title %}{{ 'Edit' if job else 'Add' }} Job{% if job %} #{{ job.id }}{% endif %} - Admin Portal{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
   <h2 class="fw-bold mb-0">
-    <i class="bi bi-pencil me-2"></i>Edit Job #{{ job.id }}
+    <i class="bi bi-{{ 'pencil' if job else 'plus-circle' }} me-2"></i>{{ 'Edit' if job else 'Add' }} Job{% if job %} #{{ job.id }}{% endif %}
   </h2>
   <div class="d-flex gap-2">
-    <button type="submit" form="jobViewForm" class="btn btn-success">
-      <i class="bi bi-check me-1"></i>Save Changes
+    <button type="submit" form="jobForm" class="btn btn-success">
+      <i class="bi bi-check me-1"></i>{{ 'Save Changes' if job else 'Save Job' }}
     </button>
     <a href="{{ url_for('jobs') }}" class="btn btn-secondary">
       <i class="bi bi-arrow-left me-1"></i>Back to Jobs
@@ -23,116 +23,178 @@
         <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Job Details</h5>
       </div>
       <div class="card-body">
-        <form id="jobViewForm" method="post" action="{{ url_for('update_job_view', job_id=job.id) }}">
+        <form id="jobForm" method="post" action="{{ url_for('update_job_view', job_id=job.id) if job else url_for('add_job') }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           
           <div class="row g-3">
             <!-- Customer Information -->
             <div class="col-md-6">
-              <label class="form-label fw-bold">Customer Name</label>
-              <input type="text" class="form-control" name="customer_name" value="{{ job.customer_name or '' }}">
+              <label class="form-label fw-bold">Agent <span class="text-danger">*</span></label>
+              {% if job %}
+                <input type="text" class="form-control" name="agent_name" value="{{ job.agent.name if job.agent else '' }}" readonly>
+              {% else %}
+                <div class="input-group">
+                  <select class="form-select" id="agent_id" name="agent_id" required>
+                    <option value="">Select Agent</option>
+                    {% for agent in agents %}
+                      <option value="{{ agent.id }}" data-email="{{ agent.email }}" data-mobile="{{ agent.phone }}">
+                        {{ agent.name }}
+                      </option>
+                    {% endfor %}
+                  </select>
+                  <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#agentModal">
+                    <i class="fas fa-plus"></i> Add
+                  </button>
+                </div>
+              {% endif %}
             </div>
             <div class="col-md-6">
-              <label class="form-label fw-bold">Customer Email</label>
-              <input type="email" class="form-control" name="customer_email" value="{{ job.customer_email or '' }}">
+              <label class="form-label fw-bold">Agent Email</label>
+              <input type="email" class="form-control" id="customer_email" name="customer_email" value="{{ job.customer_email or '' }}" {% if job %}readonly{% endif %} placeholder="Auto-filled">
             </div>
             <div class="col-md-6">
-              <label class="form-label fw-bold">Customer Mobile</label>
-              <input type="text" class="form-control" name="customer_mobile" value="{{ job.customer_mobile or '' }}">
+              <label class="form-label fw-bold">Agent Mobile</label>
+              <input type="text" class="form-control" id="customer_mobile" name="customer_mobile" value="{{ job.customer_mobile or '' }}" {% if job %}readonly{% endif %} placeholder="Auto-filled">
             </div>
             <div class="col-md-6">
               <label class="form-label fw-bold">Customer Reference</label>
-              <input type="text" class="form-control" name="customer_reference" value="{{ job.customer_reference or '' }}">
+              <input type="text" class="form-control" name="customer_reference" value="{{ job.customer_reference or '' }}" placeholder="Customer reference">
             </div>
 
             <!-- Service Information -->
             <div class="col-md-6">
-              <label class="form-label fw-bold">Service Type</label>
-              <input type="text" class="form-control" name="type_of_service" value="{{ job.type_of_service or '' }}">
+              <label class="form-label fw-bold">Service <span class="text-danger">*</span></label>
+              {% if job %}
+                <input type="text" class="form-control" name="type_of_service" value="{{ job.type_of_service or '' }}" readonly>
+              {% else %}
+                <div class="input-group">
+                  <select class="form-select" id="service_id" name="service_id" required>
+                    <option value="">Select Service</option>
+                    {% for service in services %}
+                      <option value="{{ service.id }}" data-base-price="{{ service.base_price or 0 }}">
+                        {{ service.name }} (SGD {{ "%.2f"|format(service.base_price or 0) }})
+                      </option>
+                    {% endfor %}
+                  </select>
+                  <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#serviceModal">
+                    <i class="fas fa-plus"></i> Add
+                  </button>
+                </div>
+              {% endif %}
             </div>
             <div class="col-md-6">
               <label class="form-label fw-bold">Agent</label>
-              <input type="text" class="form-control" name="agent_name" value="{{ job.agent.name if job.agent else '' }}">
+              <input type="text" class="form-control" id="agent_name" name="agent_name" value="{{ job.agent.name if job and job.agent else '' }}" readonly>
             </div>
 
             <!-- Trip Details -->
             <div class="col-md-6">
-              <label class="form-label fw-bold">Pickup Date</label>
-              <input type="date" class="form-control" name="pickup_date" value="{{ job.pickup_date or '' }}">
+              <label class="form-label fw-bold">Pickup Date <span class="text-danger">*</span></label>
+              <input type="date" class="form-control" name="pickup_date" value="{{ job.pickup_date or '' }}" required>
             </div>
             <div class="col-md-6">
-              <label class="form-label fw-bold">Pickup Time</label>
-              <input type="time" class="form-control" name="pickup_time" value="{{ job.pickup_time or '' }}">
+              <label class="form-label fw-bold">Pickup Time <span class="text-danger">*</span></label>
+              <input type="time" class="form-control" name="pickup_time" value="{{ job.pickup_time or '' }}" required>
             </div>
             <div class="col-md-6">
-              <label class="form-label fw-bold">Pickup Location</label>
-              <input type="text" class="form-control" name="pickup_location" value="{{ job.pickup_location or '' }}">
+              <label class="form-label fw-bold">Pickup Location <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" name="pickup_location" value="{{ job.pickup_location or '' }}" placeholder="Pick-up location" required>
             </div>
             <div class="col-md-6">
-              <label class="form-label fw-bold">Drop-off Location</label>
-              <input type="text" class="form-control" name="dropoff_location" value="{{ job.dropoff_location or '' }}">
+              <label class="form-label fw-bold">Drop-off Location <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" name="dropoff_location" value="{{ job.dropoff_location or '' }}" placeholder="Drop-off location" required>
             </div>
 
             <!-- Vehicle & Driver -->
             <div class="col-md-6">
-              <label class="form-label fw-bold">Vehicle</label>
-              <input type="text" class="form-control" name="vehicle_info" value="{{ job.vehicle.number if job.vehicle else job.vehicle_number or '' }} ({{ job.vehicle.name if job.vehicle else job.vehicle_type or '' }})">
+              <label class="form-label fw-bold">Vehicle <span class="text-danger">*</span></label>
+              {% if job %}
+                <input type="text" class="form-control" name="vehicle_info" value="{{ job.vehicle.number if job.vehicle else job.vehicle_number or '' }} ({{ job.vehicle.name if job.vehicle else job.vehicle_type or '' }})" readonly>
+              {% else %}
+                <div class="input-group">
+                  <select class="form-select" id="vehicle_id" name="vehicle_id" required>
+                    <option value="">Select Vehicle</option>
+                    {% for vehicle in vehicles %}
+                      <option value="{{ vehicle.id }}" data-type="{{ vehicle.type }}" data-number="{{ vehicle.number }}">
+                        {{ vehicle.number }} ({{ vehicle.name }})
+                      </option>
+                    {% endfor %}
+                  </select>
+                  <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#vehicleModal">
+                    <i class="fas fa-plus"></i> Add
+                  </button>
+                </div>
+              {% endif %}
             </div>
             <div class="col-md-6">
-              <label class="form-label fw-bold">Driver</label>
-              <input type="text" class="form-control" name="driver_info" value="{{ job.driver.name if job.driver else '' }} ({{ job.driver.phone if job.driver else job.driver_contact or '' }})">
+              <label class="form-label fw-bold">Driver <span class="text-danger">*</span></label>
+              {% if job %}
+                <input type="text" class="form-control" name="driver_info" value="{{ job.driver.name if job.driver else '' }} ({{ job.driver.phone if job.driver else job.driver_contact or '' }})" readonly>
+              {% else %}
+                <div class="input-group">
+                  <select class="form-select" id="driver_id" name="driver_id" required>
+                    <option value="">Select Driver</option>
+                    {% for driver in drivers %}
+                      <option value="{{ driver.id }}" data-name="{{ driver.name }}" data-phone="{{ driver.phone }}">
+                        {{ driver.name }} ({{ driver.phone }})
+                      </option>
+                    {% endfor %}
+                  </select>
+                  <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#driverModal">
+                    <i class="fas fa-plus"></i> Add
+                  </button>
+                </div>
+              {% endif %}
             </div>
 
             <!-- Passenger Information -->
             <div class="col-md-4">
               <label class="form-label fw-bold">Passenger Name</label>
-              <input type="text" class="form-control" name="passenger_name" value="{{ job.passenger_name or '' }}">
+              <input type="text" class="form-control" name="passenger_name" value="{{ job.passenger_name or '' }}" placeholder="Passenger name">
             </div>
             <div class="col-md-4">
               <label class="form-label fw-bold">Passenger Email</label>
-              <input type="email" class="form-control" name="passenger_email" value="{{ job.passenger_email or '' }}">
+              <input type="email" class="form-control" name="passenger_email" value="{{ job.passenger_email or '' }}" placeholder="Passenger email">
             </div>
             <div class="col-md-4">
               <label class="form-label fw-bold">Passenger Mobile</label>
-              <input type="text" class="form-control" name="passenger_mobile" value="{{ job.passenger_mobile or '' }}">
+              <input type="text" class="form-control" name="passenger_mobile" value="{{ job.passenger_mobile or '' }}" placeholder="Passenger mobile">
             </div>
 
             <!-- Status Information -->
             <div class="col-md-6">
               <label class="form-label fw-bold">Job Status</label>
               <select class="form-select" name="status">
-                <option value="Scheduled" {% if job.status == 'Scheduled' %}selected{% endif %}>Scheduled</option>
-                <option value="In Progress" {% if job.status == 'In Progress' %}selected{% endif %}>In Progress</option>
-                <option value="Completed" {% if job.status == 'Completed' %}selected{% endif %}>Completed</option>
-                <option value="Cancelled" {% if job.status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
-                <option value="Failed" {% if job.status == 'Failed' %}selected{% endif %}>Failed</option>
-                <option value="No Show" {% if job.status == 'No Show' %}selected{% endif %}>No Show</option>
+                <option value="Scheduled" {% if job and job.status == 'Scheduled' %}selected{% endif %}>Scheduled</option>
+                <option value="In Progress" {% if job and job.status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                <option value="Completed" {% if job and job.status == 'Completed' %}selected{% endif %}>Completed</option>
+                <option value="Cancelled" {% if job and job.status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+                <option value="Failed" {% if job and job.status == 'Failed' %}selected{% endif %}>Failed</option>
+                <option value="No Show" {% if job and job.status == 'No Show' %}selected{% endif %}>No Show</option>
               </select>
             </div>
             <div class="col-md-6">
               <label class="form-label fw-bold">Payment Status</label>
               <select class="form-select" name="payment_status">
-                <option value="Pending" {% if job.payment_status == 'Pending' %}selected{% endif %}>Pending</option>
-                <option value="Partially Paid" {% if job.payment_status == 'Partially Paid' %}selected{% endif %}>Partially Paid</option>
-                <option value="Paid" {% if job.payment_status == 'Paid' %}selected{% endif %}>Paid</option>
-                <option value="Overdue" {% if job.payment_status == 'Overdue' %}selected{% endif %}>Overdue</option>
-                <option value="Refunded" {% if job.payment_status == 'Refunded' %}selected{% endif %}>Refunded</option>
-                <option value="Cancelled" {% if job.payment_status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+                <option value="Pending" {% if job and job.payment_status == 'Pending' %}selected{% endif %}>Pending</option>
+                <option value="Partially Paid" {% if job and job.payment_status == 'Partially Paid' %}selected{% endif %}>Partially Paid</option>
+                <option value="Paid" {% if job and job.payment_status == 'Paid' %}selected{% endif %}>Paid</option>
+                <option value="Overdue" {% if job and job.payment_status == 'Overdue' %}selected{% endif %}>Overdue</option>
+                <option value="Refunded" {% if job and job.payment_status == 'Refunded' %}selected{% endif %}>Refunded</option>
+                <option value="Cancelled" {% if job and job.payment_status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
               </select>
             </div>
 
             <!-- Additional Information -->
             <div class="col-12">
               <label class="form-label fw-bold">Message</label>
-              <textarea class="form-control" name="message" rows="3">{{ job.message or '' }}</textarea>
+              <textarea class="form-control" name="message" rows="3" placeholder="Message">{{ job.message or '' }}</textarea>
             </div>
             <div class="col-12">
               <label class="form-label fw-bold">Remarks</label>
-              <textarea class="form-control" name="remarks" rows="3">{{ job.remarks or '' }}</textarea>
+              <textarea class="form-control" name="remarks" rows="3" placeholder="Remarks">{{ job.remarks or '' }}</textarea>
             </div>
           </div>
-
-
         </form>
       </div>
     </div>
@@ -145,36 +207,87 @@
         <h5 class="mb-0"><i class="bi bi-currency-dollar me-2"></i>Pricing & Billing</h5>
       </div>
       <div class="card-body">
-        <div class="row g-3">
-          <div class="col-12">
-            <label class="form-label fw-bold">Base Price</label>
-            <div class="form-control-plaintext">SGD {{ "%.2f"|format(job.base_price or 0) }}</div>
+        {% if job %}
+          <!-- View Mode - Read-only pricing -->
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label fw-bold">Base Price</label>
+              <div class="form-control-plaintext">SGD {{ "%.2f"|format(job.base_price or 0) }}</div>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-bold">Base Discount</label>
+              <div class="form-control-plaintext">{{ "%.2f"|format(job.base_discount_percent or 0) }}%</div>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-bold">Agent Discount</label>
+              <div class="form-control-plaintext">{{ "%.2f"|format(job.agent_discount_percent or 0) }}%</div>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-bold">Additional Discount</label>
+              <div class="form-control-plaintext">{{ "%.2f"|format(job.additional_discount_percent or 0) }}%</div>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-bold">Additional Charges</label>
+              <div class="form-control-plaintext">SGD {{ "%.2f"|format(job.additional_charges or 0) }}</div>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-bold">Final Price</label>
+              <div class="form-control-plaintext fw-bold text-success">SGD {{ "%.2f"|format(job.final_price or 0) }}</div>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-bold">Invoice Number</label>
+              <div class="form-control-plaintext">{{ job.invoice_number or 'Not generated' }}</div>
+            </div>
           </div>
-          <div class="col-12">
-            <label class="form-label fw-bold">Base Discount</label>
-            <div class="form-control-plaintext">{{ "%.2f"|format(job.base_discount_percent or 0) }}%</div>
+        {% else %}
+          <!-- Create Mode - Editable pricing -->
+          <div class="row g-3">
+            <div class="col-12">
+              <label for="base_price" class="form-label fw-bold">Base Price</label>
+              <input type="number" class="form-control" id="base_price" name="base_price" step="0.01" readonly>
+              <small class="text-muted">Auto-calculated from service</small>
+            </div>
+            <div class="col-12">
+              <label for="base_discount_percent" class="form-label fw-bold">Base Discount</label>
+              <input type="number" class="form-control" id="base_discount_percent" name="base_discount_percent" step="0.01" readonly>
+              <small class="text-muted">System-wide discount</small>
+            </div>
+            <div class="col-12">
+              <label for="agent_discount_percent" class="form-label fw-bold">Agent Discount</label>
+              <input type="number" class="form-control" id="agent_discount_percent" name="agent_discount_percent" step="0.01" readonly>
+              <small class="text-muted">Agent-specific discount</small>
+            </div>
+            <div class="col-12">
+              <label for="additional_discount_percent" class="form-label fw-bold">Additional Discount</label>
+              <input type="number" class="form-control" id="additional_discount_percent" name="additional_discount_percent" step="0.01" min="0" max="100">
+              <small class="text-muted">Optional additional discount</small>
+            </div>
+            <div class="col-12">
+              <label for="additional_charges" class="form-label fw-bold">Additional Charges</label>
+              <input type="number" class="form-control" id="additional_charges" name="additional_charges" step="0.01" min="0">
+              <small class="text-muted">Extra charges (tolls, waiting, etc.)</small>
+            </div>
+            <div class="col-12">
+              <label for="final_price" class="form-label fw-bold">Final Price</label>
+              <input type="number" class="form-control" id="final_price" name="final_price" step="0.01" readonly>
+              <small class="text-muted">Calculated automatically</small>
+            </div>
+            <div class="col-12">
+              <label for="invoice_number" class="form-label fw-bold">Invoice Number</label>
+              <input type="text" class="form-control" id="invoice_number" name="invoice_number" readonly>
+              <small class="text-muted">Generated when invoice is created</small>
+            </div>
           </div>
-          <div class="col-12">
-            <label class="form-label fw-bold">Agent Discount</label>
-            <div class="form-control-plaintext">{{ "%.2f"|format(job.agent_discount_percent or 0) }}%</div>
+          
+          <div class="mt-3">
+            <div class="alert alert-info">
+              <strong>Pricing Breakdown:</strong>
+              <div id="pricing-breakdown">
+                <span class="text-muted">Select service and agent to see pricing details</span>
+              </div>
+            </div>
           </div>
-          <div class="col-12">
-            <label class="form-label fw-bold">Additional Discount</label>
-            <div class="form-control-plaintext">{{ "%.2f"|format(job.additional_discount_percent or 0) }}%</div>
-          </div>
-          <div class="col-12">
-            <label class="form-label fw-bold">Additional Charges</label>
-            <div class="form-control-plaintext">SGD {{ "%.2f"|format(job.additional_charges or 0) }}</div>
-          </div>
-          <div class="col-12">
-            <label class="form-label fw-bold">Final Price</label>
-            <div class="form-control-plaintext fw-bold text-success">SGD {{ "%.2f"|format(job.final_price or 0) }}</div>
-          </div>
-          <div class="col-12">
-            <label class="form-label fw-bold">Invoice Number</label>
-            <div class="form-control-plaintext">{{ job.invoice_number or 'Not generated' }}</div>
-          </div>
-        </div>
+        {% endif %}
       </div>
     </div>
 
@@ -185,52 +298,144 @@
       </div>
       <div class="card-body">
         <div class="d-grid gap-2">
-          <a href="{{ url_for('add_billing') }}?job_id={{ job.id }}" class="btn btn-outline-primary">
-            <i class="bi bi-receipt me-1"></i>Create Invoice
-          </a>
-          <a href="{{ url_for('edit_job', job_id=job.id) }}" class="btn btn-outline-secondary">
-            <i class="bi bi-pencil me-1"></i>Edit Job
-          </a>
-          <button class="btn btn-outline-info" onclick="printJobDetails()">
-            <i class="bi bi-printer me-1"></i>Print Details
-          </button>
+          {% if job %}
+            <a href="{{ url_for('add_billing') }}?job_id={{ job.id }}" class="btn btn-outline-primary">
+              <i class="bi bi-receipt me-1"></i>Create Invoice
+            </a>
+            <a href="{{ url_for('edit_job', job_id=job.id) }}" class="btn btn-outline-secondary">
+              <i class="bi bi-pencil me-1"></i>Edit Job
+            </a>
+            <button class="btn btn-outline-info" onclick="printJobDetails()">
+              <i class="bi bi-printer me-1"></i>Print Details
+            </button>
+          {% else %}
+            <button type="button" class="btn btn-outline-primary" onclick="calculatePricing()">
+              <i class="bi bi-calculator me-1"></i>Calculate Pricing
+            </button>
+            <button type="button" class="btn btn-outline-info" onclick="clearForm()">
+              <i class="bi bi-arrow-clockwise me-1"></i>Clear Form
+            </button>
+          {% endif %}
         </div>
       </div>
     </div>
   </div>
 </div>
 
+{% if not job %}
+<!-- Modals for Create Mode -->
+{% include 'modals/agent_modal.html' %}
+{% include 'modals/service_modal.html' %}
+{% include 'modals/vehicle_modal.html' %}
+{% include 'modals/driver_modal.html' %}
+
 <script>
-function printJobDetails() {
-  window.print();
-}
+  // Agent selection handler
+  document.getElementById('agent_id').addEventListener('change', function() {
+    const selectedOption = this.options[this.selectedIndex];
+    if (selectedOption.value) {
+      document.getElementById('customer_email').value = selectedOption.dataset.email || '';
+      document.getElementById('customer_mobile').value = selectedOption.dataset.mobile || '';
+      document.getElementById('agent_name').value = selectedOption.textContent;
+      calculatePricing();
+    } else {
+      document.getElementById('customer_email').value = '';
+      document.getElementById('customer_mobile').value = '';
+      document.getElementById('agent_name').value = '';
+    }
+  });
 
-// Form submission handling
-document.getElementById('jobViewForm').addEventListener('submit', function(e) {
-  // Show loading state
-  const submitBtn = this.querySelector('button[type="submit"]');
-  const originalText = submitBtn.innerHTML;
-  submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Saving...';
-  submitBtn.disabled = true;
-  
-  // Form will submit normally
-});
+  // Service selection handler
+  document.getElementById('service_id').addEventListener('change', function() {
+    const selectedOption = this.options[this.selectedIndex];
+    if (selectedOption.value) {
+      document.getElementById('base_price').value = selectedOption.dataset.basePrice || '';
+      calculatePricing();
+    } else {
+      document.getElementById('base_price').value = '';
+    }
+  });
+
+  // Pricing calculation
+  function calculatePricing() {
+    const serviceId = document.getElementById('service_id').value;
+    const agentId = document.getElementById('agent_id').value;
+    const additionalDiscount = document.getElementById('additional_discount_percent').value || 0;
+    const additionalCharges = document.getElementById('additional_charges').value || 0;
+
+    if (!serviceId || !agentId) {
+      document.getElementById('pricing-breakdown').innerHTML = '<span class="text-muted">Select service and agent to see pricing details</span>';
+      return;
+    }
+
+    fetch('/api/calculate_pricing', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+      },
+      body: JSON.stringify({
+        service_id: serviceId,
+        agent_id: agentId,
+        additional_discount_percent: additionalDiscount,
+        additional_charges: additionalCharges
+      })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        document.getElementById('base_price').value = data.pricing.base_price;
+        document.getElementById('base_discount_percent').value = data.pricing.base_discount_percent;
+        document.getElementById('agent_discount_percent').value = data.pricing.agent_discount_percent;
+        document.getElementById('final_price').value = data.pricing.final_price;
+        
+        document.getElementById('pricing-breakdown').innerHTML = `
+          <div class="row">
+            <div class="col-md-6">
+              <strong>Base Price:</strong> SGD ${data.pricing.base_price.toFixed(2)}<br>
+              <strong>Base Discount:</strong> ${data.pricing.base_discount_percent.toFixed(2)}% (-SGD ${data.pricing.base_discount_amount.toFixed(2)})<br>
+              <strong>Agent Discount:</strong> ${data.pricing.agent_discount_percent.toFixed(2)}% (-SGD ${data.pricing.agent_discount_amount.toFixed(2)})<br>
+              <strong>Additional Discount:</strong> ${data.pricing.additional_discount_percent.toFixed(2)}% (-SGD ${data.pricing.additional_discount_amount.toFixed(2)})
+            </div>
+            <div class="col-md-6">
+              <strong>Subtotal:</strong> SGD ${data.pricing.subtotal.toFixed(2)}<br>
+              <strong>Additional Charges:</strong> SGD ${data.pricing.additional_charges.toFixed(2)}<br>
+              <strong>Final Price:</strong> <span class="text-success fw-bold">SGD ${data.pricing.final_price.toFixed(2)}</span>
+            </div>
+          </div>
+        `;
+      }
+    })
+    .catch(error => {
+      console.error('Error calculating pricing:', error);
+    });
+  }
+
+  // Clear form function
+  function clearForm() {
+    if (confirm('Are you sure you want to clear all form data?')) {
+      document.getElementById('jobForm').reset();
+      document.getElementById('pricing-breakdown').innerHTML = '<span class="text-muted">Select service and agent to see pricing details</span>';
+      // Clear readonly fields
+      document.getElementById('base_price').value = '';
+      document.getElementById('base_discount_percent').value = '';
+      document.getElementById('agent_discount_percent').value = '';
+      document.getElementById('final_price').value = '';
+      document.getElementById('invoice_number').value = '';
+    }
+  }
+
+  // Add event listeners for pricing calculation
+  document.getElementById('additional_discount_percent').addEventListener('input', calculatePricing);
+  document.getElementById('additional_charges').addEventListener('input', calculatePricing);
 </script>
+{% endif %}
 
-<style>
-@media print {
-  .btn, .card-header {
-    display: none !important;
+{% if job %}
+<script>
+  function printJobDetails() {
+    window.print();
   }
-  
-  .card {
-    border: none !important;
-    box-shadow: none !important;
-  }
-  
-  .card-body {
-    padding: 0 !important;
-  }
-}
-</style>
+</script>
+{% endif %}
 {% endblock %} 

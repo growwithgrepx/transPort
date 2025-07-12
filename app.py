@@ -448,8 +448,8 @@ def add_job():
         else:
             return handle_single_job_creation()
     
-    return render_template('job_form.html', action='Add', job=None, agents=agents, services=services, vehicles=vehicles,
-                           drivers=drivers, stops=[])
+    return render_template('view_job.html', job=None, agents=agents, services=services, vehicles=vehicles,
+                           drivers=drivers)
 
 
 def handle_single_job_creation():
@@ -717,8 +717,8 @@ def edit_job(job_id):
         job.date = request.form.get('pickup_date')
         db.session.commit()
         return redirect(url_for('jobs'))
-    return render_template('job_form.html', action='Edit', job=job, agents=agents, services=services, vehicles=vehicles,
-                           drivers=drivers, stops=stops)
+    return render_template('view_job.html', job=job, agents=agents, services=services, vehicles=vehicles,
+                           drivers=drivers)
 
 
 @app.route('/jobs/view/<int:job_id>', methods=['GET'])
@@ -840,7 +840,7 @@ def smart_add_job():
     if request.method == 'POST':
         message = request.form.get('message')
         parsed_data = parse_job_message(message)
-        return render_template('job_form.html', action='Add', job=parsed_data, smart_add=True, pasted_message=message)
+        return render_template('view_job.html', job=parsed_data, smart_add=True, pasted_message=message)
     return render_template('smart_add.html')
 
 
