@@ -14,7 +14,7 @@ jobs:
   backend-tests:
     name: Backend Tests
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -40,52 +40,29 @@ jobs:
 
       - name: Run backend tests
         run: |
+          mkdir -p test_results
           pytest tests/ -v --tb=short \
-            --junitxml=backend-results.xml \
-            --cov=src --cov-report=xml --cov-report=html
+            --junitxml=test_results/backend-results.xml \
+            --html=test_results/backend-report.html \
+            --self-contained-html
+
+      - name: Upload backend test artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results-${{ github.run_number }}
+          path: test_results/
 
       - name: Display test results
         if: always()
         run: |
           echo "## 🧪 Backend Test Results" >> $GITHUB_STEP_SUMMARY
-          if [ -f backend-results.xml ]; then
-            tests=$(grep -o 'tests="[0-9]*"' backend-results.xml | cut -d'"' -f2)
-            failures=$(grep -o 'failures="[0-9]*"' backend-results.xml | cut -d'"' -f2)
-            errors=$(grep -o 'errors="[0-9]*"' backend-results.xml | cut -d'"' -f2)
-            passed=$((tests - failures - errors))
-            
-            echo "- **Total Tests**: $tests" >> $GITHUB_STEP_SUMMARY
-            echo "- **Passed**: $passed ✅" >> $GITHUB_STEP_SUMMARY
-            echo "- **Failed**: $failures ❌" >> $GITHUB_STEP_SUMMARY
-            echo "- **Errors**: $errors ⚠️" >> $GITHUB_STEP_SUMMARY
-            
-            if [ "$failures" -gt 0 ] || [ "$errors" -gt 0 ]; then
-              echo "" >> $GITHUB_STEP_SUMMARY
-              echo "### Failed Tests:" >> $GITHUB_STEP_SUMMARY
-              grep -A 5 '<failure\|<error' backend-results.xml | head -20 >> $GITHUB_STEP_SUMMARY || true
-              exit 1
-            fi
-          else
-            echo "❌ No test results found" >> $GITHUB_STEP_SUMMARY
-            exit 1
-          fi
+          ls -la test_results/ >> $GITHUB_STEP_SUMMARY || echo "No test_results directory found"
 
       - name: Publish test results
         uses: dorny/test-reporter@v1
         if: always()
         with:
           name: Backend Tests
-          path: backend-results.xml
+          path: test_results/backend-results.xml
           reporter: java-junit
           fail-on-error: false
-
-      - name: Upload test results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: backend-test-results-${{ github.run_number }}
-          path: |
-            backend-results.xml
-            htmlcov/
-            coverage.xml
-          retention-days: 30
