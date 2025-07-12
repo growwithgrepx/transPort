@@ -1,9 +1,23 @@
+import sys
+import os
 from dotenv import load_dotenv
-load_dotenv()
+
+# Infer environment: use FLASK_ENV if set, else 'test' if running pytest, else 'development'
+flask_env = os.environ.get('FLASK_ENV')
+if not flask_env:
+    if 'pytest' in sys.modules or any('pytest' in arg for arg in sys.argv):
+        flask_env = 'test'
+    else:
+        flask_env = 'development'
+
+dotenv_file = f'.env.{flask_env}'
+if os.path.exists(dotenv_file):
+    load_dotenv(dotenv_file)
+else:
+    load_dotenv()
 from flask import Flask, render_template, redirect, url_for, request, flash, session, jsonify, make_response
 from extensions import db
 from werkzeug.security import generate_password_hash, check_password_hash
-import os
 import re
 import json
 from datetime import datetime

@@ -33,4 +33,84 @@ This is a Flask-based admin portal to manage jobs, drivers, agents, billing, and
 
 ## Customization
 - Edit `static/css/style.css` for custom styles.
-- Extend templates in `templates/` for new pages or features. 
+- Extend templates in `templates/` for new pages or features.
+
+## Environment Variable Management
+
+This project uses environment-specific .env files for configuration:
+
+- `.env.development` — for local development
+- `.env.test` — for running tests
+
+The application loads the appropriate file based on the `FLASK_ENV` environment variable. For example:
+
+- `FLASK_ENV=development` loads `.env.development`
+- `FLASK_ENV=test` loads `.env.test`
+
+If the specific file does not exist, it falls back to `.env`.
+
+**Never commit your .env files to version control.**
+
+Example usage:
+
+```bash
+# For development
+export FLASK_ENV=development
+flask run
+
+# For tests
+export FLASK_ENV=test
+pytest
+```
+
+Each .env file should define a unique `DATABASE_URL` for its environment to prevent accidental data loss or corruption. 
+
+## Automated Headless Browser Testing Framework
+
+This project uses a robust, production-ready Selenium-based testing framework with the following features:
+
+- **In-memory SQLite database** for test isolation (no external DB required)
+- **Headless browser automation** (Chrome/Chromium, with fallback)
+- **Page Object Model** for maintainable test code
+- **Explicit waits, retries, and error handling** for resilience
+- **Automatic screenshot and log capture on failure**
+- **Dockerized test environment** for local and CI/CD use
+- **Comprehensive GitHub Actions pipeline**
+
+### Directory Structure
+
+```
+tests/
+├── conftest.py                 # Shared fixtures
+├── test_browser_smoke.py       # Critical path tests
+├── test_browser_regression.py  # Feature tests
+├── test_browser_integration.py # End-to-end tests
+├── pages/                      # Page object models
+│   ├── __init__.py
+│   ├── login_page.py
+│   └── dashboard_page.py
+├── fixtures/                   # Test data
+│   ├── test_data.py
+│   └── factories.py
+└── utils/                      # Test utilities
+    ├── __init__.py
+    ├── wait_conditions.py
+    └── screenshot_helper.py
+```
+
+### Running Tests Locally
+
+```bash
+pip install -r requirements.txt
+pytest tests/ -v --tb=short
+```
+
+### Running in Docker
+
+A `Dockerfile` is provided for running tests in a containerized environment. See the `Dockerfile` and `.github/workflows/selenium.yml` for details.
+
+### CI/CD Integration
+
+Tests are run automatically on every push and pull request using GitHub Actions. Screenshots and logs are uploaded as artifacts on failure.
+
+--- 

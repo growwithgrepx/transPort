@@ -122,3 +122,10 @@ migrations/__pycache__/ attached_assets
 logs
 .replit
 attached_assets/
+
+# Environment variable files
+.env.development
+.env.test
+
+# Test artifacts
+test_screenshots/
