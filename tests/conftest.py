@@ -1,10 +1,16 @@
-import sys
 import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+import sys
 
-# Set environment variables for testing before importing app
-os.environ['DATABASE_URL'] = 'sqlite:///:memory:'
+# --- ROOT CAUSE FIX: Always use a single, deterministic file-based SQLite DB for all Selenium tests ---
+TEST_DB_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), 'test_selenium.db'))
+SQLITE_URI = f'sqlite:///{TEST_DB_PATH}?check_same_thread=False'
+os.environ['DATABASE_URL'] = SQLITE_URI
 os.environ['FLASK_ENV'] = 'test'
+# Remove the DB file at the start of the session for a clean slate
+if os.path.exists(TEST_DB_PATH):
+    os.remove(TEST_DB_PATH)
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import threading
 import time
@@ -37,11 +43,14 @@ from sqlalchemy.exc import IntegrityError
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+# Global variable to store seeded data
+_seeded_data = None
+
 # --- Flask app and DB fixtures ---
 @pytest.fixture(scope='session')
 def test_app():
     flask_app.config.update({
-        'SQLALCHEMY_DATABASE_URI': 'sqlite:///:memory:',
+        'SQLALCHEMY_DATABASE_URI': SQLITE_URI,
         'SQLALCHEMY_TRACK_MODIFICATIONS': False,
         'TESTING': True,
         'WTF_CSRF_ENABLED': False,
@@ -49,84 +58,124 @@ def test_app():
     with flask_app.app_context():
         try:
             db.create_all()
-            # Optionally: seed test data here or via another fixture
+            logger.info(f"Created new test database: {TEST_DB_PATH}")
+            
+            # --- SEED ALL TEST DATA BEFORE SERVER STARTS ---
+            global _seeded_data
+            _seeded_data = seed_test_data()
+            logger.info("All test data seeded successfully")
+            
             yield flask_app
         finally:
             db.session.remove()
-            db.drop_all()
+            db.engine.dispose()
+            logger.info(f"Test database preserved at: {TEST_DB_PATH}")
+
+def seed_test_data():
+    """Seed all test data - called once before server starts"""
+    # Role (get or create)
+    role = Role.query.filter_by(name='fleet_manager').first()
+    if not role:
+        role = Role(name='fleet_manager', description='Fleet Manager')
+        db.session.add(role)
+        db.session.commit()
+    
+    # User
+    user = User.query.filter_by(username='fleetmanager').first()
+    if not user:
+        user = User(
+            username='fleetmanager',
+            email='fleetmanager@example.com',
+            password='manager123',
+            active=True,
+            fs_uniquifier=str(uuid.uuid4())
+        )
+        user.roles.append(role)
+        db.session.add(user)
+    else:
+        # Always set password and active status for test
+        user.password = 'manager123'
+        user.active = True
+        if role not in user.roles:
+            user.roles.append(role)
+    db.session.commit()
+    logger.info(f"Test user: {user.username}, password: {user.password}, active: {user.active}")
+    
+    # Agent
+    agent = Agent.query.filter_by(name='Test Agent').first()
+    if not agent:
+        agent = Agent(name='Test Agent', email='agent@example.com', mobile='12345678', type='Corporate', status='Active')
+        db.session.add(agent)
+    
+    # Driver
+    driver = Driver.query.filter_by(name='Test Driver').first()
+    if not driver:
+        driver = Driver(name='Test Driver', phone='87654321')
+        db.session.add(driver)
+    
+    # Service
+    service = Service.query.filter_by(name='Test Service').first()
+    if not service:
+        service = Service(name='Test Service', description='A test service', status='Active')
+        db.session.add(service)
+    
+    # Vehicle
+    vehicle = Vehicle.query.filter_by(number='TEST123').first()
+    if not vehicle:
+        vehicle = Vehicle(name='Test Vehicle', number='TEST123', type='Van', status='Active')
+        db.session.add(vehicle)
+    
+    db.session.commit()
+    
+    # Price (for service)
+    price = Price.query.filter_by(service_id=service.id).first()
+    if not price:
+        price = Price(service_id=service.id, amount=100.0, currency='USD')
+        db.session.add(price)
+    
+    # Discount
+    discount = Discount.query.filter_by(code='TEST10').first()
+    if not discount:
+        discount = Discount(code='TEST10', percent=10.0)
+        db.session.add(discount)
+    
+    db.session.commit()
+    
+    # CustomerDiscount (agent-discount)
+    customer_discount = CustomerDiscount.query.filter_by(customer_id=agent.id, discount_id=discount.id).first()
+    if not customer_discount:
+        customer_discount = CustomerDiscount(customer_id=agent.id, discount_id=discount.id, valid_from=None, valid_to=None)
+        db.session.add(customer_discount)
+    
+    db.session.commit()
+    
+    # Log all users in the DB for debug
+    all_users = User.query.all()
+    logger.info(f"All users in test DB before test: {[{'username': u.username, 'password': u.password, 'active': u.active} for u in all_users]}")
+    
+    return {
+        'db': db,
+        'agent': agent,
+        'driver': driver,
+        'service': service,
+        'vehicle': vehicle,
+        'user': user,
+        'role': role,
+        'price': price,
+        'discount': discount,
+        'customer_discount': customer_discount
+    }
 
 @pytest.fixture(scope='function')
 def seeded_db(test_app):
-    with test_app.app_context():
-        # Role (get or create)
-        role = Role.query.filter_by(name='fleet_manager').first()
-        if not role:
-            role = Role(name='fleet_manager', description='Fleet Manager')
-            db.session.add(role)
-            db.session.commit()
-        # User
-        user = User.query.filter_by(username='fleetmanager').first()
-        if not user:
-            user = User(
-                username='fleetmanager',
-                email='fleetmanager@example.com',
-                password='manager123',
-                active=True,
-                fs_uniquifier=str(uuid.uuid4())
-            )
-            user.roles.append(role)
-            db.session.add(user)
-        # Agent
-        agent = Agent.query.filter_by(name='Test Agent').first()
-        if not agent:
-            agent = Agent(name='Test Agent', email='agent@example.com', mobile='12345678', type='Corporate', status='Active')
-            db.session.add(agent)
-        # Driver
-        driver = Driver.query.filter_by(name='Test Driver').first()
-        if not driver:
-            driver = Driver(name='Test Driver', phone='87654321')
-            db.session.add(driver)
-        # Service
-        service = Service.query.filter_by(name='Test Service').first()
-        if not service:
-            service = Service(name='Test Service', description='A test service', status='Active')
-            db.session.add(service)
-        # Vehicle
-        vehicle = Vehicle.query.filter_by(number='TEST123').first()
-        if not vehicle:
-            vehicle = Vehicle(name='Test Vehicle', number='TEST123', type='Van', status='Active')
-            db.session.add(vehicle)
-        db.session.commit()
-        # Price (for service)
-        price = Price.query.filter_by(service_id=service.id).first()
-        if not price:
-            price = Price(service_id=service.id, amount=100.0, currency='USD')
-            db.session.add(price)
-        # Discount
-        discount = Discount.query.filter_by(code='TEST10').first()
-        if not discount:
-            discount = Discount(code='TEST10', percent=10.0)
-            db.session.add(discount)
-        db.session.commit()
-        # CustomerDiscount (agent-discount)
-        customer_discount = CustomerDiscount.query.filter_by(customer_id=agent.id, discount_id=discount.id).first()
-        if not customer_discount:
-            customer_discount = CustomerDiscount(customer_id=agent.id, discount_id=discount.id, valid_from=None, valid_to=None)
-            db.session.add(customer_discount)
-        db.session.commit()
-        yield {
-            'db': db,
-            'agent': agent,
-            'driver': driver,
-            'service': service,
-            'vehicle': vehicle,
-            'user': user,
-            'role': role,
-            'price': price,
-            'discount': discount,
-            'customer_discount': customer_discount
-        }
-        db.session.rollback()
+    """Provide references to seeded data - no DB mutations"""
+    global _seeded_data
+    if _seeded_data is None:
+        raise RuntimeError("Test data not seeded. Ensure test_app fixture runs first.")
+    
+    # Return references to the seeded objects
+    yield _seeded_data
+    logger.info("Test data preserved in database for debugging")
 
 # --- Live server fixture ---
 @pytest.fixture(scope='session')

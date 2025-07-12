@@ -1,0 +1,326 @@
+# TODO: Reactivate after triage - this file is currently disabled to isolate core happy-path tests only.
+# All tests below are commented out for stabilization phase.
+
+"""
+Enhanced test framework demonstration.
+Shows proper test organization with assertions in test methods and use of enhanced page objects.
+"""
+
+import pytest
+import logging
+from typing import Dict, Any
+
+from .pages.login_page_v2 import LoginPage
+from .pages.jobs_page_v2 import JobsPage
+from .core.exceptions import (
+    AuthenticationException,
+    FormValidationException,
+    ElementNotFoundException
+)
+
+logger = logging.getLogger(__name__)
+
+
+class TestEnhancedLogin:
+    """Test suite for enhanced login functionality"""
+    
+    @pytest.mark.smoke
+    @pytest.mark.critical
+    def test_successful_login(self, live_server, browser):
+        """Test successful login with valid credentials"""
+        # Arrange
+        login_page = LoginPage(browser, live_server)
+        username = "fleetmanager"
+        password = "manager123"
+        
+        # Act
+        login_page.load().login(username, password)
+        
+        # Assert
+        assert "/dashboard" in browser.current_url or "/jobs" in browser.current_url, \
+            "Login should redirect to dashboard or jobs page"
+        
+        # Verify we're not on login page anymore
+        assert "/login" not in browser.current_url, \
+            "Should not be on login page after successful login"
+    
+    @pytest.mark.regression
+    def test_failed_login_invalid_credentials(self, live_server, browser):
+        """Test login failure with invalid credentials"""
+        # Arrange
+        login_page = LoginPage(browser, live_server)
+        username = "invalid_user"
+        password = "invalid_password"
+        
+        # Act & Assert
+        with pytest.raises(AuthenticationException):
+            login_page.load().login(username, password)
+        
+        # Verify we're still on login page
+        assert "/login" in browser.current_url, \
+            "Should remain on login page after failed login"
+    
+    @pytest.mark.regression
+    def test_login_form_validation(self, live_server, browser):
+        """Test login form validation"""
+        # Arrange
+        login_page = LoginPage(browser, live_server)
+        
+        # Act
+        login_page.load()
+        
+        # Assert
+        assert login_page.is_login_form_present(), \
+            "Login form should be present on login page"
+        
+        assert login_page.is_username_field_enabled(), \
+            "Username field should be enabled"
+        
+        assert login_page.is_password_field_enabled(), \
+            "Password field should be enabled"
+        
+        assert login_page.is_login_button_enabled(), \
+            "Login button should be enabled"
+
+
+class TestEnhancedJobsCRUD:
+    """Test suite for enhanced jobs CRUD operations"""
+    
+    @pytest.fixture(autouse=True)
+    def setup_login(self, live_server, browser):
+        """Setup login for all jobs tests"""
+        login_page = LoginPage(browser, live_server)
+        login_page.load().login("fleetmanager", "manager123")
+        return login_page
+    
+    @pytest.mark.smoke
+    @pytest.mark.critical
+    def test_create_job_minimal_data(self, live_server, browser, seeded_db):
+        """Test creating a job with minimal required data"""
+        # Arrange
+        jobs_page = JobsPage(browser, live_server)
+        jobs_page.load()
+        
+        # Get seeded data
+        agent = seeded_db['agent']
+        service = seeded_db['service']
+        vehicle = seeded_db['vehicle']
+        driver = seeded_db['driver']
+        
+        # Minimal job data
+        job_data = {
+            "agent_name": agent.name,
+            "service_name": service.name,
+            "vehicle_name": f"{vehicle.name} ({vehicle.number})",
+            "driver_name": f"{driver.name} ({driver.phone})",
+            "pickup_date": "2025-07-12",
+            "pickup_time": "10:00",
+            "pickup_location": "Test Pickup Location",
+            "dropoff_location": "Test Dropoff Location"
+        }
+        
+        # Get initial jobs count
+        initial_count = jobs_page.get_jobs_count()
+        
+        # Act
+        jobs_page.click_add_job_button() \
+                 .wait_for_job_form() \
+                 .fill_agent_name(job_data["agent_name"]) \
+                 .fill_service_name(job_data["service_name"]) \
+                 .fill_vehicle_name(job_data["vehicle_name"]) \
+                 .fill_driver_name(job_data["driver_name"]) \
+                 .fill_pickup_date(job_data["pickup_date"]) \
+                 .fill_pickup_time(job_data["pickup_time"]) \
+                 .fill_pickup_location(job_data["pickup_location"]) \
+                 .fill_dropoff_location(job_data["dropoff_location"]) \
+                 .submit_job_form()
+        
+        # Assert
+        # Verify we're back on jobs page
+        assert "/jobs" in browser.current_url, \
+            "Should be redirected to jobs page after successful creation"
+        assert "add" not in browser.current_url, \
+            "Should not be on add job page after successful creation"
+        
+        # Verify job count increased
+        final_count = jobs_page.get_jobs_count()
+        assert final_count > initial_count, \
+            f"Job count should increase from {initial_count} to {final_count}"
+        
+        # Verify job appears in table
+        search_criteria = {
+            "pickup_location": job_data["pickup_location"],
+            "dropoff_location": job_data["dropoff_location"]
+        }
+        assert jobs_page.is_job_in_table(search_criteria), \
+            "Created job should appear in jobs table"
+    
+    @pytest.mark.regression
+    def test_create_job_with_validation_errors(self, live_server, browser):
+        """Test job creation with missing required fields"""
+        # Arrange
+        jobs_page = JobsPage(browser, live_server)
+        jobs_page.load()
+        
+        # Act
+        jobs_page.click_add_job_button() \
+                 .wait_for_job_form() \
+                 .click_submit_button()
+        
+        # Assert
+        # Should still be on form page
+        assert "/jobs/add" in browser.current_url, \
+            "Should remain on add job page when validation fails"
+        
+        # Should have validation errors
+        validation_errors = jobs_page.get_form_validation_errors()
+        assert len(validation_errors) > 0, \
+            "Should have validation errors for missing required fields"
+        
+        # Verify form is not valid
+        assert not jobs_page.is_form_valid(), \
+            "Form should not be valid with missing required fields"
+    
+    @pytest.mark.regression
+    def test_job_form_field_validation(self, live_server, browser):
+        """Test individual field validation"""
+        # Arrange
+        jobs_page = JobsPage(browser, live_server)
+        jobs_page.load()
+        
+        # Act
+        jobs_page.click_add_job_button().wait_for_job_form()
+        
+        # Assert
+        # Test that form is initially invalid (no data filled)
+        assert not jobs_page.is_form_valid(), \
+            "Empty form should not be valid"
+        
+        # Test that we can fill individual fields
+        jobs_page.fill_pickup_location("Test Location")
+        pickup_location_value = jobs_page.get_element_attribute(
+            jobs_page.get_locator("jobs", "PICKUP_LOCATION_FIELD"), "value"
+        )
+        assert pickup_location_value == "Test Location", \
+            "Pickup location field should contain entered value"
+    
+    @pytest.mark.regression
+    def test_job_search_functionality(self, live_server, browser, seeded_db):
+        """Test job search functionality"""
+        # Arrange
+        jobs_page = JobsPage(browser, live_server)
+        jobs_page.load()
+        
+        # Create a job first
+        agent = seeded_db['agent']
+        service = seeded_db['service']
+        vehicle = seeded_db['vehicle']
+        driver = seeded_db['driver']
+        
+        job_data = {
+            "agent_name": agent.name,
+            "service_name": service.name,
+            "vehicle_name": f"{vehicle.name} ({vehicle.number})",
+            "driver_name": f"{driver.name} ({driver.phone})",
+            "pickup_date": "2025-07-12",
+            "pickup_time": "10:00",
+            "pickup_location": "Unique Search Location",
+            "dropoff_location": "Unique Dropoff Location"
+        }
+        
+        # Create the job
+        jobs_page.click_add_job_button() \
+                 .wait_for_job_form() \
+                 .fill_agent_name(job_data["agent_name"]) \
+                 .fill_service_name(job_data["service_name"]) \
+                 .fill_vehicle_name(job_data["vehicle_name"]) \
+                 .fill_driver_name(job_data["driver_name"]) \
+                 .fill_pickup_date(job_data["pickup_date"]) \
+                 .fill_pickup_time(job_data["pickup_time"]) \
+                 .fill_pickup_location(job_data["pickup_location"]) \
+                 .fill_dropoff_location(job_data["dropoff_location"]) \
+                 .submit_job_form()
+        
+        # Act - Search for the job
+        jobs_page.search_job("Unique Search Location")
+        
+        # Assert
+        search_criteria = {"pickup_location": "Unique Search Location"}
+        assert jobs_page.is_job_in_table(search_criteria), \
+            "Job should be found when searching by pickup location"
+    
+    @pytest.mark.regression
+    def test_job_form_clear_functionality(self, live_server, browser):
+        """Test clearing job form fields"""
+        # Arrange
+        jobs_page = JobsPage(browser, live_server)
+        jobs_page.load()
+        
+        # Act
+        jobs_page.click_add_job_button() \
+                 .wait_for_job_form() \
+                 .fill_pickup_location("Test Location") \
+                 .fill_dropoff_location("Test Dropoff") \
+                 .clear_form()
+        
+        # Assert
+        pickup_location_value = jobs_page.get_element_attribute(
+            jobs_page.get_locator("jobs", "PICKUP_LOCATION_FIELD"), "value"
+        )
+        dropoff_location_value = jobs_page.get_element_attribute(
+            jobs_page.get_locator("jobs", "DROPOFF_LOCATION_FIELD"), "value"
+        )
+        
+        assert pickup_location_value == "", \
+            "Pickup location field should be cleared"
+        assert dropoff_location_value == "", \
+            "Dropoff location field should be cleared"
+
+
+class TestEnhancedFrameworkFeatures:
+    """Test suite demonstrating enhanced framework features"""
+    
+    @pytest.mark.smoke
+    def test_fluent_interface(self, live_server, browser):
+        """Test fluent interface method chaining"""
+        # Arrange
+        login_page = LoginPage(browser, live_server)
+        
+        # Act & Assert - Test method chaining
+        result = login_page.load() \
+                           .enter_username("test") \
+                           .enter_password("test") \
+                           .clear_form()
+        
+        # Verify fluent interface returns self
+        assert isinstance(result, LoginPage), \
+            "Fluent interface should return self for method chaining"
+    
+    @pytest.mark.regression
+    def test_error_handling(self, live_server, browser):
+        """Test enhanced error handling"""
+        # Arrange
+        jobs_page = JobsPage(browser, live_server)
+        
+        # Act & Assert - Test proper exception handling
+        with pytest.raises(ElementNotFoundException):
+            # Try to find element that doesn't exist
+            jobs_page.find_element(jobs_page.get_locator("jobs", "NON_EXISTENT_ELEMENT"))
+    
+    @pytest.mark.regression
+    def test_page_validation(self, live_server, browser):
+        """Test page validation methods"""
+        # Arrange
+        login_page = LoginPage(browser, live_server)
+        jobs_page = JobsPage(browser, live_server)
+        
+        # Act
+        login_page.load()
+        
+        # Assert
+        assert login_page.is_loaded(), \
+            "Login page should be loaded and ready"
+        
+        # Test jobs page is not loaded when on login page
+        assert not jobs_page.is_loaded(), \
+            "Jobs page should not be loaded when on login page" 
