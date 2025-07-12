@@ -1,4 +1,4 @@
-name: Selenium UI Tests
+name: 🌐 Selenium UI Tests
 
 on:
   push:
@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   selenium-tests:
-    name: Selenium UI Tests
+    name: 🌐 Selenium UI Tests
     runs-on: ubuntu-latest
 
     steps:
@@ -50,7 +50,7 @@ jobs:
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
-      - name: Run tests and output results
+      - name: Run Selenium UI tests
         run: |
           mkdir -p test_results
           docker run --rm \
@@ -58,7 +58,13 @@ jobs:
             --name selenium-test-run \
             selenium-tests:latest
 
-      - name: Publish Test Results Summary
+      - name: Display test results summary
+        if: always()
+        run: |
+          echo "## ✅ Test Summary" >> $GITHUB_STEP_SUMMARY
+          ls -lh test_results >> $GITHUB_STEP_SUMMARY
+
+      - name: Publish Test Results
         uses: dorny/test-reporter@v1
         if: always()
         with:
@@ -73,11 +79,38 @@ jobs:
         with:
           name: selenium-test-results-${{ github.run_number }}
           path: test_results/
-          retention-days: 30
 
-      - name: Upload standalone HTML report
-        uses: actions/upload-artifact@v4
-        if: always()
+      - name: Comment PR with test results
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
         with:
-          name: selenium-html-report
-          path: test_results/report.html
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            try {
+              let comment = `## 🌐 Selenium Test Results - Run #${{ github.run_number }}\n\n`;
+              const xmlPath = path.join('test_results', 'results.xml');
+              if (fs.existsSync(xmlPath)) {
+                const xml = fs.readFileSync(xmlPath, 'utf8');
+                const total = parseInt(xml.match(/tests=\"(\d+)\"/)?.[1] || '0', 10);
+                const failures = parseInt(xml.match(/failures=\"(\d+)\"/)?.[1] || '0', 10);
+                const errors = parseInt(xml.match(/errors=\"(\d+)\"/)?.[1] || '0', 10);
+                const passed = total - failures - errors;
+
+                comment += `**Summary**: ${passed}/${total} tests passed `;
+                comment += (failures > 0 || errors > 0)
+                  ? `❌ (${failures} failures, ${errors} errors)\n\n`
+                  : `✅\n\n`;
+              } else {
+                comment += `❌ **No test results found**\n\n`;
+              }
+              comment += `📊 **View Details**: [Test Results](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n`;
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            } catch (error) {
+              console.error('Error posting comment:', error);
+            }
