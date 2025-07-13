@@ -55,55 +55,20 @@ jobs:
           mkdir -p test_results
           mkdir -p tests/reports/htmlcov/unit
 
-      - name: Debug test discovery
+      - name: Debug environment and test files
         run: |
-          echo "=== Test Discovery Debug ==="
+          echo "Pytest version: $(pytest --version)"
+          echo "Python version: $(python --version)"
+          echo "PYTHONPATH: $PYTHONPATH"
           echo "Current directory: $(pwd)"
-          echo "Directory structure:"
-          find . -type d -name "*test*" | head -10
-          echo "Test files found:"
-          find . -name "test_*.py" -o -name "*_test.py" | head -10
-          echo "Python files in tests directory:"
-          if [ -d "tests" ]; then
-            find tests -name "*.py" | head -10
-          fi
+          echo "Test files found in tests/unit/:"
+          find tests/unit -name "test_*.py"
 
       - name: Run unit tests with coverage
         env:
           DATABASE_URL: sqlite:///tests/test_selenium.db
         run: |
-          # More comprehensive test discovery
-          TEST_FILES=""
-          
-          # Check for tests in various common locations
-          if [ -d "tests/unit" ]; then
-            TEST_FILES="tests/unit/"
-          elif [ -d "tests" ]; then
-            # Exclude selenium-specific tests from unit tests
-            TEST_FILES="tests/ --ignore=tests/selenium --ignore=tests/selenium_tests"
-          elif [ -d "test" ]; then
-            TEST_FILES="test/"
-          else
-            # Look for test files in current directory
-            TEST_FILES="."
-          fi
-          
-          echo "Running tests with path: $TEST_FILES"
-          
-          # Run tests with better error handling
-          if pytest $TEST_FILES --collect-only -q | grep -q "test session starts"; then
-            echo "Tests found, running pytest..."
-            pytest $TEST_FILES --verbose \
-              --cov=./ \
-              --cov-report=xml:coverage.xml \
-              --cov-report=html:tests/reports/htmlcov/unit \
-              --junitxml=test_results/unit-test-results.xml \
-              --ignore=tests/selenium --ignore=tests/selenium_tests \
-              --ignore=tests/integration/selenium || true
-          else
-            echo "No tests found, creating empty results"
-            echo '<?xml version="1.0" encoding="UTF-8"?><testsuites tests="0" failures="0" errors="0" time="0"><testsuite name="empty" tests="0" failures="0" errors="0" time="0"></testsuite></testsuites>' > test_results/unit-test-results.xml
-          fi
+          pytest -c tests/config/pytest.ini tests/unit/ --cov=app --cov=models --cov=blueprints --cov=extensions --cov-report=term-missing --cov-report=html:tests/reports/htmlcov/unit --cov-report=xml:tests/reports/coverage_unit.xml --junitxml=test_results/unit-test-results.xml -v --tb=short
 
       - name: Generate coverage summary
         if: always()
