@@ -62,32 +62,30 @@ jobs:
           echo "PYTHONPATH: $PYTHONPATH"
           echo "Current directory: $(pwd)"
           echo "Test files found in tests/unit/:"
-          find tests/unit -name "test_*.py"
+          find tests/unit -name "test_*.py" -exec ls -la {} \;
+          echo "Pytest config location:"
+          ls -la tests/config/pytest.ini
 
-      - name: Run unit tests with coverage
+      - name: Run unit and integration tests with coverage
         env:
           DATABASE_URL: sqlite:///tests/test_selenium.db
         run: |
-          pytest -c tests/config/pytest.ini tests/unit/ --cov=app --cov=models --cov=blueprints --cov=extensions --cov-report=term-missing --cov-report=html:tests/reports/htmlcov/unit --cov-report=xml:tests/reports/coverage_unit.xml --junitxml=test_results/unit-test-results.xml -v --tb=short
+          # Run all tests in tests/unit/ (includes integration tests)
+          pytest -c tests/config/pytest.ini tests/unit/ \
+            --cov=app --cov=models --cov=blueprints --cov=extensions \
+            --cov-report=term-missing \
+            --cov-report=html:tests/reports/htmlcov/unit \
+            --cov-report=xml:tests/reports/coverage_unit.xml \
+            --junitxml=test_results/unit-test-results.xml \
+            -v --tb=short
 
       - name: Generate coverage summary
         if: always()
         run: |
-          if [ -f "coverage.xml" ]; then
+          if [ -f "tests/reports/coverage_unit.xml" ]; then
             echo "COVERAGE_SUMMARY<<EOF" >> $GITHUB_ENV
             coverage report --format=text >> $GITHUB_ENV
             echo "EOF" >> $GITHUB_ENV
-          fi
-
-      - name: Run integration tests (if separate directory exists)
-        env:
-          DATABASE_URL: sqlite:///tests/test_selenium.db
-        run: |
-          if [ -d "tests/integration" ] && find tests/integration -name "test_*.py" -not -path "*/selenium*" | grep -q .; then
-            echo "Running integration tests from tests/integration/"
-            pytest tests/integration/ --junitxml=test_results/integration-test-results.xml --html=test_results/integration-report.html --self-contained-html -v --ignore=tests/integration/selenium || true
-          else
-            echo "No separate integration tests directory found"
           fi
 
       - name: Parse test results
@@ -198,7 +196,7 @@ jobs:
           name: test-results-${{ matrix.python-version }}
           path: |
             test_results/
-            coverage.xml
+            tests/reports/coverage_unit.xml
             tests/reports/htmlcov/unit/
           retention-days: 30
           if-no-files-found: warn
@@ -251,13 +249,10 @@ jobs:
       - name: Debug Selenium test discovery
         run: |
           echo "=== Selenium Test Discovery Debug ==="
-          echo "Looking for selenium tests..."
-          find . -name "*selenium*" -type f | head -10
-          find . -name "*test*selenium*" -type f | head -10
-          find . -name "*selenium*test*" -type f | head -10
-          if [ -d "tests" ]; then
-            find tests -name "*selenium*" -type f | head -10
-          fi
+          echo "Looking for selenium tests in tests/selenium_tests/:"
+          find tests/selenium_tests -name "test_*.py" -exec ls -la {} \;
+          echo "Total selenium test files found:"
+          find tests/selenium_tests -name "test_*.py" | wc -l
 
       - name: Run Selenium tests
         env:
@@ -265,32 +260,16 @@ jobs:
           DATABASE_URL: sqlite:///tests/test_selenium.db
           CHROME_HEADLESS: true
         run: |
-          # Enhanced selenium test discovery
-          SELENIUM_TESTS=""
-          
+          # Run selenium tests from tests/selenium_tests/
           if [ -d "tests/selenium_tests" ] && find tests/selenium_tests -name "test_*.py" | grep -q .; then
             echo "Running selenium tests from tests/selenium_tests/"
-            SELENIUM_TESTS="tests/selenium_tests/"
-          elif [ -d "tests/selenium" ] && find tests/selenium -name "test_*.py" | grep -q .; then
-            echo "Running selenium tests from tests/selenium/"
-            SELENIUM_TESTS="tests/selenium/"
-          elif [ -d "tests/integration/selenium" ] && find tests/integration/selenium -name "test_*.py" | grep -q .; then
-            echo "Running selenium tests from tests/integration/selenium/"
-            SELENIUM_TESTS="tests/integration/selenium/"
+            pytest -c tests/config/pytest.ini tests/selenium_tests/ \
+              --junitxml=test_results/selenium-test-results.xml \
+              --html=test_results/selenium-report.html \
+              --self-contained-html \
+              -v --tb=short || true
           else
-            # Look for selenium test files by pattern
-            SELENIUM_FILES=$(find . -name "*selenium*test*.py" -o -name "*test*selenium*.py" | grep -v __pycache__ | head -20)
-            if [ -n "$SELENIUM_FILES" ]; then
-              echo "Running selenium tests by filename pattern: $SELENIUM_FILES"
-              SELENIUM_TESTS="$SELENIUM_FILES"
-            fi
-          fi
-          
-          if [ -n "$SELENIUM_TESTS" ]; then
-            echo "Found selenium tests: $SELENIUM_TESTS"
-            pytest $SELENIUM_TESTS --junitxml=test_results/selenium-test-results.xml --html=test_results/selenium-report.html --self-contained-html -v || true
-          else
-            echo "No selenium tests found, creating empty results"
+            echo "No selenium tests found in tests/selenium_tests/, creating empty results"
             echo '<?xml version="1.0" encoding="UTF-8"?><testsuites tests="0" failures="0" errors="0" time="0"><testsuite name="empty" tests="0" failures="0" errors="0" time="0"></testsuite></testsuites>' > test_results/selenium-test-results.xml
           fi
 
@@ -406,7 +385,7 @@ jobs:
           # Process unit tests
           xml_file="artifacts/test-results-3.11/test_results/unit-test-results.xml"
           if [ -f "$xml_file" ]; then
-            echo "### 🐍 Python 3.11 Unit Tests" >> report.md
+            echo "### 🐍 Python 3.11 Unit & Integration Tests" >> report.md
             python3 << 'EOF'
           import xml.etree.ElementTree as ET
           import os
@@ -438,8 +417,8 @@ jobs:
               # Try to get coverage from coverage.xml
               coverage = 0
               try:
-                  if os.path.exists('artifacts/test-results-3.11/coverage.xml'):
-                      cov_tree = ET.parse('artifacts/test-results-3.11/coverage.xml')
+                  if os.path.exists('artifacts/test-results-3.11/tests/reports/coverage_unit.xml'):
+                      cov_tree = ET.parse('artifacts/test-results-3.11/tests/reports/coverage_unit.xml')
                       cov_root = cov_tree.getroot()
                       coverage = float(cov_root.get('line-rate', 0)) * 100
                       print(f"- **Code Coverage**: {coverage:.2f}%")
@@ -543,7 +522,7 @@ jobs:
           print("### 📋 Summary Table")
           print("| Category | Total Tests | Passed ✅ | Failed ❌ | Errors 🔥 | Pass Rate | Coverage |")
           print("|----------|-------------|-----------|-----------|-----------|-----------|----------|")
-          print(f"| Unit Tests | {unit_total} | {unit_passed} | {unit_failed} | {unit_errors} | {unit_passed * 100 // unit_total if unit_total > 0 else 0}% | {unit_coverage:.2f}% |")
+          print(f"| Unit & Integration | {unit_total} | {unit_passed} | {unit_failed} | {unit_errors} | {unit_passed * 100 // unit_total if unit_total > 0 else 0}% | {unit_coverage:.2f}% |")
           print(f"| UI Tests | {selenium_total} | {selenium_passed} | {selenium_failed} | {selenium_errors} | {selenium_passed * 100 // selenium_total if selenium_total > 0 else 0}% | N/A |")
           print(f"| **Total** | **{grand_total}** | **{grand_passed}** | **{grand_failed}** | **{grand_errors}** | **{grand_passed * 100 // grand_total if grand_total > 0 else 0}%** | N/A |")
           print("")
@@ -551,7 +530,7 @@ jobs:
           
           # Links to detailed reports
           echo "### 🔗 Detailed Reports" >> report.md
-          echo "- [Unit Test Results (Python 3.11)](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts)" >> report.md
+          echo "- [Unit & Integration Test Results (Python 3.11)](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts)" >> report.md
           echo "- [Selenium UI Test Results](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts)" >> report.md
           echo "- [Coverage Report](https://${{ github.repository_owner }}.github.io/${{ github.repository }}/coverage/${{ github.ref_name }}/index.html)" >> report.md
           echo "" >> report.md
