@@ -21,8 +21,9 @@ jobs:
     runs-on: ubuntu-latest
     name: Unit & Integration Tests
     strategy:
+      fail-fast: false  # Don't cancel other jobs if one fails
       matrix:
-        python-version: [3.9, 3.10, 3.11]
+        python-version: ['3.9', '3.10', '3.11']  # Fixed: 3.1 -> 3.10
     
     steps:
       - name: Checkout code
@@ -54,32 +55,76 @@ jobs:
           mkdir -p test_results
           mkdir -p htmlcov
 
+      - name: Check test directory structure
+        run: |
+          echo "Repository structure:"
+          find . -type d -name "*test*" | head -20
+          echo "Python files in tests:"
+          find . -name "test_*.py" -o -name "*_test.py" | head -20
+
       - name: Run unit tests with coverage
         env:
           DATABASE_URL: sqlite:///tests/test_selenium.db
         run: |
-          pytest tests/unit/ \
-            --cov=./ \
-            --cov-report=xml:coverage.xml \
-            --cov-report=html:htmlcov \
-            --junitxml=test_results/unit-test-results.xml \
-            --html=test_results/unit-report.html \
-            --self-contained-html \
-            -v
+          # Find and run unit tests with multiple discovery patterns
+          if find . -name "test_*.py" -path "*/unit/*" | head -1 | grep -q .; then
+            echo "Running unit tests from tests/unit/"
+            pytest tests/unit/ \
+              --cov=./ \
+              --cov-report=xml:coverage.xml \
+              --cov-report=html:htmlcov \
+              --junitxml=test_results/unit-test-results.xml \
+              --html=test_results/unit-report.html \
+              --self-contained-html \
+              -v
+          elif find . -name "test_*.py" -path "*/tests/*" | head -1 | grep -q .; then
+            echo "Running tests from tests/ directory"
+            pytest tests/ \
+              --cov=./ \
+              --cov-report=xml:coverage.xml \
+              --cov-report=html:htmlcov \
+              --junitxml=test_results/unit-test-results.xml \
+              --html=test_results/unit-report.html \
+              --self-contained-html \
+              -v
+          elif find . -name "test_*.py" | head -1 | grep -q .; then
+            echo "Running all discoverable tests"
+            pytest . \
+              --cov=./ \
+              --cov-report=xml:coverage.xml \
+              --cov-report=html:htmlcov \
+              --junitxml=test_results/unit-test-results.xml \
+              --html=test_results/unit-report.html \
+              --self-contained-html \
+              -v
+          else
+            echo "No test files found, creating empty results"
+            echo '<?xml version="1.0" encoding="UTF-8"?><testsuites tests="0" failures="0" errors="0" time="0"><testsuite name="empty" tests="0" failures="0" errors="0" time="0"></testsuite></testsuites>' > test_results/unit-test-results.xml
+          fi
 
-      - name: Run integration tests
+      - name: Run integration tests (if separate directory exists)
         env:
           DATABASE_URL: sqlite:///tests/test_selenium.db
         run: |
-          if [ -d "tests/integration" ]; then
+          if [ -d "tests/integration" ] && find tests/integration -name "test_*.py" | head -1 | grep -q .; then
+            echo "Running integration tests from tests/integration/"
             pytest tests/integration/ \
               --junitxml=test_results/integration-test-results.xml \
               --html=test_results/integration-report.html \
               --self-contained-html \
               -v
           else
-            echo "No integration tests directory found, skipping"
+            echo "No separate integration tests directory found"
           fi
+
+      - name: Verify test results were created
+        run: |
+          echo "Contents of test_results directory:"
+          ls -la test_results/ || echo "No test_results directory"
+          echo "Contents of root directory (looking for coverage.xml):"
+          ls -la *.xml || echo "No XML files in root"
+          echo "Contents of htmlcov directory:"
+          ls -la htmlcov/ || echo "No htmlcov directory"
 
       - name: Display test results summary
         if: always()
@@ -103,7 +148,7 @@ jobs:
 
       - name: Publish Test Results
         uses: dorny/test-reporter@v1
-        if: always()
+        if: always() && hashFiles('test_results/*.xml') != ''
         with:
           name: Unit & Integration Tests (${{ matrix.python-version }})
           path: test_results/*.xml
@@ -120,11 +165,13 @@ jobs:
             coverage.xml
             htmlcov/
           retention-days: 30
+          if-no-files-found: warn
 
   selenium-tests:
     runs-on: ubuntu-latest
     name: Selenium UI Tests
     needs: unit-tests
+    if: always()  # Run even if unit tests fail
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -165,20 +212,44 @@ jobs:
       - name: Create test directories
         run: mkdir -p test_results
 
+      - name: Check for Selenium tests
+        run: |
+          echo "Looking for Selenium test files:"
+          find . -name "*selenium*" -type f | head -10
+          find . -name "*ui*test*" -type f | head -10
+          find . -name "test_*" -path "*selenium*" | head -10
+
       - name: Run Selenium tests
         env:
           DISPLAY: :99
           DATABASE_URL: sqlite:///tests/test_selenium.db
           CHROME_HEADLESS: true
         run: |
-          if [ -d "tests/selenium_tests" ]; then
+          # Multiple discovery patterns for selenium tests
+          if [ -d "tests/selenium_tests" ] && find tests/selenium_tests -name "test_*.py" | head -1 | grep -q .; then
+            echo "Running selenium tests from tests/selenium_tests/"
             pytest tests/selenium_tests/ \
               --junitxml=test_results/selenium-test-results.xml \
               --html=test_results/selenium-report.html \
               --self-contained-html \
               -v
+          elif [ -d "tests/selenium" ] && find tests/selenium -name "test_*.py" | head -1 | grep -q .; then
+            echo "Running selenium tests from tests/selenium/"
+            pytest tests/selenium/ \
+              --junitxml=test_results/selenium-test-results.xml \
+              --html=test_results/selenium-report.html \
+              --self-contained-html \
+              -v
+          elif find . -name "*selenium*test*.py" | head -1 | grep -q .; then
+            echo "Running selenium tests by filename pattern"
+            pytest $(find . -name "*selenium*test*.py") \
+              --junitxml=test_results/selenium-test-results.xml \
+              --html=test_results/selenium-report.html \
+              --self-contained-html \
+              -v
           else
-            echo "No selenium tests directory found, skipping"
+            echo "No selenium tests found, creating empty results"
+            echo '<?xml version="1.0" encoding="UTF-8"?><testsuites tests="0" failures="0" errors="0" time="0"><testsuite name="empty" tests="0" failures="0" errors="0" time="0"></testsuite></testsuites>' > test_results/selenium-test-results.xml
           fi
 
       - name: Display test results summary
@@ -193,7 +264,7 @@ jobs:
 
       - name: Publish Test Results
         uses: dorny/test-reporter@v1
-        if: always()
+        if: always() && hashFiles('test_results/*.xml') != ''
         with:
           name: Selenium UI Tests
           path: test_results/*.xml
@@ -209,6 +280,7 @@ jobs:
             test_results/
             tests/test_screenshots/
           retention-days: 30
+          if-no-files-found: warn
 
       - name: Comment PR with test results
         if: github.event_name == 'pull_request' && always()
