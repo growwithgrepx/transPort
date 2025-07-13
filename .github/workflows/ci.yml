@@ -541,15 +541,11 @@ jobs:
           print("")
           
           # Links to detailed reports
-          python3 << EOF >> report.md
-          import os
-          branch = os.environ.get('GITHUB_REF_NAME', '')
-          print(f"### 🔗 Detailed Reports")
-          print(f"- [Unit Test Results (Python 3.11)](https://github.com/growwithgrepx/transPort/actions/runs/${{ github.run_id }}/artifacts)")
-          print(f"- [Selenium UI Test Results](https://github.com/growwithgrepx/transPort/actions/runs/${{ github.run_id }}/artifacts)")
-          print(f"- [Coverage Report](https://growwithgrepx.github.io/transPort/coverage/{branch}/index.html)")
-          print("")
-          EOF
+          echo "### 🔗 Detailed Reports" >> report.md
+          echo "- [Unit Test Results (Python 3.11)](https://github.com/growwithgrepx/transPort/actions/runs/${{ github.run_id }}/artifacts)" >> report.md
+          echo "- [Selenium UI Test Results](https://github.com/growwithgrepx/transPort/actions/runs/${{ github.run_id }}/artifacts)" >> report.md
+          echo "- [Coverage Report](https://growwithgrepx.github.io/transPort/coverage/${GITHUB_REF_NAME}/index.html)" >> report.md
+          echo "" >> report.md
 
       - name: Display report content
         run: |
