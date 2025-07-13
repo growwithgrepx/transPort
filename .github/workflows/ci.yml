@@ -433,6 +433,15 @@ jobs:
         with:
           path: artifacts
 
+      - name: Debug artifact structure
+        run: |
+          echo "=== Artifact Structure ==="
+          find artifacts -type f -name "*.xml" | head -20
+          echo "=== Directory Structure ==="
+          ls -la artifacts/
+          echo "=== Test Results Files ==="
+          find artifacts -name "*test-results.xml" -exec ls -la {} \;
+
       - name: Generate comprehensive report
         run: |
           echo "# 📊 Comprehensive Test Report - Run #${{ github.run_number }}" > report.md
@@ -441,23 +450,43 @@ jobs:
           echo "" >> report.md
           
           # Summary section
-          echo "## 📈 Summary" >> report.md
+          echo "## 📈 Test Results Summary" >> report.md
           echo "" >> report.md
           
-          # Process each Python version
+          # Initialize counters
+          total_unit_tests=0
+          total_unit_passed=0
+          total_unit_failed=0
+          total_unit_errors=0
+          
+          total_selenium_tests=0
+          total_selenium_passed=0
+          total_selenium_failed=0
+          total_selenium_errors=0
+          
+          # Process each Python version for unit tests
           for version in 3.9 3.10 3.11; do
-            if [ -f "artifacts/test-results-$version/test_results/unit-test-results.xml" ]; then
-              echo "### Python $version Results" >> report.md
-              python3 << EOF
+            xml_file="artifacts/test-results-$version/test_results/unit-test-results.xml"
+            if [ -f "$xml_file" ]; then
+              echo "### 🐍 Python $version Unit Tests" >> report.md
+              python3 << EOF >> report.md
           import xml.etree.ElementTree as ET
+          import sys
           
           try:
-              tree = ET.parse('artifacts/test-results-$version/test_results/unit-test-results.xml')
+              tree = ET.parse('$xml_file')
               root = tree.getroot()
               
-              total = int(root.get('tests', 0))
-              failures = int(root.get('failures', 0))
-              errors = int(root.get('errors', 0))
+              # Handle both single testsuite and testsuites with multiple suites
+              if root.tag == 'testsuites':
+                  total = sum(int(suite.get('tests', 0)) for suite in root.findall('testsuite'))
+                  failures = sum(int(suite.get('failures', 0)) for suite in root.findall('testsuite'))
+                  errors = sum(int(suite.get('errors', 0)) for suite in root.findall('testsuite'))
+              else:
+                  total = int(root.get('tests', 0))
+                  failures = int(root.get('failures', 0))
+                  errors = int(root.get('errors', 0))
+              
               passed = total - failures - errors
               
               print(f"- **Total Tests**: {total}")
@@ -467,11 +496,125 @@ jobs:
               if total > 0:
                   print(f"- **Pass Rate**: {passed * 100 // total}%")
               print("")
+              
+              # Write to files for aggregation
+              with open(f'/tmp/unit_$version.txt', 'w') as f:
+                  f.write(f"{total},{passed},{failures},{errors}")
+                  
           except Exception as e:
-              print(f"Error processing Python $version results: {e}")
+              print(f"❌ Error processing Python $version results: {e}")
+              print("")
           EOF
+            else
+              echo "⚠️ No test results found for Python $version" >> report.md
+              echo "" >> report.md
             fi
           done
+          
+          # Process Selenium tests
+          selenium_xml="artifacts/selenium-test-results/test_results/selenium-test-results.xml"
+          if [ -f "$selenium_xml" ]; then
+            echo "### 🌐 Selenium UI Tests" >> report.md
+            python3 << EOF >> report.md
+          import xml.etree.ElementTree as ET
+          
+          try:
+              tree = ET.parse('$selenium_xml')
+              root = tree.getroot()
+              
+              if root.tag == 'testsuites':
+                  total = sum(int(suite.get('tests', 0)) for suite in root.findall('testsuite'))
+                  failures = sum(int(suite.get('failures', 0)) for suite in root.findall('testsuite'))
+                  errors = sum(int(suite.get('errors', 0)) for suite in root.findall('testsuite'))
+              else:
+                  total = int(root.get('tests', 0))
+                  failures = int(root.get('failures', 0))
+                  errors = int(root.get('errors', 0))
+              
+              passed = total - failures - errors
+              
+              print(f"- **Total Tests**: {total}")
+              print(f"- **Passed**: {passed} ✅")
+              print(f"- **Failed**: {failures} ❌")
+              print(f"- **Errors**: {errors} 🔥")
+              if total > 0:
+                  print(f"- **Pass Rate**: {passed * 100 // total}%")
+              print("")
+              
+              with open('/tmp/selenium.txt', 'w') as f:
+                  f.write(f"{total},{passed},{failures},{errors}")
+                  
+          except Exception as e:
+              print(f"❌ Error processing Selenium results: {e}")
+              print("")
+          EOF
+          else
+            echo "⚠️ No Selenium test results found" >> report.md
+            echo "" >> report.md
+          fi
+          
+          # Generate overall summary
+          echo "## 🎯 Overall Summary" >> report.md
+          echo "" >> report.md
+          
+          python3 << EOF >> report.md
+          import os
+          
+          # Aggregate unit test results
+          unit_total, unit_passed, unit_failed, unit_errors = 0, 0, 0, 0
+          for version in ['3.9', '3.10', '3.11']:
+              try:
+                  with open(f'/tmp/unit_{version}.txt', 'r') as f:
+                      data = f.read().strip().split(',')
+                      unit_total += int(data[0])
+                      unit_passed += int(data[1])
+                      unit_failed += int(data[2])
+                      unit_errors += int(data[3])
+              except:
+                  pass
+          
+          # Aggregate selenium results
+          selenium_total, selenium_passed, selenium_failed, selenium_errors = 0, 0, 0, 0
+          try:
+              with open('/tmp/selenium.txt', 'r') as f:
+                  data = f.read().strip().split(',')
+                  selenium_total = int(data[0])
+                  selenium_passed = int(data[1])
+                  selenium_failed = int(data[2])
+                  selenium_errors = int(data[3])
+          except:
+              pass
+          
+          # Overall totals
+          grand_total = unit_total + selenium_total
+          grand_passed = unit_passed + selenium_passed
+          grand_failed = unit_failed + selenium_failed
+          grand_errors = unit_errors + selenium_errors
+          
+          print(f"### 📊 Grand Total")
+          print(f"- **All Tests**: {grand_total}")
+          print(f"- **All Passed**: {grand_passed} ✅")
+          print(f"- **All Failed**: {grand_failed} ❌")
+          print(f"- **All Errors**: {grand_errors} 🔥")
+          if grand_total > 0:
+              print(f"- **Overall Pass Rate**: {grand_passed * 100 // grand_total}%")
+          print("")
+          
+          print(f"### 📋 Breakdown")
+          print(f"- **Unit Tests**: {unit_total} total ({unit_passed} passed, {unit_failed} failed, {unit_errors} errors)")
+          print(f"- **UI Tests**: {selenium_total} total ({selenium_passed} passed, {selenium_failed} failed, {selenium_errors} errors)")
+          EOF
+
+      - name: Display report content
+        run: |
+          echo "=== Generated Report Content ==="
+          cat report.md
+
+      - name: Generate step summary
+        run: |
+          echo "## 📊 Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          cat report.md >> $GITHUB_STEP_SUMMARY
 
       - name: Comment PR with comprehensive report
         if: github.event_name == 'pull_request' && always()
@@ -483,14 +626,22 @@ jobs:
             try {
               const report = fs.readFileSync('report.md', 'utf8');
               
+              // Generate proper URLs
+              const repoUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}`;
+              const runUrl = `${repoUrl}/actions/runs/${context.runId}`;
+              
               // Add links to coverage report and artifacts
               const fullReport = report + `
-          
-              ## 🔗 Quick Links
-              - 📊 [Detailed Test Results](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
-              - 📈 [Coverage Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
-              - 📁 [Download Artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
-              `;
+
+            ## 🔗 Quick Links
+            - 📊 [View Full Pipeline Results](${runUrl})
+            - 📈 [Coverage Report](${repoUrl}/actions/runs/${context.runId})
+            - 📁 [Download All Artifacts](${runUrl})
+            - 🏠 [Repository](${repoUrl})
+            
+            ---
+            *This report was automatically generated by the CI/CD pipeline*
+            `;
               
               github.rest.issues.createComment({
                 issue_number: context.issue.number,
@@ -500,4 +651,5 @@ jobs:
               });
             } catch (error) {
               console.error('Error posting comprehensive report:', error);
+              console.error('Error details:', error.message);
             }
