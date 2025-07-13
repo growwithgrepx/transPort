@@ -188,14 +188,6 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
           fi
 
-      - name: Deploy coverage to GitHub Pages
-        if: github.ref == 'refs/heads/main' && matrix.python-version == '3.11'
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: tests/reports/htmlcov/unit
-          destination_dir: coverage
-
       - name: Upload test artifacts
         uses: actions/upload-artifact@v4
         if: always()
@@ -340,6 +332,27 @@ jobs:
           retention-days: 30
           if-no-files-found: warn
 
+  deploy-coverage:
+    runs-on: ubuntu-latest
+    needs: [unit-tests]
+    if: startsWith(github.ref, 'refs/heads/')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download coverage artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: test-results-3.11
+          path: coverage-artifacts
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: coverage-artifacts/tests/reports/htmlcov/unit
+          destination_dir: coverage/${{ github.ref_name }}
+
   generate-report:
     runs-on: ubuntu-latest
     name: Generate Comprehensive Report
@@ -365,7 +378,7 @@ jobs:
 
       - name: Generate comprehensive report
         run: |
-          echo "# 📊 Comprehensive Test Report - Run #${{ github.run_number }}" > report.md
+          echo "## 📊 Pipeline Summary" > report.md
           echo "" >> report.md
           echo "Generated on: $(date)" >> report.md
           echo "" >> report.md
@@ -528,10 +541,13 @@ jobs:
           print("")
           
           # Links to detailed reports
+          python3 << EOF >> report.md
+          import os
+          branch = os.environ.get('GITHUB_REF_NAME', '')
           print(f"### 🔗 Detailed Reports")
           print(f"- [Unit Test Results (Python 3.11)](https://github.com/growwithgrepx/transPort/actions/runs/${{ github.run_id }}/artifacts)")
           print(f"- [Selenium UI Test Results](https://github.com/growwithgrepx/transPort/actions/runs/${{ github.run_id }}/artifacts)")
-          print(f"- [Coverage Report](https://growwithgrepx.github.io/transPort/coverage/index.html)")
+          print(f"- [Coverage Report](https://growwithgrepx.github.io/transPort/coverage/{branch}/index.html)")
           print("")
           EOF
 
@@ -558,12 +574,13 @@ jobs:
               
               const repoUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}`;
               const runUrl = `${repoUrl}/actions/runs/${context.runId}`;
+              const branch = process.env.GITHUB_REF_NAME || context.ref.replace('refs/heads/', '');
               
               const fullReport = report + `
 
             ## 🔗 Quick Links
             - 📊 [View Full Pipeline Results](${runUrl})
-            - 📈 [Coverage Report](https://growwithgrepx.github.io/transPort/coverage/index.html)
+            - 📈 [Coverage Report](https://growwithgrepx.github.io/transPort/coverage/${branch}/index.html)
             - 📁 [Download All Artifacts](${runUrl}/artifacts)
             - 🏠 [Repository](${repoUrl})
             
