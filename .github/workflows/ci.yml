@@ -44,6 +44,7 @@ jobs:
             --junitxml=test_results/unit-test-results.xml \
             --cov=. --cov-report html:tests/reports/htmlcov/unit \
             tests/
+
       - name: Archive Python test artifacts
         uses: actions/upload-artifact@v4
         if: always()
@@ -60,6 +61,7 @@ jobs:
           pytest \
             --junitxml=ui_test_results/selenium-test-results.xml \
             tests/ui/
+
       - name: Archive Selenium test artifacts
         uses: actions/upload-artifact@v4
         if: always()
@@ -70,70 +72,58 @@ jobs:
 
       - name: Generate Comprehensive Report
         run: |
-          # Start fresh
           echo "## 📊 Pipeline Summary" > $REPORT_FILE
           echo "" >> $REPORT_FILE
 
-          # 1) Python tests summary
           echo "### ✅ Unit & Integration Test Summary - Python $PYTHON_VERSION" >> $REPORT_FILE
-          python3 << EOF >> $REPORT_FILE
+          python3 -c "
 import xml.etree.ElementTree as ET
-import sys
-path = "test_results/unit-test-results.xml"
 try:
-  tree = ET.parse(path)
-  root = tree.getroot()
-  if root.tag == 'testsuites':
-    total = sum(int(suite.get('tests',0)) for suite in root.findall('testsuite'))
-    passed= sum(int(suite.get('tests',0)) - int(suite.get('failures',0)) - int(suite.get('errors',0)) for suite in root.findall('testsuite'))
-    failed= sum(int(suite.get('failures',0)) for suite in root.findall('testsuite'))
-    errors= sum(int(suite.get('errors',0)) for suite in root.findall('testsuite'))
-  else:
-    total = int(root.get('tests',0))
-    failed= int(root.get('failures',0))
-    errors= int(root.get('errors',0))
-    passed= total - failed - errors
-  print(f"Total Tests: {total}")
-  print(f"Passed: {passed} ✅")
-  print(f"Failed: {failed} ❌")
-  print(f"Errors: {errors} 🔥")
-except FileNotFoundError:
-  print("Total Tests: 0")
-  print("Passed: 0 ✅")
-  print("Failed: 0 ❌")
-  print("Errors: 0 🔥")
-EOF
-          echo "" >> $REPORT_FILE
+    path = 'test_results/unit-test-results.xml'
+    tree = ET.parse(path)
+    root = tree.getroot()
+    if root.tag == 'testsuites':
+        total = sum(int(s.get('tests', 0)) for s in root.findall('testsuite'))
+        failures = sum(int(s.get('failures', 0)) for s in root.findall('testsuite'))
+        errors = sum(int(s.get('errors', 0)) for s in root.findall('testsuite'))
+    else:
+        total = int(root.get('tests', 0))
+        failures = int(root.get('failures', 0))
+        errors = int(root.get('errors', 0))
+    passed = total - failures - errors
+except Exception:
+    total = passed = failures = errors = 0
+print(f'Total Tests: {total}')
+print(f'Passed: {passed} ✅')
+print(f'Failed: {failures} ❌')
+print(f'Errors: {errors} 🔥')
+" >> $REPORT_FILE
 
-          # 2) Selenium tests summary
+          echo "" >> $REPORT_FILE
           echo "### 🌐 Selenium UI Test Summary" >> $REPORT_FILE
-          python3 << EOF >> $REPORT_FILE
+          python3 -c "
 import xml.etree.ElementTree as ET
-path = "ui_test_results/selenium-test-results.xml"
 try:
-  root = ET.parse(path).getroot()
-  total = int(root.get('tests',0))
-  failed= int(root.get('failures',0))
-  errors= int(root.get('errors',0))
-  passed= total - failed - errors
-  print(f"Total Tests: {total}")
-  print(f"Passed: {passed} ✅")
-  print(f"Failed: {failed} ❌")
-  print(f"Errors: {errors} 🔥")
-except FileNotFoundError:
-  print("Total Tests: 0")
-  print("Passed: 0 ✅")
-  print("Failed: 0 ❌")
-  print("Errors: 0 🔥")
-EOF
-          echo "" >> $REPORT_FILE
+    path = 'ui_test_results/selenium-test-results.xml'
+    tree = ET.parse(path)
+    root = tree.getroot()
+    total = int(root.get('tests', 0))
+    failures = int(root.get('failures', 0))
+    errors = int(root.get('errors', 0))
+    passed = total - failures - errors
+except Exception:
+    total = passed = failures = errors = 0
+print(f'Total Tests: {total}')
+print(f'Passed: {passed} ✅')
+print(f'Failed: {failures} ❌')
+print(f'Errors: {errors} 🔥')
+" >> $REPORT_FILE
 
-          # 3) Detailed reports links
+          echo "" >> $REPORT_FILE
           echo "### 🔗 Detailed Reports" >> $REPORT_FILE
           echo "- [Unit HTML Coverage](tests/reports/htmlcov/unit/index.html)" >> $REPORT_FILE
           echo "- [JUnit XML (Python)](test_results/unit-test-results.xml)" >> $REPORT_FILE
           echo "- [JUnit XML (Selenium)](ui_test_results/selenium-test-results.xml)" >> $REPORT_FILE
-          echo "" >> $REPORT_FILE
 
       - name: Upload final report
         uses: actions/upload-artifact@v4
