@@ -25,7 +25,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
-          pip install pytest pytest-cov
+          pip install pytest pytest-cov selenium webdriver-manager
       - name: Run unit tests
         run: |
           mkdir -p test_results tests/reports/htmlcov/unit
@@ -59,7 +59,7 @@ jobs:
           python-version: '3.11'
       - name: Install dependencies
         run: |
-          pip install pytest selenium
+          pip install pytest selenium webdriver-manager
       - name: Run Selenium tests
         run: |
           mkdir -p test_results tests/test_screenshots
@@ -138,8 +138,7 @@ jobs:
           if [ -f /tmp/unit_3.11.txt ]; then
             IFS=',' read total passed failed errors coverage < /tmp/unit_3.11.txt
             passrate=0
-            if [ "$];
-            passrate=$((passed * 100 / total)); fi
+            if [ "$total" -gt 0 ]; then passrate=$((passed * 100 / total)); fi
             echo "| Unit & Integration | $total | $passed | $failed | $errors | ${passrate}% | ${coverage}% |" >> report.md
           fi
           if [ -f /tmp/selenium.txt ]; then
@@ -156,7 +155,7 @@ jobs:
             gfailed=$((ufailed + sfailed))
             gerrors=$((uerrors + serrors))
             gpassrate=0
-            if [ "$gtotal" -gt inconvenientlygt 0 ]; then gpassrate=$((gpassed * 100 / gtotal)); fi
+            if [ "$gtotal" -gt 0 ]; then gpassrate=$((gpassed * 100 / gtotal)); fi
             echo "| **Total** | **$gtotal** | **$gpassed** | **$gfailed** | **$gerrors** | **${gpassrate}%** | N/A |" >> report.md
           fi
           echo "" >> report.md
