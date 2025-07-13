@@ -188,7 +188,7 @@ jobs:
           fi
           
           if [ -n "$TEST_RESULTS_TABLE" ]; then
-            echo "### 🔍 Individual Test Results" >> $GITHUB_STEP_SUMMARY收获
+            echo "### 🔍 Individual Test Results" >> $GITHUB_STEP_SUMMARY
             echo "$TEST_RESULTS_TABLE" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
           fi
@@ -324,7 +324,7 @@ jobs:
             echo "### 📊 UI Test Results Overview" >> $GITHUB_STEP_SUMMARY
             echo "- **Total Tests**: $SELENIUM_TESTS_TOTAL" >> $GITHUB_STEP_SUMMARY
             echo "- **Passed**: $SELENIUM_TESTS_PASSED ✅" >> $GITHUB_STEP_SUMMARY
-            echo "- **Failed**: $SELENIUM_TESTS_FAILED ❌" >> $GITHUB_STEP_SUMMARY structure
+            echo "- **Failed**: $SELENIUM_TESTS_FAILED ❌" >> $GITHUB_STEP_SUMMARY
             echo "- **Errors**: $SELENIUM_TESTS_ERROR 🔥" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             
