@@ -10,12 +10,81 @@ on:
       - main
       - fleet-enhancements
 
-# ... (Previous sections like env, unit-tests, selenium-tests jobs remain unchanged)
-
 jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11']
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          pip install pytest pytest-cov
+      - name: Run unit tests
+        run: |
+          mkdir -p test_results tests/reports/htmlcov/unit
+          pytest --junitxml=test_results/unit-test-results.xml --cov=tests --cov-report=xml:tests/reports/coverage_unit.xml --cov-report=html:tests/reports/htmlcov/unit
+      - name: Debug artifact paths
+        run: |
+          echo "Contents of test_results:"
+          ls -la test_results/
+          echo "Contents of tests/reports:"
+          ls -la tests/reports/
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-${{ matrix.python-version }}
+          path: |
+            test_results/
+            tests/reports/coverage_unit.xml
+            tests/reports/htmlcov/unit/
+          retention-days: 30
+          if-no-files-found: warn
+
+  selenium-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          pip install pytest selenium
+      - name: Run Selenium tests
+        run: |
+          mkdir -p test_results tests/test_screenshots
+          pytest tests/selenium_tests.py --junitxml=test_results/selenium-test-results.xml
+      - name: Debug artifact paths
+        run: |
+          echo "Contents of test_results:"
+          ls -la test_results/
+          echo "Contents of tests/test_screenshots:"
+          ls -la tests/test_screenshots/
+      - name: Upload Selenium test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: selenium-test-results
+          path: |
+            test_results/
+            tests/test_screenshots/
+          retention-days: 30
+          if-no-files-found: warn
+
   generate-report:
     runs-on: ubuntu-latest
     name: Generate Comprehensive Report
+    needs: [unit-tests, selenium-tests]
     if: always()
     steps:
       - name: Checkout code
@@ -29,11 +98,11 @@ jobs:
       - name: Debug artifact structure
         run: |
           echo "=== Artifact Structure ==="
-          find artifacts -type f -name "*.xml" | head -20
+          find artifacts -type f -name "*.xml" -print0 | xargs -0 -I {} ls -la {} | head -20 || echo "No XML files found"
           echo "=== Directory Structure ==="
-          ls -la artifacts/
+          ls -la artifacts/ || echo "Artifacts directory is empty or does not exist"
           echo "=== Test Results Files ==="
-          find artifacts -name "*test-results.xml" -exec ls -la {} \;
+          find artifacts -name "*test-results.xml" -exec ls -la {} \; || echo "No test results files found"
 
       - name: Generate comprehensive report
         run: |
@@ -69,7 +138,8 @@ jobs:
           if [ -f /tmp/unit_3.11.txt ]; then
             IFS=',' read total passed failed errors coverage < /tmp/unit_3.11.txt
             passrate=0
-            if [ "$total" -gt 0 ]; then passrate=$((passed * 100 / total)); fi
+            if [ "$];
+            passrate=$((passed * 100 / total)); fi
             echo "| Unit & Integration | $total | $passed | $failed | $errors | ${passrate}% | ${coverage}% |" >> report.md
           fi
           if [ -f /tmp/selenium.txt ]; then
@@ -86,7 +156,7 @@ jobs:
             gfailed=$((ufailed + sfailed))
             gerrors=$((uerrors + serrors))
             gpassrate=0
-            if [ "$gtotal" -gt 0 ]; then gpassrate=$((gpassed * 100 / gtotal)); fi
+            if [ "$gtotal" -gt inconvenientlygt 0 ]; then gpassrate=$((gpassed * 100 / gtotal)); fi
             echo "| **Total** | **$gtotal** | **$gpassed** | **$gfailed** | **$gerrors** | **${gpassrate}%** | N/A |" >> report.md
           fi
           echo "" >> report.md
