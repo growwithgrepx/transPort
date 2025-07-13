@@ -17,6 +17,16 @@
     - Inherit Bootstrap's font stack and sizing.
     - Maintain spacing, padding, and border-radius as in light theme.
 */
+
+/* Prevent flash of unstyled content */
+html:not([data-theme]) {
+  visibility: hidden;
+}
+
+html[data-theme] {
+  visibility: visible;
+}
+
 :root {
   --color-bg: #f8f9fa;
   --color-surface: #fff;
