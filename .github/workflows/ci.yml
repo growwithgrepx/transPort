@@ -105,58 +105,58 @@ jobs:
         run: |
           if [ -f "test_results/unit-test-results.xml" ]; then
             python3 << 'EOF'
-          import xml.etree.ElementTree as ET
-          import os
+            import xml.etree.ElementTree as ET
+            import os
 
-          try:
-              tree = ET.parse('test_results/unit-test-results.xml')
-              root = tree.getroot()
-              
-              total_tests = int(root.get('tests', 0))
-              failures = int(root.get('failures', 0))
-              errors = int(root.get('errors', 0))
-              passed = total_tests - failures - errors
-              
-              with open(os.environ['GITHUB_ENV'], 'a') as f:
-                  f.write(f'TESTS_TOTAL={total_tests}\n')
-                  f.write(f'TESTS_PASSED={passed}\n')
-                  f.write(f'TESTS_FAILED={failures}\n')
-                  f.write(f'TESTS_ERROR={errors}\n')
-                  
-              test_results = []
-              for testcase in root.findall('.//testcase'):
-                  classname = testcase.get('classname', '')
-                  name = testcase.get('name', '')
-                  time = testcase.get('time', '0')
-                  
-                  failure = testcase.find('failure')
-                  error = testcase.find('error')
-                  
-                  if failure is not None:
-                      status = "❌ FAILED"
-                      message = failure.get('message', '')[:100] + "..." if len(failure.get('message', '')) > 100 else failure.get('message', '')
-                  elif error is not None:
-                      status = "🔥 ERROR"
-                      message = error.get('message', '')[:100] + "..." if len(error.get('message', '')) > 100 else error.get('message', '')
-                  else:
-                      status = "✅ PASSED"
-                      message = ""
-                  
-                  test_results.append(f"| {classname}.{name} | {status} | {time}s | {message} |")
-              
-              with open(os.environ['GITHUB_ENV'], 'a') as f:
-                  f.write('TEST_RESULTS_TABLE<<EOF\n')
-                  f.write('| Test | Status | Time | Message |\n')
-                  f.write('|------|--------|------|----------|\n')
-                  for result in test_results[:20]:
-                      f.write(result + '\n')
-                  if len(test_results) > 20:
-                      f.write(f'| ... and {len(test_results) - 20} more tests | | | |\n')
-                  f.write('EOF\n')
-                  
-          except Exception as e:
-              print(f"Error parsing test results: {e}")
-          EOF
+            try:
+                tree = ET.parse('test_results/unit-test-results.xml')
+                root = tree.getroot()
+                
+                total_tests = int(root.get('tests', 0))
+                failures = int(root.get('failures', 0))
+                errors = int(root.get('errors', 0))
+                passed = total_tests - failures - errors
+                
+                with open(os.environ['GITHUB_ENV'], 'a') as f:
+                    f.write(f'TESTS_TOTAL={total_tests}\n')
+                    f.write(f'TESTS_PASSED={passed}\n')
+                    f.write(f'TESTS_FAILED={failures}\n')
+                    f.write(f'TESTS_ERROR={errors}\n')
+                    
+                test_results = []
+                for testcase in root.findall('.//testcase'):
+                    classname = testcase.get('classname', '')
+                    name = testcase.get('name', '')
+                    time = testcase.get('time', '0')
+                    
+                    failure = testcase.find('failure')
+                    error = testcase.find('error')
+                    
+                    if failure is not None:
+                        status = "❌ FAILED"
+                        message = failure.get('message', '')[:100] + "..." if len(failure.get('message', '')) > 100 else failure.get('message', '')
+                    elif error is not None:
+                        status = "🔥 ERROR"
+                        message = error.get('message', '')[:100] + "..." if len(error.get('message', '')) > 100 else error.get('message', '')
+                    else:
+                        status = "✅ PASSED"
+                        message = ""
+                    
+                    test_results.append(f"| {classname}.{name} | {status} | {time}s | {message} |")
+                
+                with open(os.environ['GITHUB_ENV'], 'a') as f:
+                    f.write('TEST_RESULTS_TABLE<<EOF\n')
+                    f.write('| Test | Status | Time | Message |\n')
+                    f.write('|------|--------|------|----------|\n')
+                    for result in test_results[:20]:
+                        f.write(result + '\n')
+                    if len(test_results) > 20:
+                        f.write(f'| ... and {len(test_results) - 20} more tests | | | |\n')
+                    f.write('EOF\n')
+                    
+            except Exception as e:
+                print(f"Error parsing test results: {e}")
+            EOF
           fi
 
       - name: Enhanced test results summary
@@ -292,26 +292,26 @@ jobs:
         run: |
           if [ -f "test_results/selenium-test-results.xml" ]; then
             python3 << 'EOF'
-          import xml.etree.ElementTree as ET
-          import os
+            import xml.etree.ElementTree as ET
+            import os
 
-          try:
-              tree = ET.parse('test_results/selenium-test-results.xml')
-              root = tree.getroot()
-              
-              total_tests = int(root.get('tests', 0))
-              failures = int(root.get('failures', 0))
-              errors = int(root.get('errors', 0))
-              passed = total_tests - failures - errors
-              
-              with open(os.environ['GITHUB_ENV'], 'a') as f:
-                  f.write(f'SELENIUM_TESTS_TOTAL={total_tests}\n')
-                  f.write(f'SELENIUM_TESTS_PASSED={passed}\n')
-                  f.write(f'SELENIUM_TESTS_FAILED={failures}\n')
-                  f.write(f'SELENIUM_TESTS_ERROR={errors}\n')
-          except Exception as e:
-              print(f"Error parsing selenium test results: {e}")
-          EOF
+            try:
+                tree = ET.parse('test_results/selenium-test-results.xml')
+                root = tree.getroot()
+                
+                total_tests = int(root.get('tests', 0))
+                failures = int(root.get('failures', 0))
+                errors = int(root.get('errors', 0))
+                passed = total_tests - failures - errors
+                
+                with open(os.environ['GITHUB_ENV'], 'a') as f:
+                    f.write(f'SELENIUM_TESTS_TOTAL={total_tests}\n')
+                    f.write(f'SELENIUM_TESTS_PASSED={passed}\n')
+                    f.write(f'SELENIUM_TESTS_FAILED={failures}\n')
+                    f.write(f'SELENIUM_TESTS_ERROR={errors}\n')
+            except Exception as e:
+                print(f"Error parsing selenium test results: {e}")
+            EOF
           fi
 
       - name: Enhanced Selenium test summary
@@ -388,43 +388,41 @@ jobs:
           xml_file="artifacts/test-results-3.11/test_results/unit-test-results.xml"
           if [ -f "$xml_file" ]; then
             echo "### 🐍 Python 3.11 Unit & Integration Tests" >> report.md
-            cat <<'PYTHON_SCRIPT' > gen_unit_report.py
-            import xml.etree.ElementTree as ET
-            import os
-            import sys
-            try:
-                tree = ET.parse('artifacts/test-results-3.11/test_results/unit-test-results.xml')
-                root = tree.getroot()
-                if root.tag == 'testsuites':
-                    total = sum(int(suite.get('tests', 0)) for suite in root.findall('testsuite'))
-                    failures = sum(int(suite.get('failures', 0)) for suite in root.findall('testsuite'))
-                    errors = sum(int(suite.get('errors', 0)) for suite in root.findall('testsuite'))
-                else:
-                    total = int(root.get('tests', 0))
-                    failures = int(root.get('failures', 0))
-                    errors = int(root.get('errors', 0))
-                passed = total - failures - errors
-                coverage = 0
+            cat <<-'PYTHON_SCRIPT' > gen_unit_report.py
+                import xml.etree.ElementTree as ET
+                import os
+                import sys
                 try:
-                    if os.path.exists('artifacts/test-results-3.11/tests/reports/coverage_unit.xml'):
-                        cov_tree = ET.parse('artifacts/test-results-3.11/tests/reports/coverage_unit.xml')
-                        cov_root = cov_tree.getroot()
-                        coverage = float(cov_root.get('line-rate', 0)) * 100
-                except:
-                    pass
-                print(f"- **Total Tests**: {total}")
-                print(f"- **Passed**: {passed} ✅")
-                print(f"- **Failed**: {failures} ❌")
-                print(f"- **Errors**: {errors} 🔥")
-                if total > 0:
-                    print(f"- **Pass Rate**: {passed * 100 // total}%")
-                if coverage:
-                    print(f"\n- **Code Coverage**: {coverage:.2f}%")
-                print("")
-                with open('/tmp/unit_3.11.txt', 'w') as tf:
-                    tf.write(f"{total},{passed},{failures},{errors},{coverage}")
-            except Exception as e:
-                print(f"❌ Error processing Python 3.11 results: {e}\n")
+                    tree = ET.parse('artifacts/test-results-3.11/test_results/unit-test-results.xml')
+                    root = tree.getroot()
+                    if root.tag == 'testsuites':
+                        total = sum(int(suite.get('tests', 0)) for suite in root.findall('testsuite'))
+                        failures = sum(int(suite.get('failures', 0)) for suite in root.findall('testsuite'))
+                        errors = sum(int(suite.get('errors', 0)) for suite in root.findall('testsuite'))
+                    else:
+                        total = int(root.get('tests', 0))
+                        failures = int(root.get('failures', 0))
+                        errors = int(root.get('errors', 0))
+                    passed = total - failures - errors
+                    coverage = 0
+                    try:
+                        if os.path.exists('artifacts/test-results-3.11/tests/reports/coverage_unit.xml'):
+                            cov_tree = ET.parse('artifacts/test-results-3.11/tests/reports/coverage_unit.xml')
+                            cov_root = cov_tree.getroot()
+                            coverage = float(cov_root.get('line-rate', 0)) * 100
+                    except:
+                        pass
+                    print(f"- **Total Tests**: {total}")
+                    print(f"- **Passed**: {passed} ✅")
+                    print(f"- **Failed**: {failures} ❌")
+                    print(f"- **Errors**: {errors} 🔥")
+                    if total > 0:
+                        print(f"- **Pass Rate**: {passed * 100 // total}%")
+                    print("")
+                    with open('/tmp/unit_3.11.txt', 'w') as tf:
+                        tf.write(f"{total},{passed},{failures},{errors},{coverage}")
+                except Exception as e:
+                    print(f"❌ Error processing Python 3.11 results: {e}\n")
             PYTHON_SCRIPT
             python3 gen_unit_report.py >> report.md
             rm gen_unit_report.py
@@ -437,32 +435,32 @@ jobs:
           selenium_xml="artifacts/selenium-test-results/test_results/selenium-test-results.xml"
           if [ -f "$selenium_xml" ]; then
             echo "### 🌐 Selenium UI Tests" >> report.md
-            cat <<'PYTHON_SCRIPT' > gen_selenium_report.py
-            import xml.etree.ElementTree as ET
-            import os
-            try:
-                tree = ET.parse('artifacts/selenium-test-results/test_results/selenium-test-results.xml')
-                root = tree.getroot()
-                if root.tag == 'testsuites':
-                    total = sum(int(suite.get('tests', 0)) for suite in root.findall('testsuite'))
-                    failures = sum(int(suite.get('failures', 0)) for suite in root.findall('testsuite'))
-                    errors = sum(int(suite.get('errors', 0)) for suite in root.findall('testsuite'))
-                else:
-                    total = int(root.get('tests', 0))
-                    failures = int(root.get('failures', 0))
-                    errors = int(root.get('errors', 0))
-                passed = total - failures - errors
-                print(f"- **Total Tests**: {total}")
-                print(f"- **Passed**: {passed} ✅")
-                print(f"- **Failed**: {failures} ❌")
-                print(f"- **Errors**: {errors} 🔥")
-                if total > 0:
-                    print(f"- **Pass Rate**: {passed * 100 // total}%")
-                print("")
-                with open('/tmp/selenium.txt', 'w') as tf:
-                    tf.write(f"{total},{passed},{failures},{errors}")
-            except Exception as e:
-                print(f"❌ Error processing Selenium results: {e}\n")
+            cat <<-'PYTHON_SCRIPT' > gen_selenium_report.py
+                import xml.etree.ElementTree as ET
+                import os
+                try:
+                    tree = ET.parse('artifacts/selenium-test-results/test_results/selenium-test-results.xml')
+                    root = tree.getroot()
+                    if root.tag == 'testsuites':
+                        total = sum(int(suite.get('tests', 0)) for suite in root.findall('testsuite'))
+                        failures = sum(int(suite.get('failures', 0)) for suite in root.findall('testsuite'))
+                        errors = sum(int(suite.get('errors', 0)) for suite in root.findall('testsuite'))
+                    else:
+                        total = int(root.get('tests', 0))
+                        failures = int(root.get('failures', 0))
+                        errors = int(root.get('errors', 0))
+                    passed = total - failures - errors
+                    print(f"- **Total Tests**: {total}")
+                    print(f"- **Passed**: {passed} ✅")
+                    print(f"- **Failed**: {failures} ❌")
+                    print(f"- **Errors**: {errors} 🔥")
+                    if total > 0:
+                        print(f"- **Pass Rate**: {passed * 100 // total}%")
+                    print("")
+                    with open('/tmp/selenium.txt', 'w') as tf:
+                        tf.write(f"{total},{passed},{failures},{errors}")
+                except Exception as e:
+                    print(f"❌ Error processing Selenium results: {e}\n")
             PYTHON_SCRIPT
             python3 gen_selenium_report.py >> report.md
             rm gen_selenium_report.py
@@ -511,7 +509,7 @@ jobs:
           echo "=== Generated Report Content ==="
           cat report.md
 
-      - name: Generate step summary (Pipeline Summary First)
+      - name: Generate step summary
         run: |
           echo "## 📊 Pipeline Summary" > $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
