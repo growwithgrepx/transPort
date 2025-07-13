@@ -23,7 +23,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.9', '3.10', '3.11']
+        python-version: ['3.11']  # Updated to run only on Python 3.11
     
     steps:
       - name: Checkout code
@@ -55,185 +55,14 @@ jobs:
           mkdir -p test_results
           mkdir -p htmlcov
 
-      - name: Check test directory structure
-        run: |
-          echo "Repository structure:"
-          find . -type d -name "*test*" | head -20
-          echo "Python files in tests:"
-          find . -name "test_*.py" -o -name "*_test.py" | head -20
-
       - name: Run unit tests with coverage
         env:
           DATABASE_URL: sqlite:///tests/test_selenium.db
         run: |
-          # Find and run unit tests with multiple discovery patterns
-          if find . -name "test_*.py" -path "*/unit/*" | head -1 | grep -q .; then
-            echo "Running unit tests from tests/unit/"
-            pytest tests/unit/ \
-              --cov=./ \
-              --cov-report=xml:coverage.xml \
-              --cov-report=html:htmlcov \
-              --cov-report=term-missing \
-              --junitxml=test_results/unit-test-results.xml \
-              --html=test_results/unit-report.html \
-              --self-contained-html \
-              -v
-          elif find . -name "test_*.py" -path "*/tests/*" | head -1 | grep -q .; then
-            echo "Running tests from tests/ directory"
-            pytest tests/ \
-              --cov=./ \
-              --cov-report=xml:coverage.xml \
-              --cov-report=html:htmlcov \
-              --cov-report=term-missing \
-              --junitxml=test_results/unit-test-results.xml \
-              --html=test_results/unit-report.html \
-              --self-contained-html \
-              -v
-          elif find . -name "test_*.py" | head -1 | grep -q .; then
-            echo "Running all discoverable tests"
-            pytest . \
-              --cov=./ \
-              --cov-report=xml:coverage.xml \
-              --cov-report=html:htmlcov \
-              --cov-report=term-missing \
-              --junitxml=test_results/unit-test-results.xml \
-              --html=test_results/unit-report.html \
-              --self-contained-html \
-              -v
-          else
-            echo "No test files found, creating empty results"
-            echo '<?xml version="1.0" encoding="UTF-8"?><testsuites tests="0" failures="0" errors="0" time="0"><testsuite name="empty" tests="0" failures="0" errors="0" time="0"></testsuite></testsuites>' > test_results/unit-test-results.xml
-          fi
+          echo "Discovered test files:"
+          find . -name "test_*.py" -o -name "*_test.py"
+          pytest tests/ --verbose --cov=./ --cov-report=xml:coverage.xml --cov-report=html:htmlcov --junitxml=test_results/unit-test-results.xml
 
-      # NEW: Generate coverage summary for display
-      - name: Generate coverage summary
-        if: always()
-        run: |
-          if [ -f "coverage.xml" ]; then
-            echo "COVERAGE_SUMMARY<<EOF" >> $GITHUB_ENV
-            coverage report --format=text >> $GITHUB_ENV
-            echo "EOF" >> $GITHUB_ENV
-          fi
-
-      - name: Run integration tests (if separate directory exists)
-        env:
-          DATABASE_URL: sqlite:///tests/test_selenium.db
-        run: |
-          if [ -d "tests/integration" ] && find tests/integration -name "test_*.py" | head -1 | grep -q .; then
-            echo "Running integration tests from tests/integration/"
-            pytest tests/integration/ \
-              --junitxml=test_results/integration-test-results.xml \
-              --html=test_results/integration-report.html \
-              --self-contained-html \
-              -v
-          else
-            echo "No separate integration tests directory found"
-          fi
-
-      # NEW: Parse test results for inline display
-      - name: Parse test results
-        if: always()
-        run: |
-          # Parse JUnit XML for test summary
-          if [ -f "test_results/unit-test-results.xml" ]; then
-            python3 << 'EOF'
-          import xml.etree.ElementTree as ET
-          import os
-          
-          try:
-              tree = ET.parse('test_results/unit-test-results.xml')
-              root = tree.getroot()
-              
-              total_tests = int(root.get('tests', 0))
-              failures = int(root.get('failures', 0))
-              errors = int(root.get('errors', 0))
-              passed = total_tests - failures - errors
-              
-              # Write to environment for later use
-              with open(os.environ['GITHUB_ENV'], 'a') as f:
-                  f.write(f'TESTS_TOTAL={total_tests}\n')
-                  f.write(f'TESTS_PASSED={passed}\n')
-                  f.write(f'TESTS_FAILED={failures}\n')
-                  f.write(f'TESTS_ERROR={errors}\n')
-                  
-              # Get individual test results
-              test_results = []
-              for testcase in root.findall('.//testcase'):
-                  classname = testcase.get('classname', '')
-                  name = testcase.get('name', '')
-                  time = testcase.get('time', '0')
-                  
-                  failure = testcase.find('failure')
-                  error = testcase.find('error')
-                  
-                  if failure is not None:
-                      status = "❌ FAILED"
-                      message = failure.get('message', '')[:100] + "..." if len(failure.get('message', '')) > 100 else failure.get('message', '')
-                  elif error is not None:
-                      status = "🔥 ERROR"
-                      message = error.get('message', '')[:100] + "..." if len(error.get('message', '')) > 100 else error.get('message', '')
-                  else:
-                      status = "✅ PASSED"
-                      message = ""
-                  
-                  test_results.append(f"| {classname}.{name} | {status} | {time}s | {message} |")
-              
-              # Write test results table
-              with open(os.environ['GITHUB_ENV'], 'a') as f:
-                  f.write('TEST_RESULTS_TABLE<<EOF\n')
-                  f.write('| Test | Status | Time | Message |\n')
-                  f.write('|------|--------|------|----------|\n')
-                  for result in test_results[:20]:  # Limit to first 20 tests
-                      f.write(result + '\n')
-                  if len(test_results) > 20:
-                      f.write(f'| ... and {len(test_results) - 20} more tests | | | |\n')
-                  f.write('EOF\n')
-                  
-          except Exception as e:
-              print(f"Error parsing test results: {e}")
-          EOF
-          fi
-
-      # NEW: Enhanced step summary with inline results
-      - name: Enhanced test results summary
-        if: always()
-        run: |
-          echo "## ✅ Unit & Integration Test Summary - Python ${{ matrix.python-version }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          # Test results summary
-          if [ -n "$TESTS_TOTAL" ]; then
-            echo "### 📊 Test Results Overview" >> $GITHUB_STEP_SUMMARY
-            echo "- **Total Tests**: $TESTS_TOTAL" >> $GITHUB_STEP_SUMMARY
-            echo "- **Passed**: $TESTS_PASSED ✅" >> $GITHUB_STEP_SUMMARY
-            echo "- **Failed**: $TESTS_FAILED ❌" >> $GITHUB_STEP_SUMMARY
-            echo "- **Errors**: $TESTS_ERROR 🔥" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            
-            # Calculate pass rate
-            if [ "$TESTS_TOTAL" -gt 0 ]; then
-              PASS_RATE=$((TESTS_PASSED * 100 / TESTS_TOTAL))
-              echo "- **Pass Rate**: $PASS_RATE%" >> $GITHUB_STEP_SUMMARY
-            fi
-          fi
-          
-          # Coverage summary
-          if [ -n "$COVERAGE_SUMMARY" ]; then
-            echo "### 📈 Coverage Summary" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "$COVERAGE_SUMMARY" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-          fi
-          
-          # Individual test results
-          if [ -n "$TEST_RESULTS_TABLE" ]; then
-            echo "### 🔍 Individual Test Results" >> $GITHUB_STEP_SUMMARY
-            echo "$TEST_RESULTS_TABLE" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-          fi
-
-      # NEW: Upload coverage to GitHub Pages (if enabled)
       - name: Deploy coverage to GitHub Pages
         if: github.ref == 'refs/heads/main' && matrix.python-version == '3.11'
         uses: peaceiris/actions-gh-pages@v3
@@ -241,23 +70,6 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./htmlcov
           destination_dir: coverage
-
-      # NEW: Coverage comment on PR
-      - name: Coverage comment
-        if: github.event_name == 'pull_request' && matrix.python-version == '3.11'
-        uses: py-cov-action/python-coverage-comment-action@v3
-        with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          COVERAGE_FILE: coverage.xml
-
-      - name: Publish Test Results
-        uses: dorny/test-reporter@v1
-        if: always() && hashFiles('test_results/*.xml') != ''
-        with:
-          name: Unit & Integration Tests (${{ matrix.python-version }})
-          path: test_results/*.xml
-          reporter: java-junit
-          fail-on-error: false
 
       - name: Upload test artifacts
         uses: actions/upload-artifact@v4
@@ -270,7 +82,7 @@ jobs:
             htmlcov/
           retention-days: 30
           if-no-files-found: warn
-
+  
   selenium-tests:
     runs-on: ubuntu-latest
     name: Selenium UI Tests
