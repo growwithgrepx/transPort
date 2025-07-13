@@ -105,58 +105,58 @@ jobs:
         run: |
           if [ -f "test_results/unit-test-results.xml" ]; then
             python3 << EOF
-            import xml.etree.ElementTree as ET
-            import os
+import xml.etree.ElementTree as ET
+import os
 
-            try:
-                tree = ET.parse('test_results/unit-test-results.xml')
-                root = tree.getroot()
-                
-                total_tests = int(root.get('tests', 0))
-                failures = int(root.get('failures', 0))
-                errors = int(root.get('errors', 0))
-                passed = total_tests - failures - errors
-                
-                with open(os.environ['GITHUB_ENV'], 'a') as f:
-                    f.write(f'TESTS_TOTAL={total_tests}\n')
-                    f.write(f'TESTS_PASSED={passed}\n')
-                    f.write(f'TESTS_FAILED={failures}\n')
-                    f.write(f'TESTS_ERROR={errors}\n')
-                    
-                test_results = []
-                for testcase in root.findall('.//testcase'):
-                    classname = testcase.get('classname', '')
-                    name = testcase.get('name', '')
-                    time = testcase.get('time', '0')
-                    
-                    failure = testcase.find('failure')
-                    error = testcase.find('error')
-                    
-                    if failure is not None:
-                        status = "❌ FAILED"
-                        message = failure.get('message', '')[:100] + "..." if len(failure.get('message', '')) > 100 else failure.get('message', '')
-                    elif error is not None:
-                        status = "🔥 ERROR"
-                        message = error.get('message', '')[:100] + "..." if len(error.get('message', '')) > 100 else error.get('message', '')
-                    else:
-                        status = "✅ PASSED"
-                        message = ""
-                    
-                    test_results.append(f"| {classname}.{name} | {status} | {time}s | {message} |")
-                
-                with open(os.environ['GITHUB_ENV'], 'a') as f:
-                    f.write('TEST_RESULTS_TABLE<<EOF\n')
-                    f.write('| Test | Status | Time | Message |\n')
-                    f.write('|------|--------|------|----------|\n')
-                    for result in test_results[:20]:
-                        f.write(result + '\n')
-                    if len(test_results) > 20:
-                        f.write(f'| ... and {len(test_results) - 20} more tests | | | |\n')
-                    f.write('EOF\n')
-                    
-            except Exception as e:
-                print(f"Error parsing test results: {e}")
-            EOF
+try:
+    tree = ET.parse('test_results/unit-test-results.xml')
+    root = tree.getroot()
+    
+    total_tests = int(root.get('tests', 0))
+    failures = int(root.get('failures', 0))
+    errors = int(root.get('errors', 0))
+    passed = total_tests - failures - errors
+    
+    with open(os.environ['GITHUB_ENV'], 'a') as f:
+        f.write(f'TESTS_TOTAL={total_tests}\n')
+        f.write(f'TESTS_PASSED={passed}\n')
+        f.write(f'TESTS_FAILED={failures}\n')
+        f.write(f'TESTS_ERROR={errors}\n')
+        
+    test_results = []
+    for testcase in root.findall('.//testcase'):
+        classname = testcase.get('classname', '')
+        name = testcase.get('name', '')
+        time = testcase.get('time', '0')
+        
+        failure = testcase.find('failure')
+        error = testcase.find('error')
+        
+        if failure is not None:
+            status = "❌ FAILED"
+            message = failure.get('message', '')[:100] + "..." if len(failure.get('message', '')) > 100 else failure.get('message', '')
+        elif error is not None:
+            status = "🔥 ERROR"
+            message = error.get('message', '')[:100] + "..." if len(error.get('message', '')) > 100 else error.get('message', '')
+        else:
+            status = "✅ PASSED"
+            message = ""
+        
+        test_results.append(f"| {classname}.{name} | {status} | {time}s | {message} |")
+    
+    with open(os.environ['GITHUB_ENV'], 'a') as f:
+        f.write('TEST_RESULTS_TABLE<<EOF\n')
+        f.write('| Test | Status | Time | Message |\n')
+        f.write('|------|--------|------|----------|\n')
+        for result in test_results[:20]:
+            f.write(result + '\n')
+        if len(test_results) > 20:
+            f.write(f'| ... and {len(test_results) - 20} more tests | | | |\n')
+        f.write('EOF\n')
+        
+except Exception as e:
+    print(f"Error parsing test results: {e}")
+EOF
           fi
 
       - name: Enhanced test results summary
@@ -292,26 +292,26 @@ jobs:
         run: |
           if [ -f "test_results/selenium-test-results.xml" ]; then
             python3 << EOF
-            import xml.etree.ElementTree as ET
-            import os
+import xml.etree.ElementTree as ET
+import os
 
-            try:
-                tree = ET.parse('test_results/selenium-test-results.xml')
-                root = tree.getroot()
-                
-                total_tests = int(root.get('tests', 0))
-                failures = int(root.get('failures', 0))
-                errors = int(root.get('errors', 0))
-                passed = total_tests - failures - errors
-                
-                with open(os.environ['GITHUB_ENV'], 'a') as f:
-                    f.write(f'SELENIUM_TESTS_TOTAL={total_tests}\n')
-                    f.write(f'SELENIUM_TESTS_PASSED={passed}\n')
-                    f.write(f'SELENIUM_TESTS_FAILED={failures}\n')
-                    f.write(f'SELENIUM_TESTS_ERROR={errors}\n')
-            except Exception as e:
-                print(f"Error parsing selenium test results: {e}")
-            EOF
+try:
+    tree = ET.parse('test_results/selenium-test-results.xml')
+    root = tree.getroot()
+    
+    total_tests = int(root.get('tests', 0))
+    failures = int(root.get('failures', 0))
+    errors = int(root.get('errors', 0))
+    passed = total_tests - failures - errors
+    
+    with open(os.environ['GITHUB_ENV'], 'a') as f:
+        f.write(f'SELENIUM_TESTS_TOTAL={total_tests}\n')
+        f.write(f'SELENIUM_TESTS_PASSED={passed}\n')
+        f.write(f'SELENIUM_TESTS_FAILED={failures}\n')
+        f.write(f'SELENIUM_TESTS_ERROR={errors}\n')
+except Exception as e:
+    print(f"Error parsing selenium test results: {e}")
+EOF
           fi
 
       - name: Enhanced Selenium test summary
@@ -519,6 +519,7 @@ EOF
         if: github.event_name == 'pull_request' && always()
         uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require('fs');
             
