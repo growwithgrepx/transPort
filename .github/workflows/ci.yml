@@ -64,14 +64,26 @@ jobs:
           echo "Test files found in tests/unit/:"
           find tests/unit -name "test_*.py" -exec ls -la {} \;
           echo "Pytest config location:"
-          ls -la tests/config/pytest.ini
+          ls -la pytest.ini
+          echo "Pytest config content:"
+          cat pytest.ini
+          echo "Available fixtures:"
+          pytest --fixtures tests/unit/ | head -20
+          echo "Conftest.py location:"
+          find . -name "conftest.py" -exec ls -la {} \;
+          echo "Testing conftest.py loading:"
+          pytest --collect-only tests/unit/test_fixtures.py -v
 
       - name: Run unit and integration tests with coverage
         env:
           DATABASE_URL: sqlite:///tests/test_selenium.db
         run: |
+          # First run a simple test to verify fixtures work
+          echo "Testing fixtures with simple test..."
+          pytest tests/unit/test_fixtures.py -v || echo "Fixture test failed, continuing with full test run..."
+          
           # Run all tests in tests/unit/ (includes integration tests)
-          pytest -c tests/config/pytest.ini tests/unit/ \
+          pytest tests/unit/ \
             --cov=app --cov=models --cov=blueprints --cov=extensions \
             --cov-report=term-missing \
             --cov-report=html:tests/reports/htmlcov/unit \
@@ -253,6 +265,8 @@ jobs:
           find tests/selenium_tests -name "test_*.py" -exec ls -la {} \;
           echo "Total selenium test files found:"
           find tests/selenium_tests -name "test_*.py" | wc -l
+          echo "Available fixtures for selenium tests:"
+          pytest --fixtures tests/selenium_tests/ | head -20
 
       - name: Run Selenium tests
         env:
@@ -263,7 +277,7 @@ jobs:
           # Run selenium tests from tests/selenium_tests/
           if [ -d "tests/selenium_tests" ] && find tests/selenium_tests -name "test_*.py" | grep -q .; then
             echo "Running selenium tests from tests/selenium_tests/"
-            pytest -c tests/config/pytest.ini tests/selenium_tests/ \
+            pytest tests/selenium_tests/ \
               --junitxml=test_results/selenium-test-results.xml \
               --html=test_results/selenium-report.html \
               --self-contained-html \

@@ -38,6 +38,7 @@ from models.price import Price
 from models.customer_discount import CustomerDiscount
 from models.billing import Billing
 from sqlalchemy.exc import IntegrityError
+from collections import namedtuple
 
 # Configure logging for tests
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -48,12 +49,15 @@ _seeded_data = None
 
 # --- Flask app and DB fixtures ---
 @pytest.fixture(scope='session')
-def test_app():
+def app():
+    """Flask app fixture for pytest-flask compatibility"""
     flask_app.config.update({
         'SQLALCHEMY_DATABASE_URI': SQLITE_URI,
         'SQLALCHEMY_TRACK_MODIFICATIONS': False,
         'TESTING': True,
         'WTF_CSRF_ENABLED': False,
+        'SECRET_KEY': 'test-secret-key',
+        'SERVER_NAME': 'localhost:5000',
     })
     with flask_app.app_context():
         try:
@@ -70,6 +74,17 @@ def test_app():
             db.session.remove()
             db.engine.dispose()
             logger.info(f"Test database preserved at: {TEST_DB_PATH}")
+
+# Ensure pytest-flask can find our app
+@pytest.fixture(scope='session')
+def _app(app):
+    """Internal fixture for pytest-flask compatibility"""
+    return app
+
+@pytest.fixture(scope='session')
+def test_app(app):
+    """Alias for app fixture for backward compatibility"""
+    return app
 
 def seed_test_data():
     """Seed all test data - called once before server starts"""
@@ -167,20 +182,20 @@ def seed_test_data():
     }
 
 @pytest.fixture(scope='function')
-def seeded_db(test_app):
+def seeded_db(app):
     """Provide references to seeded data - no DB mutations"""
     global _seeded_data
     if _seeded_data is None:
-        raise RuntimeError("Test data not seeded. Ensure test_app fixture runs first.")
+        raise RuntimeError("Test data not seeded. Ensure app fixture runs first.")
     
     # Return references to the seeded objects
     yield _seeded_data
     logger.info("Test data preserved in database for debugging")
 
 @pytest.fixture(scope='function')
-def clean_db(test_app):
+def clean_db(app):
     """Clean database between tests to avoid constraint violations"""
-    with test_app.app_context():
+    with app.app_context():
         # Clear all data except the seeded data
         from models.user import User
         from models.job import Job
@@ -200,9 +215,9 @@ def clean_db(test_app):
 
 # --- Live server fixture ---
 @pytest.fixture(scope='session')
-def live_server(test_app):
+def live_server(app):
     port = 5001
-    server = make_server('127.0.0.1', port, test_app)
+    server = make_server('127.0.0.1', port, app)
     thread = threading.Thread(target=server.serve_forever)
     thread.daemon = True
     thread.start()
@@ -218,7 +233,9 @@ def live_server(test_app):
     else:
         server.shutdown()
         raise RuntimeError('Test server failed to start')
-    yield f'http://127.0.0.1:{port}'
+    # Return an object with .url and .app attributes for pytest-flask compatibility
+    LiveServer = namedtuple('LiveServer', ['url', 'app'])
+    yield LiveServer(url=f'http://127.0.0.1:{port}', app=app)
     server.shutdown()
 
 # --- Selenium browser fixture ---
