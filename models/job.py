@@ -43,4 +43,4 @@ class Job(db.Model):
     
     # Relationships
     service = db.relationship('Service', backref='jobs')
-    billing = db.relationship('Billing', backref='job', uselist=False) 
+    billing = db.relationship('Billing', backref='job', uselist=False, cascade='all, delete-orphan') 

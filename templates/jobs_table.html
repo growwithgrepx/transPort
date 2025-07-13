@@ -138,10 +138,7 @@
           <div class="d-flex justify-content-center align-items-center gap-2" onclick="event.stopPropagation();">
             <a href="{{ url_for('view_job', job_id=job.id) }}" class="btn btn-outline-info btn-sm d-flex align-items-center justify-content-center" title="View"><i class="bi bi-eye text-info"></i></a>
             <a href="{{ url_for('edit_job', job_id=job.id) }}" class="btn btn-outline-primary btn-sm d-flex align-items-center justify-content-center" title="Edit"><i class="bi bi-pencil text-primary"></i></a>
-            <form action="{{ url_for('delete_job', job_id=job.id) }}" method="post" style="display:inline;">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button type="submit" class="btn btn-outline-danger btn-sm d-flex align-items-center justify-content-center" title="Delete" onclick="return confirm('Delete this job?');"><i class="bi bi-trash text-danger"></i></button>
-            </form>
+            <button type="button" class="btn btn-outline-danger btn-sm d-flex align-items-center justify-content-center" title="Delete" onclick="deleteJob({{ job.id }})"><i class="bi bi-trash text-danger"></i></button>
           </div>
         </td>
       </tr>
@@ -201,4 +198,27 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 });
+
+// Function to delete a job
+function deleteJob(jobId) {
+  console.log('deleteJob called with jobId:', jobId);
+  if (confirm('Delete this job?')) {
+    console.log('User confirmed deletion');
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/jobs/delete/' + jobId;
+    
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    console.log('CSRF token:', csrfToken);
+    const csrfInput = document.createElement('input');
+    csrfInput.type = 'hidden';
+    csrfInput.name = 'csrf_token';
+    csrfInput.value = csrfToken;
+    
+    form.appendChild(csrfInput);
+    document.body.appendChild(form);
+    console.log('Form created and about to submit');
+    form.submit();
+  }
+}
 </script> 

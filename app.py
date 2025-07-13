@@ -828,23 +828,18 @@ def update_job_view(job_id):
 @login_required
 def delete_job(job_id):
     try:
+        from flask import request
+        app.logger.info(f"Delete job {job_id} - CSRF token received: {request.form.get('csrf_token')}")
         job = Job.query.get_or_404(job_id)
-        
-        # Log the deletion attempt
         app.logger.info(f'Attempting to delete job {job_id} by user {current_user.username}')
-        
-        # Delete the job (cascade will handle billing records)
         db.session.delete(job)
         db.session.commit()
-        
         flash('Job deleted successfully', 'success')
         app.logger.info(f'Job {job_id} deleted successfully')
-        
     except Exception as e:
         db.session.rollback()
         app.logger.error(f'Error deleting job {job_id}: {str(e)}')
         flash(f'Error deleting job: {str(e)}', 'error')
-    
     return redirect(url_for('jobs'))
 
 @app.route('/jobs/download', methods=['POST'])

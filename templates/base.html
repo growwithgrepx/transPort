@@ -148,5 +148,18 @@
         }
       }
     </script>
+    <script>
+      // Update CSRF meta tag after every HTMX swap
+      document.body.addEventListener('htmx:afterSwap', (event) => {
+        // Only update if the response contains a new CSRF token
+        const newToken = document.querySelector('input[name="csrf_token"]');
+        if (newToken) {
+          const meta = document.querySelector('meta[name="csrf-token"]');
+          if (meta) {
+            meta.setAttribute('content', newToken.value);
+          }
+        }
+      });
+    </script>
 </body>
 </html> 
