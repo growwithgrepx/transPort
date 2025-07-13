@@ -219,7 +219,7 @@ EOF
           fi
 
       - name: Deploy coverage to GitHub Pages
-        if: github.ref == 'refs/heads/' && always()
+        if: always() && hashFiles('tests/reports/htmlcov/unit/index.html') != ''
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
