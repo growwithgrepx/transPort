@@ -458,6 +458,7 @@ jobs:
           total_unit_passed=0
           total_unit_failed=0
           total_unit_errors=0
+          total_unit_coverage=0
           
           total_selenium_tests=0
           total_selenium_passed=0
@@ -467,6 +468,7 @@ jobs:
           # Process each Python version for unit tests
           for version in 3.9 3.10 3.11; do
             xml_file="artifacts/test-results-$version/test_results/unit-test-results.xml"
+            coverage_file="artifacts/test-results-$version/coverage.xml"
             if [ -f "$xml_file" ]; then
               echo "### 🐍 Python $version Unit Tests" >> report.md
               python3 << EOF >> report.md
@@ -477,7 +479,6 @@ jobs:
               tree = ET.parse('$xml_file')
               root = tree.getroot()
               
-              # Handle both single testsuite and testsuites with multiple suites
               if root.tag == 'testsuites':
                   total = sum(int(suite.get('tests', 0)) for suite in root.findall('testsuite'))
                   failures = sum(int(suite.get('failures', 0)) for suite in root.findall('testsuite'))
@@ -497,9 +498,16 @@ jobs:
                   print(f"- **Pass Rate**: {passed * 100 // total}%")
               print("")
               
-              # Write to files for aggregation
+              # Extract coverage if available
+              coverage = 0
+              if os.path.exists('$coverage_file'):
+                  cov_tree = ET.parse('$coverage_file')
+                  cov_root = cov_tree.getroot()
+                  coverage = float(cov_root.get('line-rate', 0)) * 100
+                  print(f"- **Code Coverage**: {coverage:.2f}%")
+              
               with open(f'/tmp/unit_$version.txt', 'w') as f:
-                  f.write(f"{total},{passed},{failures},{errors}")
+                  f.write(f"{total},{passed},{failures},{errors},{coverage}")
                   
           except Exception as e:
               print(f"❌ Error processing Python $version results: {e}")
@@ -553,7 +561,7 @@ jobs:
             echo "" >> report.md
           fi
           
-          # Generate overall summary
+          # Generate overall summary with table
           echo "## 🎯 Overall Summary" >> report.md
           echo "" >> report.md
           
@@ -561,7 +569,7 @@ jobs:
           import os
           
           # Aggregate unit test results
-          unit_total, unit_passed, unit_failed, unit_errors = 0, 0, 0, 0
+          unit_total, unit_passed, unit_failed, unit_errors, unit_coverage = 0, 0, 0, 0, 0
           for version in ['3.9', '3.10', '3.11']:
               try:
                   with open(f'/tmp/unit_{version}.txt', 'r') as f:
@@ -570,8 +578,13 @@ jobs:
                       unit_passed += int(data[1])
                       unit_failed += int(data[2])
                       unit_errors += int(data[3])
+                      unit_coverage += float(data[4])
               except:
                   pass
+          
+          # Average coverage across Python versions
+          if unit_total > 0:
+              unit_coverage = unit_coverage / 3  # Since we have 3 Python versions
           
           # Aggregate selenium results
           selenium_total, selenium_passed, selenium_failed, selenium_errors = 0, 0, 0, 0
@@ -591,18 +604,23 @@ jobs:
           grand_failed = unit_failed + selenium_failed
           grand_errors = unit_errors + selenium_errors
           
-          print(f"### 📊 Grand Total")
-          print(f"- **All Tests**: {grand_total}")
-          print(f"- **All Passed**: {grand_passed} ✅")
-          print(f"- **All Failed**: {grand_failed} ❌")
-          print(f"- **All Errors**: {grand_errors} 🔥")
-          if grand_total > 0:
-              print(f"- **Overall Pass Rate**: {grand_passed * 100 // grand_total}%")
+          # Summary Table
+          print(f"### 📋 Summary Table")
+          print(f"| Category | Total Tests | Passed ✅ | Failed ❌ | Errors 🔥 | Pass Rate | Coverage |")
+          print(f"|----------|-------------|-----------|-----------|-----------|-----------|----------|")
+          print(f"| Unit Tests | {unit_total} | {unit_passed} | {unit_failed} | {unit_errors} | {unit_passed * 100 // unit_total if unit_total > 0 else 0}% | {unit_coverage:.2f}% |")
+          print(f"| UI Tests | {selenium_total} | {selenium_passed} | {selenium_failed} | {selenium_errors} | {selenium_passed * 100 // selenium_total if selenium_total > 0 else 0}% | N/A |")
+          print(f"| **Total** | **{grand_total}** | **{grand_passed}** | **{grand_failed}** | **{grand_errors}** | **{grand_passed * 100 // grand_total if grand_total > 0 else 0}%** | N/A |")
           print("")
           
-          print(f"### 📋 Breakdown")
-          print(f"- **Unit Tests**: {unit_total} total ({unit_passed} passed, {unit_failed} failed, {unit_errors} errors)")
-          print(f"- **UI Tests**: {selenium_total} total ({selenium_passed} passed, {selenium_failed} failed, {selenium_errors} errors)")
+          # Links to detailed reports
+          print(f"### 🔗 Detailed Reports")
+          print(f"- [Unit Test Results (Python 3.9)](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})")
+          print(f"- [Unit Test Results (Python 3.10)](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})")
+          print(f"- [Unit Test Results (Python 3.11)](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})")
+          print(f"- [Selenium UI Test Results](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})")
+          print(f"- [Coverage Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})")
+          print("")
           EOF
 
       - name: Display report content
