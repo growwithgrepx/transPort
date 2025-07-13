@@ -439,3 +439,10 @@ body {
     padding: 0.2rem 0.4rem;
   }
 } 
+
+[data-theme="dark"] .text-danger {
+  color: #ff6b6b !important; /* brighter red for dark bg */
+}
+[data-theme="dark"] .text-muted {
+  color: #b0b8c1 !important; /* lighter muted text for dark bg */
+} 
