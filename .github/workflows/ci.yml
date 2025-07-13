@@ -7,204 +7,20 @@ on:
       - develop
       - fleet-enhancements
   pull_request:
-    branches: [main, develop]
+    branches:
+      - main
+      - develop
   workflow_dispatch:
 
 env:
   PYTHON_VERSION: '3.11'
-  CACHE_VERSION: v2
   FLASK_ENV: testing
-  TESTING: true
+  REPORT_FILE: report.md
 
 jobs:
-  unit-tests:
+  ci-pipeline:
+    name: Run Tests & Generate Report
     runs-on: ubuntu-latest
-    name: Unit & Integration Tests
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ['3.11']
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Cache pip dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-${{ matrix.python-version }}-${{ hashFiles('requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-${{ matrix.python-version }}-
-            ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-
-            ${{ runner.os }}-pip-
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest pytest-cov pytest-flask factory-boy coverage selenium webdriver-manager
-
-      - name: Create test directories
-        run: |
-          mkdir -p test_results
-          mkdir -p tests/reports/htmlcov/unit
-
-      - name: Debug test discovery
-        run: |
-          echo "Discovered test files:"
-          find . -name "test_*.py" -o -name "*_test.py" | sort
-
-      - name: Run unit tests with coverage
-        env:
-          DATABASE_URL: sqlite:///tests/test_selenium.db
-        run: |
-          if [ -d "tests/unit" ] && find tests/unit -name "test_*.py" | grep -q .; then
-            echo "Running unit tests from tests/unit/"
-            pytest tests/unit/ --verbose --cov=./ --cov-report=xml:coverage.xml --cov-report=html:tests/reports/htmlcov/unit --junitxml=test_results/unit-test-results.xml
-          elif [ -d "tests" ] && find tests -name "test_*.py" | grep -q .; then
-            echo "Running tests from tests/ directory"
-            pytest tests/ --verbose --cov=./ --cov-report=xml:coverage.xml --cov-report=html:tests/reports/htmlcov/unit --junitxml=test_results/unit-test-results.xml
-          else
-            echo "No test files found, creating empty results"
-            echo '<?xml version="1.0" encoding="UTF-8"?><testsuites tests="0" failures="0" errors="0" time="0"><testsuite name="empty" tests="0" failures="0" errors="0" time="0"></testsuite></testsuites>' > test_results/unit-test-results.xml
-          fi
-
-      - name: Generate coverage summary
-        if: always()
-        run: |
-          if [ -f "coverage.xml" ]; then
-            echo "COVERAGE_SUMMARY<<EOF" >> $GITHUB_ENV
-            coverage report --format=text >> $GITHUB_ENV
-            echo "EOF" >> $GITHUB_ENV
-          fi
-
-      - name: Run integration tests (if separate directory exists)
-        env:
-          DATABASE_URL: sqlite:///tests/test_selenium.db
-        run: |
-          if [ -d "tests/integration" ] && find tests/integration -name "test_*.py" | grep -q .; then
-            echo "Running integration tests from tests/integration/"
-            pytest tests/integration/ --junitxml=test_results/integration-test-results.xml --html=test_results/integration-report.html --self-contained-html -v
-          else
-            echo "No separate integration tests directory found"
-          fi
-
-      - name: Parse test results
-        if: always()
-        run: |
-          if [ -f "test_results/unit-test-results.xml" ]; then
-            python3 << 'EOF'
-          import xml.etree.ElementTree as ET
-          import os
-          
-          try:
-              tree = ET.parse('test_results/unit-test-results.xml')
-              root = tree.getroot()
-              
-              total_tests = int(root.get('tests', 0))
-              failures = int(root.get('failures', 0))
-              errors = int(root.get('errors', 0))
-              passed = total_tests - failures - errors
-              
-              with open(os.environ['GITHUB_ENV'], 'a') as f:
-                  f.write(f'TESTS_TOTAL={total_tests}\n')
-                  f.write(f'TESTS_PASSED={passed}\n')
-                  f.write(f'TESTS_FAILED={failures}\n')
-                  f.write(f'TESTS_ERROR={errors}\n')
-                  
-              test_results = []
-              for testcase in root.findall('.//testcase'):
-                  classname = testcase.get('classname', '')
-                  name = testcase.get('name', '')
-                  time = testcase.get('time', '0')
-                  
-                  failure = testcase.find('failure')
-                  error = testcase.find('error')
-                  
-                  if failure is not None:
-                      status = "❌ FAILED"
-                      message = failure.get('message', '')[:100] + "..." if len(failure.get('message', '')) > 100 else failure.get('message', '')
-                  elif error is not None:
-                      status = "🔥 ERROR"
-                      message = error.get('message', '')[:100] + "..." if len(error.get('message', '')) > 100 else error.get('message', '')
-                  else:
-                      status = "✅ PASSED"
-                      message = ""
-                  
-                  test_results.append(f"| {classname}.{name} | {status} | {time}s | {message} |")
-              
-              with open(os.environ['GITHUB_ENV'], 'a') as f:
-                  f.write('TEST_RESULTS_TABLE<<EOF\n')
-                  f.write('| Test | Status | Time | Message |\n')
-                  f.write('|------|--------|------|----------|\n')
-                  for result in test_results[:20]:
-                      f.write(result + '\n')
-                  if len(test_results) > 20:
-                      f.write(f'| ... and {len(test_results) - 20} more tests | | | |\n')
-                  f.write('EOF\n')
-                  
-          except Exception as e:
-              print(f"Error parsing test results: {e}")
-          EOF
-          fi
-
-      - name: Enhanced test results summary
-        if: always()
-        run: |
-          echo "## ✅ Unit & Integration Test Summary - Python ${{ matrix.python-version }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          if [ -n "$TESTS_TOTAL" ]; then
-            echo "### 📊 Test Results Overview" >> $GITHUB_STEP_SUMMARY
-            echo "- **Total Tests**: $TESTS_TOTAL" >> $GITHUB_STEP_SUMMARY
-            echo "- **Passed**: $TESTS_PASSED ✅" >> $GITHUB_STEP_SUMMARY
-            echo "- **Failed**: $TESTS_FAILED ❌" >> $GITHUB_STEP_SUMMARY
-            echo "- **Errors**: $TESTS_ERROR 🔥" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            
-            if [ "$TESTS_TOTAL" -gt 0 ]; then
-              PASS_RATE=$((TESTS_PASSED * 100 / TESTS_TOTAL))
-              echo "- **Pass Rate**: $PASS_RATE%" >> $GITHUB_STEP_SUMMARY
-            fi
-          fi
-          
-          if [ -n "$COVERAGE_SUMMARY" ]; then
-            echo "### 📈 Coverage Summary" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "$COVERAGE_SUMMARY" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-          fi
-          
-          if [ -n "$TEST_RESULTS_TABLE" ]; then
-            echo "### 🔍 Individual Test Results" >> $GITHUB_STEP_SUMMARY
-            echo "$TEST_RESULTS_TABLE" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-          fi
-
-      - name: Upload test artifacts
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: test-results-${{ matrix.python-version }}
-          path: |
-            test_results/
-            coverage.xml
-            tests/reports/htmlcov/unit/
-          retention-days: 30
-          if-no-files-found: warn
-  
-  selenium-tests:
-    runs-on: ubuntu-latest
-    name: Selenium UI Tests
-    needs: unit-tests
-    if: always()
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -214,383 +30,114 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Cache pip dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-selenium-${{ hashFiles('requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-selenium-
-            ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-
-            ${{ runner.os }}-pip-
-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest pytest-cov pytest-flask factory-boy coverage selenium webdriver-manager
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install pytest pytest-cov selenium
 
-      - name: Install Chrome
+      - name: Run Python Unit & Integration Tests
+        id: pytests
         run: |
-          wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
-          sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list'
-          sudo apt-get update
-          sudo apt-get install -y google-chrome-stable
-
-      - name: Start Xvfb (for headless browser)
-        run: |
-          sudo apt-get install -y xvfb
-          Xvfb :99 & export DISPLAY=:99
-
-      - name: Create test directories
-        run: mkdir -p test_results
-
-      - name: Run Selenium tests
-        env:
-          DISPLAY: :99
-          DATABASE_URL: sqlite:///tests/test_selenium.db
-          CHROME_HEADLESS: true
-        run: |
-          if [ -d "tests/selenium_tests" ] && find tests/selenium_tests -name "test_*.py" | grep -q .; then
-            echo "Running selenium tests from tests/selenium_tests/"
-            pytest tests/selenium_tests/ --junitxml=test_results/selenium-test-results.xml --html=test_results/selenium-report.html --self-contained-html -v
-          elif [ -d "tests/selenium" ] && find tests/selenium -name "test_*.py" | grep -q .; then
-            echo "Running selenium tests from tests/selenium/"
-            pytest tests/selenium/ --junitxml=test_results/selenium-test-results.xml --html=test_results/selenium-report.html --self-contained-html -v
-          elif find . -name "*selenium*test*.py" | grep -q .; then
-            echo "Running selenium tests by filename pattern"
-            pytest $(find . -name "*selenium*test*.py") --junitxml=test_results/selenium-test-results.xml --html=test_results/selenium-report.html --self-contained-html -v
-          else
-            echo "No selenium tests found, creating empty results"
-            echo '<?xml version="1.0" encoding="UTF-8"?><testsuites tests="0" failures="0" errors="0" time="0"><testsuite name="empty" tests="0" failures="0" errors="0" time="0"></testsuite></testsuites>' > test_results/selenium-test-results.xml
-          fi
-
-      - name: Parse Selenium test results
-        if: always()
-        run: |
-          if [ -f "test_results/selenium-test-results.xml" ]; then
-            python3 << 'EOF'
-          import xml.etree.ElementTree as ET
-          import os
-          
-          try:
-              tree = ET.parse('test_results/selenium-test-results.xml')
-              root = tree.getroot()
-              
-              total_tests = int(root.get('tests', 0))
-              failures = int(root.get('failures', 0))
-              errors = int(root.get('errors', 0))
-              passed = total_tests - failures - errors
-              
-              with open(os.environ['GITHUB_ENV'], 'a') as f:
-                  f.write(f'SELENIUM_TESTS_TOTAL={total_tests}\n')
-                  f.write(f'SELENIUM_TESTS_PASSED={passed}\n')
-                  f.write(f'SELENIUM_TESTS_FAILED={failures}\n')
-                  f.write(f'SELENIUM_TESTS_ERROR={errors}\n')
-          except Exception as e:
-              print(f"Error parsing selenium test results: {e}")
-          EOF
-          fi
-
-      - name: Enhanced Selenium test summary
-        if: always()
-        run: |
-          echo "## 🌐 Selenium Test Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          if [ -n "$SELENIUM_TESTS_TOTAL" ]; then
-            echo "### 📊 UI Test Results Overview" >> $GITHUB_STEP_SUMMARY
-            echo "- **Total Tests**: $SELENIUM_TESTS_TOTAL" >> $GITHUB_STEP_SUMMARY
-            echo "- **Passed**: $SELENIUM_TESTS_PASSED ✅" >> $GITHUB_STEP_SUMMARY
-            echo "- **Failed**: $SELENIUM_TESTS_FAILED ❌" >> $GITHUB_STEP_SUMMARY
-            echo "- **Errors**: $SELENIUM_TESTS_ERROR 🔥" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            
-            if [ "$SELENIUM_TESTS_TOTAL" -gt 0 ]; then
-              PASS_RATE=$((SELENIUM_TESTS_PASSED * 100 / SELENIUM_TESTS_TOTAL))
-              echo "- **Pass Rate**: $PASS_RATE%" >> $GITHUB_STEP_SUMMARY
-            fi
-          fi
-
-      - name: Publish Test Results
-        uses: dorny/test-reporter@v1
-        if: always() && hashFiles('test_results/*.xml') != ''
-        with:
-          name: Selenium UI Tests
-          path: test_results/*.xml
-          reporter: java-junit
-          fail-on-error: false
-
-      - name: Upload Selenium test results
+          mkdir -p test_results
+          pytest \
+            --junitxml=test_results/unit-test-results.xml \
+            --cov=. --cov-report html:tests/reports/htmlcov/unit \
+            tests/
+      - name: Archive Python test artifacts
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: selenium-test-results
+          name: test-results-python
           path: |
-            test_results/
-            tests/test_screenshots/
-          retention-days: 30
-          if-no-files-found: warn
+            test_results/unit-test-results.xml
+            tests/reports/htmlcov/unit
 
-  deploy-coverage:
-    runs-on: ubuntu-latest
-    needs: [unit-tests]
-    if: startsWith(github.ref, 'refs/heads/')
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Download coverage artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: test-results-3.11
-          path: coverage-artifacts
-
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: coverage-artifacts/tests/reports/htmlcov/unit
-          destination_dir: coverage/${{ github.ref_name }}
-
-  generate-report:
-    runs-on: ubuntu-latest
-    name: Generate Comprehensive Report
-    needs: [unit-tests, selenium-tests]
-    if: always()
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: Debug artifact structure
+      - name: Run Selenium UI Tests
+        id: seltests
         run: |
-          echo "=== Artifact Structure ==="
-          find artifacts -type f -name "*.xml" | head -20
-          echo "=== Directory Structure ==="
-          ls -la artifacts/
-          echo "=== Test Results Files ==="
-          find artifacts -name "*test-results.xml" -exec ls -la {} \;
-
-      - name: Generate comprehensive report
-        run: |
-          echo "## 📊 Pipeline Summary" > report.md
-          echo "" >> report.md
-          echo "Generated on: $(date)" >> report.md
-          echo "" >> report.md
-          
-          # Summary section
-          echo "## 📈 Test Results Summary" >> report.md
-          echo "" >> report.md
-          
-          # Initialize counters
-          total_unit_tests=0
-          total_unit_passed=0
-          total_unit_failed=0
-          total_unit_errors=0
-          total_unit_coverage=0
-          
-          total_selenium_tests=0
-          total_selenium_passed=0
-          total_selenium_failed=0
-          total_selenium_errors=0
-          
-          # Process unit tests (only for 3.11 since matrix is limited to 3.11)
-          xml_file="artifacts/test-results-3.11/test_results/unit-test-results.xml"
-          coverage_file="artifacts/test-results-3.11/tests/reports/htmlcov/unit/index.html"  # Updated path
-          if [ -f "$xml_file" ]; then
-            echo "### 🐍 Python 3.11 Unit Tests" >> report.md
-            python3 << EOF >> report.md
-          import xml.etree.ElementTree as ET
-          import sys
-          
-          try:
-              tree = ET.parse('$xml_file')
-              root = tree.getroot()
-              
-              if root.tag == 'testsuites':
-                  total = sum(int(suite.get('tests', 0)) for suite in root.findall('testsuite'))
-                  failures = sum(int(suite.get('failures', 0)) for suite in root.findall('testsuite'))
-                  errors = sum(int(suite.get('errors', 0)) for suite in root.findall('testsuite'))
-              else:
-                  total = int(root.get('tests', 0))
-                  failures = int(root.get('failures', 0))
-                  errors = int(root.get('errors', 0))
-              
-              passed = total - failures - errors
-              
-              print(f"- **Total Tests**: {total}")
-              print(f"- **Passed**: {passed} ✅")
-              print(f"- **Failed**: {failures} ❌")
-              print(f"- **Errors**: {errors} 🔥")
-              if total > 0:
-                  print(f"- **Pass Rate**: {passed * 100 // total}%")
-              print("")
-              
-              # Extract coverage if available (using XML for consistency)
-              coverage = 0
-              if os.path.exists('${coverage_file%.html}.xml'.replace('index.xml', 'coverage.xml')):  # Adjust to find coverage.xml
-                  cov_tree = ET.parse('${coverage_file%.html}.xml'.replace('index.xml', 'coverage.xml'))
-                  cov_root = cov_tree.getroot()
-                  coverage = float(cov_root.get('line-rate', 0)) * 100
-                  print(f"- **Code Coverage**: {coverage:.2f}%")
-              
-              with open('/tmp/unit_3.11.txt', 'w') as f:
-                  f.write(f"{total},{passed},{failures},{errors},{coverage}")
-                  
-          except Exception as e:
-              print(f"❌ Error processing Python 3.11 results: {e}")
-              print("")
-          EOF
-          else
-            echo "⚠️ No unit test results found for Python 3.11" >> report.md
-            echo "" >> report.md
-          fi
-          
-          # Process Selenium tests
-          selenium_xml="artifacts/selenium-test-results/test_results/selenium-test-results.xml"
-          if [ -f "$selenium_xml" ]; then
-            echo "### 🌐 Selenium UI Tests" >> report.md
-            python3 << EOF >> report.md
-          import xml.etree.ElementTree as ET
-          
-          try:
-              tree = ET.parse('$selenium_xml')
-              root = tree.getroot()
-              
-              if root.tag == 'testsuites':
-                  total = sum(int(suite.get('tests', 0)) for suite in root.findall('testsuite'))
-                  failures = sum(int(suite.get('failures', 0)) for suite in root.findall('testsuite'))
-                  errors = sum(int(suite.get('errors', 0)) for suite in root.findall('testsuite'))
-              else:
-                  total = int(root.get('tests', 0))
-                  failures = int(root.get('failures', 0))
-                  errors = int(root.get('errors', 0))
-              
-              passed = total - failures - errors
-              
-              print(f"- **Total Tests**: {total}")
-              print(f"- **Passed**: {passed} ✅")
-              print(f"- **Failed**: {failures} ❌")
-              print(f"- **Errors**: {errors} 🔥")
-              if total > 0:
-                  print(f"- **Pass Rate**: {passed * 100 // total}%")
-              print("")
-              
-              with open('/tmp/selenium.txt', 'w') as f:
-                  f.write(f"{total},{passed},{failures},{errors}")
-                  
-          except Exception as e:
-              print(f"❌ Error processing Selenium results: {e}")
-              print("")
-          EOF
-          else
-            echo "⚠️ No Selenium test results found" >> report.md
-            echo "" >> report.md
-          fi
-          
-          # Generate overall summary with table
-          echo "## 🎯 Overall Summary" >> report.md
-          echo "" >> report.md
-          
-          python3 << EOF >> report.md
-          import os
-          
-          # Aggregate unit test results
-          unit_total, unit_passed, unit_failed, unit_errors, unit_coverage = 0, 0, 0, 0, 0
-          try:
-              with open('/tmp/unit_3.11.txt', 'r') as f:
-                  data = f.read().strip().split(',')
-                  unit_total = int(data[0])
-                  unit_passed = int(data[1])
-                  unit_failed = int(data[2])
-                  unit_errors = int(data[3])
-                  unit_coverage = float(data[4])
-          except:
-              pass
-          
-          # Aggregate selenium results
-          selenium_total, selenium_passed, selenium_failed, selenium_errors = 0, 0, 0, 0
-          try:
-              with open('/tmp/selenium.txt', 'r') as f:
-                  data = f.read().strip().split(',')
-                  selenium_total = int(data[0])
-                  selenium_passed = int(data[1])
-                  selenium_failed = int(data[2])
-                  selenium_errors = int(data[3])
-          except:
-              pass
-          
-          # Overall totals
-          grand_total = unit_total + selenium_total
-          grand_passed = unit_passed + selenium_passed
-          grand_failed = unit_failed + selenium_failed
-          grand_errors = unit_errors + selenium_errors
-          
-          # Summary Table
-          print(f"### 📋 Summary Table")
-          print(f"| Category | Total Tests | Passed ✅ | Failed ❌ | Errors 🔥 | Pass Rate | Coverage |")
-          print(f"|----------|-------------|-----------|-----------|-----------|-----------|----------|")
-          print(f"| Unit Tests | {unit_total} | {unit_passed} | {unit_failed} | {unit_errors} | {unit_passed * 100 // unit_total if unit_total > 0 else 0}% | {unit_coverage:.2f}% |")
-          print(f"| UI Tests | {selenium_total} | {selenium_passed} | {selenium_failed} | {selenium_errors} | {selenium_passed * 100 // selenium_total if selenium_total > 0 else 0}% | N/A |")
-          print(f"| **Total** | **{grand_total}** | **{grand_passed}** | **{grand_failed}** | **{grand_errors}** | **{grand_passed * 100 // grand_total if grand_total > 0 else 0}%** | N/A |")
-          print("")
-          
-          # Links to detailed reports
-          echo "### 🔗 Detailed Reports" >> report.md
-          echo "- [Unit Test Results (Python 3.11)](https://github.com/growwithgrepx/transPort/actions/runs/${{ github.run_id }}/artifacts)" >> report.md
-          echo "- [Selenium UI Test Results](https://github.com/growwithgrepx/transPort/actions/runs/${{ github.run_id }}/artifacts)" >> report.md
-          echo "- [Coverage Report](https://growwithgrepx.github.io/transPort/coverage/${GITHUB_REF_NAME}/index.html)" >> report.md
-          echo "" >> report.md
-
-      - name: Display report content
-        run: |
-          echo "=== Generated Report Content ==="
-          cat report.md
-
-      - name: Generate step summary
-        run: |
-          echo "## 📊 Pipeline Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          cat report.md >> $GITHUB_STEP_SUMMARY
-
-      - name: Comment PR with comprehensive report
-        if: github.event_name == 'pull_request' && always()
-        uses: actions/github-script@v7
+          mkdir -p ui_test_results
+          pytest \
+            --junitxml=ui_test_results/selenium-test-results.xml \
+            tests/ui/
+      - name: Archive Selenium test artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
         with:
-          script: |
-            const fs = require('fs');
-            
-            try {
-              const report = fs.readFileSync('report.md', 'utf8');
-              
-              const repoUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}`;
-              const runUrl = `${repoUrl}/actions/runs/${context.runId}`;
-              const branch = process.env.GITHUB_REF_NAME || context.ref.replace('refs/heads/', '');
-              
-              const fullReport = report + `
+          name: test-results-selenium
+          path: |
+            ui_test_results/selenium-test-results.xml
 
-            ## 🔗 Quick Links
-            - 📊 [View Full Pipeline Results](${runUrl})
-            - 📈 [Coverage Report](https://growwithgrepx.github.io/transPort/coverage/${branch}/index.html)
-            - 📁 [Download All Artifacts](${runUrl}/artifacts)
-            - 🏠 [Repository](${repoUrl})
-            
-            ---
-            *This report was automatically generated by the CI/CD pipeline*
-            `;
-              
-              github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: fullReport
-              });
-            } catch (error) {
-              console.error('Error posting comprehensive report:', error);
-              console.error('Error details:', error.message);
-            }
+      - name: Generate Comprehensive Report
+        run: |
+          # Start fresh
+          echo "## 📊 Pipeline Summary" > $REPORT_FILE
+          echo "" >> $REPORT_FILE
+
+          # 1) Python tests summary
+          echo "### ✅ Unit & Integration Test Summary - Python $PYTHON_VERSION" >> $REPORT_FILE
+          python3 << EOF >> $REPORT_FILE
+import xml.etree.ElementTree as ET
+import sys
+path = "test_results/unit-test-results.xml"
+try:
+  tree = ET.parse(path)
+  root = tree.getroot()
+  if root.tag == 'testsuites':
+    total = sum(int(suite.get('tests',0)) for suite in root.findall('testsuite'))
+    passed= sum(int(suite.get('tests',0)) - int(suite.get('failures',0)) - int(suite.get('errors',0)) for suite in root.findall('testsuite'))
+    failed= sum(int(suite.get('failures',0)) for suite in root.findall('testsuite'))
+    errors= sum(int(suite.get('errors',0)) for suite in root.findall('testsuite'))
+  else:
+    total = int(root.get('tests',0))
+    failed= int(root.get('failures',0))
+    errors= int(root.get('errors',0))
+    passed= total - failed - errors
+  print(f"Total Tests: {total}")
+  print(f"Passed: {passed} ✅")
+  print(f"Failed: {failed} ❌")
+  print(f"Errors: {errors} 🔥")
+except FileNotFoundError:
+  print("Total Tests: 0")
+  print("Passed: 0 ✅")
+  print("Failed: 0 ❌")
+  print("Errors: 0 🔥")
+EOF
+          echo "" >> $REPORT_FILE
+
+          # 2) Selenium tests summary
+          echo "### 🌐 Selenium UI Test Summary" >> $REPORT_FILE
+          python3 << EOF >> $REPORT_FILE
+import xml.etree.ElementTree as ET
+path = "ui_test_results/selenium-test-results.xml"
+try:
+  root = ET.parse(path).getroot()
+  total = int(root.get('tests',0))
+  failed= int(root.get('failures',0))
+  errors= int(root.get('errors',0))
+  passed= total - failed - errors
+  print(f"Total Tests: {total}")
+  print(f"Passed: {passed} ✅")
+  print(f"Failed: {failed} ❌")
+  print(f"Errors: {errors} 🔥")
+except FileNotFoundError:
+  print("Total Tests: 0")
+  print("Passed: 0 ✅")
+  print("Failed: 0 ❌")
+  print("Errors: 0 🔥")
+EOF
+          echo "" >> $REPORT_FILE
+
+          # 3) Detailed reports links
+          echo "### 🔗 Detailed Reports" >> $REPORT_FILE
+          echo "- [Unit HTML Coverage](tests/reports/htmlcov/unit/index.html)" >> $REPORT_FILE
+          echo "- [JUnit XML (Python)](test_results/unit-test-results.xml)" >> $REPORT_FILE
+          echo "- [JUnit XML (Selenium)](ui_test_results/selenium-test-results.xml)" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+
+      - name: Upload final report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pipeline-report
+          path: ${{ env.REPORT_FILE }}
