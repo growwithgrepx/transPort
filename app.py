@@ -1121,6 +1121,11 @@ def add_agent():
             response.headers['HX-Trigger'] = 'closeModal'
             return response
         return redirect(url_for('agents'))
+    # Serve only the form partial for HTMX/modal requests
+    if request.headers.get('HX-Request') == 'true':
+        return render_template('agent_form.html', action='Add', agent=None, errors=errors,
+                               action_url=url_for('add_agent'), hx_post_url=url_for('add_agent'),
+                               hx_target='#agents-table', hx_swap='outerHTML')
     return render_template('add_agent.html', action='Add', agent=None, errors=errors)
 
 
