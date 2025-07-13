@@ -1089,9 +1089,7 @@ def add_agent():
             response.headers['HX-Trigger'] = 'closeModal'
             return response
         return redirect(url_for('agents'))
-    return render_template('agent_form.html', action='Add', agent=None, errors=errors,
-                           action_url=url_for('add_agent'), hx_post_url=url_for('add_agent'), hx_target='#agents-table',
-                           hx_swap='outerHTML')
+    return render_template('add_agent.html', action='Add', agent=None, errors=errors)
 
 
 @app.route('/agents/add_ajax', methods=['POST'])
@@ -1353,7 +1351,7 @@ def add_service():
         db.session.add(service)
         db.session.commit()
         return redirect(url_for('services'))
-    return render_template('service_form.html', action='Add', service=None)
+    return render_template('add_service.html', action='Add', service=None)
 
 
 @app.route('/services/edit/<int:service_id>', methods=['GET', 'POST'])
@@ -1367,7 +1365,7 @@ def edit_service(service_id):
         service.base_price = float(request.form.get('base_price', 0))
         db.session.commit()
         return redirect(url_for('services'))
-    return render_template('service_form.html', action='Edit', service=service)
+    return render_template('edit_service.html', action='Edit', service=service)
 
 
 @app.route('/services/delete/<int:service_id>', methods=['POST'])
@@ -1434,7 +1432,7 @@ def add_vehicle():
         db.session.add(vehicle)
         db.session.commit()
         return redirect(url_for('vehicles'))
-    return render_template('vehicle_form.html', action='Add', vehicle=None, errors=errors)
+    return render_template('add_vehicle.html', action='Add', vehicle=None, errors=errors)
 
 
 @app.route('/vehicles/edit/<int:vehicle_id>', methods=['GET', 'POST'])
@@ -1449,7 +1447,7 @@ def edit_vehicle(vehicle_id):
         vehicle.status = request.form['status']
         db.session.commit()
         return redirect(url_for('vehicles'))
-    return render_template('vehicle_form.html', action='Edit', vehicle=vehicle, errors=errors)
+    return render_template('edit_vehicle.html', action='Edit', vehicle=vehicle, errors=errors)
 
 
 @app.route('/vehicles/delete/<int:vehicle_id>', methods=['POST'])

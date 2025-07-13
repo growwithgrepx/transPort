@@ -50,10 +50,7 @@
               <td>
                 <div class="d-flex justify-content-center align-items-center gap-2">
                   <a href="{{ url_for('edit_service', service_id=service.id) }}" class="btn btn-outline-primary btn-sm d-flex align-items-center justify-content-center" title="Edit"><i class="bi bi-pencil text-primary"></i></a>
-                  <form action="{{ url_for('delete_service', service_id=service.id) }}" method="post" style="display:inline;">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="btn btn-outline-danger btn-sm d-flex align-items-center justify-content-center" title="Delete" onclick="return confirm('Delete this service?');"><i class="bi bi-trash text-danger"></i></button>
-                  </form>
+                  <button type="button" class="btn btn-outline-danger btn-sm d-flex align-items-center justify-content-center" title="Delete" onclick="deleteService({{ service.id }})"><i class="bi bi-trash text-danger"></i></button>
                 </div>
               </td>
             </tr>
@@ -64,4 +61,25 @@
     </form>
   </div>
 </div>
+
+<script>
+// Function to delete a service
+function deleteService(serviceId) {
+  if (confirm('Delete this service?')) {
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/services/delete/' + serviceId;
+    
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    const csrfInput = document.createElement('input');
+    csrfInput.type = 'hidden';
+    csrfInput.name = 'csrf_token';
+    csrfInput.value = csrfToken;
+    
+    form.appendChild(csrfInput);
+    document.body.appendChild(form);
+    form.submit();
+  }
+}
+</script>
 {% endblock %} 

@@ -1,7 +1,15 @@
-<form method="post" action="{{ action_url or url_for('add_service_ajax') }}" {% if hx_post_url is defined %}hx-post="{{ hx_post_url }}"{% endif %} {% if hx_target is defined %}hx-target="{{ hx_target }}"{% endif %} {% if hx_swap is defined %}hx-swap="{{ hx_swap }}"{% endif %} id="service-form">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <div class="card mb-3">
-    <div class="card-body">
+{% extends 'base.html' %}
+{% block title %}Edit Service - Admin Portal{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="mb-0"><i class="bi bi-gear me-2"></i>Edit Service</h2>
+  <a href="{{ url_for('services') }}" class="btn btn-secondary btn-lg"><i class="bi bi-arrow-left me-1"></i>Back to Services</a>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body">
+    <form method="post" action="{{ url_for('edit_service', service_id=service.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="row g-3">
         <div class="col-md-6">
           <label for="name" class="form-label">Name <span class="text-danger">*</span></label>
@@ -29,10 +37,11 @@
           {% endif %}
         </div>
       </div>
-    </div>
+      <div class="d-flex justify-content-end gap-2 mt-4">
+        <button type="submit" class="btn btn-primary" style="background-color: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px;">Save Changes</button>
+        <a href="{{ url_for('services') }}" class="btn btn-secondary">Cancel</a>
+      </div>
+    </form>
   </div>
-  <div class="d-flex justify-content-end gap-2">
-    <button type="submit" class="btn btn-primary">{{ action or 'Add Service' }}</button>
-    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-  </div>
-</form> 
+</div>
+{% endblock %} 
