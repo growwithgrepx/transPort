@@ -37,7 +37,7 @@
                   <select class="form-select" id="agent_id" name="agent_id" required>
                     <option value="">Select Agent</option>
                     {% for agent in agents %}
-                      <option value="{{ agent.id }}" data-email="{{ agent.email }}" data-mobile="{{ agent.phone }}">
+                      <option value="{{ agent.id }}" data-email="{{ agent.email }}" data-mobile="{{ agent.mobile }}">
                         {{ agent.name }}
                       </option>
                     {% endfor %}
@@ -81,10 +81,6 @@
                   </button>
                 </div>
               {% endif %}
-            </div>
-            <div class="col-md-6">
-              <label class="form-label fw-bold">Agent</label>
-              <input type="text" class="form-control" id="agent_name" name="agent_name" value="{{ job.agent.name if job and job.agent else '' }}" readonly>
             </div>
 
             <!-- Trip Details -->
@@ -268,12 +264,12 @@
             </div>
             <div class="col-12">
               <label for="additional_discount_percent" class="form-label fw-bold">Additional Discount</label>
-              <input type="number" class="form-control" id="additional_discount_percent" name="additional_discount_percent" step="0.01" min="0" max="100">
+              <input type="number" class="form-control" id="additional_discount_percent" name="additional_discount_percent" step="0.01" min="0" max="100" onchange="calculatePricing()">
               <small class="text-muted">Optional additional discount</small>
             </div>
             <div class="col-12">
               <label for="additional_charges" class="form-label fw-bold">Additional Charges</label>
-              <input type="number" class="form-control" id="additional_charges" name="additional_charges" step="0.01" min="0">
+              <input type="number" class="form-control" id="additional_charges" name="additional_charges" step="0.01" min="0" onchange="calculatePricing()">
               <small class="text-muted">Extra charges (tolls, waiting, etc.)</small>
             </div>
             <div class="col-12">
@@ -283,7 +279,7 @@
             </div>
             <div class="col-12">
               <label for="invoice_number" class="form-label fw-bold">Invoice Number</label>
-              <input type="text" class="form-control" id="invoice_number" name="invoice_number" readonly>
+              <input type="text" class="form-control" id="invoice_number" name="invoice_number" placeholder="Auto-generated">
               <small class="text-muted">Generated when invoice is created</small>
             </div>
           </div>
@@ -345,12 +341,10 @@
     if (selectedOption.value) {
       document.getElementById('customer_email').value = selectedOption.dataset.email || '';
       document.getElementById('customer_mobile').value = selectedOption.dataset.mobile || '';
-      document.getElementById('agent_name').value = selectedOption.textContent;
       calculatePricing();
     } else {
       document.getElementById('customer_email').value = '';
       document.getElementById('customer_mobile').value = '';
-      document.getElementById('agent_name').value = '';
     }
   });
 

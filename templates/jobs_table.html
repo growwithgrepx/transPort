@@ -1,29 +1,29 @@
 <div class="table-responsive">
 <!-- Search/filter form (outside the table) -->
 <form method="get" action="{{ url_for('jobs_table') }}" hx-get="{{ url_for('jobs_table') }}" hx-target="#jobs-table" hx-push-url="true">
-  <table class="table table-bordered table-hover table-striped align-middle">
+  <table class="table table-bordered table-hover table-striped align-middle" style="font-size: 0.9rem;">
     <thead class="table-light">
       <tr>
-        <th>
+        <th style="width: 40px;">
           <input type="checkbox" id="selectAll" class="form-check-input" title="Select All">
         </th>
-        <th>Customer Name</th>
-        <th>Customer Mobile</th>
-        <th>Passenger Name</th>
-        <th>Type of Service</th>
-        <th>Date</th>
-        <th>Time</th>
-        <th>Pickup</th>
-        <th>Drop-off</th>
-        <th>Vehicle</th>
-        <th>Driver Contact</th>
-        <th>Base Price</th>
-        <th>Discounts</th>
-        <th>Additional Charges</th>
-        <th>Final Price</th>
-        <th>Payment Status</th>
-        <th>Job Status</th>
-        <th>Actions</th>
+        <th style="width: 120px;">Customer Name</th>
+        <th style="width: 100px;">Customer Mobile</th>
+        <th style="width: 120px;">Passenger Name</th>
+        <th style="width: 100px;">Type of Service</th>
+        <th style="width: 90px;">Date</th>
+        <th style="width: 80px;">Time</th>
+        <th style="width: 120px;">Pickup</th>
+        <th style="width: 120px;">Drop-off</th>
+        <th style="width: 100px;">Vehicle</th>
+        <th style="width: 100px;">Driver Contact</th>
+        <th style="width: 90px;">Base Price</th>
+        <th style="width: 100px;">Discounts</th>
+        <th style="width: 100px;">Additional Charges</th>
+        <th style="width: 90px;">Final Price</th>
+        <th style="width: 100px;">Payment Status</th>
+        <th style="width: 100px;">Job Status</th>
+        <th style="width: 120px;">Actions</th>
       </tr>
       <tr>
         <th></th>
@@ -77,23 +77,23 @@
     <tbody>
       {% for job in jobs %}
       <tr data-job-id="{{ job.id }}" onclick="openJobView('{{ job.id }}')" style="cursor: pointer;">
-        <td>
+        <td class="text-center">
           <input type="checkbox" name="selected_jobs" value="{{ job.id }}" class="form-check-input">
         </td>
-        <td>{{ job.customer_name }}</td>
-        <td>{{ job.customer_mobile }}</td>
-        <td>{{ job.passenger_name }}</td>
-        <td>{{ job.type_of_service }}</td>
-        <td>{{ job.pickup_date }}</td>
-        <td>{{ job.pickup_time }}</td>
-        <td>{{ job.pickup_location }}</td>
-        <td>{{ job.dropoff_location }}</td>
-        <td>{{ job.vehicle_type }} {{ job.vehicle_number }}</td>
-        <td>{{ job.driver_contact }}</td>
-        <td>
+        <td class="text-nowrap">{{ job.customer_name or '-' }}</td>
+        <td class="text-nowrap">{{ job.customer_mobile or '-' }}</td>
+        <td class="text-nowrap">{{ job.passenger_name or '-' }}</td>
+        <td class="text-nowrap">{{ job.type_of_service or '-' }}</td>
+        <td class="text-nowrap">{{ job.pickup_date or '-' }}</td>
+        <td class="text-nowrap">{{ job.pickup_time or '-' }}</td>
+        <td class="text-nowrap" title="{{ job.pickup_location }}">{{ job.pickup_location[:20] + '...' if job.pickup_location and job.pickup_location|length > 20 else job.pickup_location or '-' }}</td>
+        <td class="text-nowrap" title="{{ job.dropoff_location }}">{{ job.dropoff_location[:20] + '...' if job.dropoff_location and job.dropoff_location|length > 20 else job.dropoff_location or '-' }}</td>
+        <td class="text-nowrap">{{ job.vehicle_type or '-' }} {{ job.vehicle_number or '' }}</td>
+        <td class="text-nowrap">{{ job.driver_contact or '-' }}</td>
+        <td class="text-end">
           <span class="text-success fw-bold">${{ "%.2f"|format(job.base_price or 0) }}</span>
         </td>
-        <td>
+        <td class="text-center">
           {% set total_discount = (job.base_discount_percent or 0) + (job.agent_discount_percent or 0) + (job.additional_discount_percent or 0) %}
           <span class="text-danger fw-bold">-{{ "%.1f"|format(total_discount) }}%</span>
           <br><small class="text-muted">
@@ -102,22 +102,22 @@
             (Add: {{ "%.1f"|format(job.additional_discount_percent or 0) }}%)
           </small>
         </td>
-        <td>
+        <td class="text-end">
           SGD {{ "%.2f"|format(job.additional_charges or 0) }}
         </td>
-        <td>
+        <td class="text-end">
           <span class="fw-bold">${{ "%.2f"|format(job.final_price or 0) }}</span>
         </td>
-        <td>
+        <td class="text-center">
           {% if job.payment_status == 'Paid' %}
             <span class="badge bg-success">Paid</span>
           {% elif job.payment_status == 'Unpaid' %}
             <span class="badge bg-warning text-dark">Unpaid</span>
           {% else %}
-            <span class="badge bg-secondary">{{ job.payment_status }}</span>
+            <span class="badge bg-secondary">{{ job.payment_status or 'Pending' }}</span>
           {% endif %}
         </td>
-        <td>
+        <td class="text-center">
           {% if job.status == 'Completed' %}
             <span class="badge bg-success">Completed</span>
           {% elif job.status == 'Scheduled' %}
@@ -131,11 +131,21 @@
           {% elif job.status == 'No Show' %}
             <span class="badge bg-secondary">No Show</span>
           {% else %}
-            <span class="badge bg-secondary">{{ job.status }}</span>
+            <span class="badge bg-secondary">{{ job.status or 'Pending' }}</span>
           {% endif %}
+          <br>
+          <select class="form-select form-select-sm mt-1" onchange="updateJobStatus({{ job.id }}, this.value)" style="width: 100px; font-size: 0.8rem;">
+            <option value="">Change Status</option>
+            <option value="Scheduled" {% if job.status == 'Scheduled' %}selected{% endif %}>Scheduled</option>
+            <option value="In Progress" {% if job.status == 'In Progress' %}selected{% endif %}>In Progress</option>
+            <option value="Completed" {% if job.status == 'Completed' %}selected{% endif %}>Completed</option>
+            <option value="Cancelled" {% if job.status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+            <option value="Failed" {% if job.status == 'Failed' %}selected{% endif %}>Failed</option>
+            <option value="No Show" {% if job.status == 'No Show' %}selected{% endif %}>No Show</option>
+          </select>
         </td>
-        <td>
-          <div class="d-flex justify-content-center align-items-center gap-2" onclick="event.stopPropagation();">
+        <td class="text-center">
+          <div class="d-flex justify-content-center align-items-center gap-1" onclick="event.stopPropagation();">
             <a href="{{ url_for('view_job', job_id=job.id) }}" class="btn btn-outline-info btn-sm d-flex align-items-center justify-content-center" title="View"><i class="bi bi-eye text-info"></i></a>
             <a href="{{ url_for('edit_job', job_id=job.id) }}" class="btn btn-outline-primary btn-sm d-flex align-items-center justify-content-center" title="Edit"><i class="bi bi-pencil text-primary"></i></a>
             <button type="button" class="btn btn-outline-danger btn-sm d-flex align-items-center justify-content-center" title="Delete" onclick="deleteJob({{ job.id }})"><i class="bi bi-trash text-danger"></i></button>
@@ -220,5 +230,61 @@ function deleteJob(jobId) {
     console.log('Form created and about to submit');
     form.submit();
   }
+}
+
+// Function to update job status
+function updateJobStatus(jobId, newStatus) {
+  if (!newStatus) return; // Don't update if no status selected
+  
+  console.log('updateJobStatus called with jobId:', jobId, 'newStatus:', newStatus);
+  
+  const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+  
+  fetch('/jobs/update_status/' + jobId, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': csrfToken
+    },
+    body: JSON.stringify({
+      status: newStatus
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      // Show success message
+      const toast = document.createElement('div');
+      toast.className = 'toast align-items-center text-white bg-success border-0 position-fixed top-0 end-0 m-3';
+      toast.style.zIndex = '9999';
+      toast.innerHTML = `
+        <div class="d-flex">
+          <div class="toast-body">
+            <i class="bi bi-check-circle me-2"></i>Job status updated successfully!
+          </div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+      `;
+      document.body.appendChild(toast);
+      const bsToast = new bootstrap.Toast(toast);
+      bsToast.show();
+      
+      // Remove toast after it's hidden
+      toast.addEventListener('hidden.bs.toast', () => {
+        document.body.removeChild(toast);
+      });
+      
+      // Reload the table to show updated status
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    } else {
+      alert('Error updating job status: ' + (data.message || 'Unknown error'));
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    alert('Error updating job status. Please try again.');
+  });
 }
 </script> 

@@ -828,19 +828,51 @@ def update_job_view(job_id):
 @login_required
 def delete_job(job_id):
     try:
-        from flask import request
-        app.logger.info(f"Delete job {job_id} - CSRF token received: {request.form.get('csrf_token')}")
         job = Job.query.get_or_404(job_id)
-        app.logger.info(f'Attempting to delete job {job_id} by user {current_user.username}')
         db.session.delete(job)
         db.session.commit()
-        flash('Job deleted successfully', 'success')
-        app.logger.info(f'Job {job_id} deleted successfully')
+        flash('Job deleted successfully!', 'success')
+        return redirect(url_for('jobs'))
     except Exception as e:
         db.session.rollback()
         app.logger.error(f'Error deleting job {job_id}: {str(e)}')
-        flash(f'Error deleting job: {str(e)}', 'error')
-    return redirect(url_for('jobs'))
+        flash('Error deleting job. Please try again.', 'error')
+        return redirect(url_for('jobs'))
+
+
+@app.route('/jobs/update_status/<int:job_id>', methods=['POST'])
+@login_required
+@validate_json_input
+def update_job_status(job_id):
+    try:
+        job = Job.query.get_or_404(job_id)
+        data = request.get_json()
+        
+        if not data or 'status' not in data:
+            return jsonify({'success': False, 'message': 'Status is required'}), 400
+        
+        new_status = data['status']
+        valid_statuses = ['Scheduled', 'In Progress', 'Completed', 'Cancelled', 'Failed', 'No Show']
+        
+        if new_status not in valid_statuses:
+            return jsonify({'success': False, 'message': 'Invalid status'}), 400
+        
+        job.status = new_status
+        db.session.commit()
+        
+        app.logger.info(f'Job {job_id} status updated to {new_status} by user {current_user.username}')
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Job status updated to {new_status}',
+            'new_status': new_status
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Error updating job status {job_id}: {str(e)}')
+        return jsonify({'success': False, 'message': 'Error updating job status'}), 500
+
 
 @app.route('/jobs/download', methods=['POST'])
 @login_required
