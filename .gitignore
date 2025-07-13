@@ -42,6 +42,21 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 
+# Test artifacts and reports (keep test source files)
+tests/htmlcov/
+tests/coverage/
+tests/.coverage
+tests/.coverage.*
+tests/coverage*.xml
+tests/*.cover
+tests/reports/
+tests/logs/
+tests/.pytest_cache/
+tests/__pycache__/
+tests/*.db
+tests/*.sqlite
+tests/*.sqlite3
+
 # Translations
 *.mo
 *.pot
@@ -118,14 +133,52 @@ Desktop.ini
 
 # Ignore migration cache, but keep migration scripts
 migrations/*.pyc
-migrations/__pycache__/ attached_assets
-logs
-.replit
-attached_assets/
+migrations/__pycache__/
 
 # Environment variable files
 .env.development
 .env.test
 
-# Test artifacts
+# Test artifacts and screenshots
 test_screenshots/
+logs/
+.replit
+attached_assets/
+
+# CI/CD artifacts
+.coverage
+coverage/
+htmlcov/
+*.coverage
+*.cover
+coverage.xml
+test-results/
+junit.xml
+test-report.xml
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+*.out
+
+# Database files (except migrations)
+*.sqlite
+*.sqlite3
+*.db
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

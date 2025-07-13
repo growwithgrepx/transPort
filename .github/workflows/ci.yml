@@ -1,0 +1,293 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - fleet-enhancements
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: '3.11'
+  CACHE_VERSION: v2
+  FLASK_ENV: testing
+  TESTING: true
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    name: Unit & Integration Tests
+    strategy:
+      matrix:
+        python-version: [3.9, 3.10, 3.11]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-${{ matrix.python-version }}-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-${{ matrix.python-version }}-
+            ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov pytest-flask factory-boy coverage selenium webdriver-manager
+
+      - name: Create test directories
+        run: |
+          mkdir -p tests/reports
+          mkdir -p tests/reports/htmlcov
+          mkdir -p test_results
+
+      - name: Run unit tests with coverage
+        env:
+          DATABASE_URL: sqlite:///tests/test_selenium.db
+        run: |
+          cd tests/config
+          python run_tests.py --unit
+        continue-on-error: true
+
+      - name: Run integration tests
+        env:
+          DATABASE_URL: sqlite:///tests/test_selenium.db
+        run: |
+          cd tests/config
+          python run_tests.py --integration
+        continue-on-error: true
+
+      - name: Run all tests with coverage
+        env:
+          DATABASE_URL: sqlite:///tests/test_selenium.db
+        run: |
+          cd tests/config
+          python run_tests.py --all
+        continue-on-error: true
+
+      - name: Manage test databases
+        env:
+          DATABASE_URL: sqlite:///tests/test_selenium.db
+        run: |
+          cd tests/config
+          python run_tests.py --manage-db
+        continue-on-error: true
+
+      - name: Run pytest directly (fallback)
+        env:
+          DATABASE_URL: sqlite:///tests/test_selenium.db
+        run: |
+          pytest tests/unit/ \
+            --cov=./ \
+            --cov-report=xml:coverage.xml \
+            --cov-report=html:htmlcov \
+            --junitxml=test_results/unit-test-results.xml \
+            --html=test_results/unit-report.html \
+            --self-contained-html \
+            -v
+
+      - name: Display test results summary
+        if: always()
+        run: |
+          echo "## ✅ Unit & Integration Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "🐍 **Python Version**: ${{ matrix.python-version }}" >> $GITHUB_STEP_SUMMARY
+          if [ -f "test_results/unit-test-results.xml" ]; then
+            echo "📊 **Test Results**: Available in artifacts" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -f "coverage.xml" ]; then
+            echo "📈 **Coverage Report**: Available in artifacts" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Publish Test Results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Unit & Integration Tests (${{ matrix.python-version }})
+          path: test_results/unit-test-results.xml
+          reporter: java-junit
+          fail-on-error: false
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report-${{ matrix.python-version }}
+          path: |
+            coverage.xml
+            htmlcov/
+            tests/reports/
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-${{ matrix.python-version }}
+          path: |
+            test_results/
+            tests/reports/
+          retention-days: 30
+
+  selenium-tests:
+    runs-on: ubuntu-latest
+    name: Selenium UI Tests
+    needs: unit-tests
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-selenium-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-selenium-
+            ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov pytest-flask factory-boy coverage selenium webdriver-manager
+
+      - name: Install Chrome
+        run: |
+          wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+          sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list'
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
+
+      - name: Start Xvfb (for headless browser)
+        run: |
+          sudo apt-get install -y xvfb
+          Xvfb :99 & export DISPLAY=:99
+
+      - name: Create test directories
+        run: |
+          mkdir -p tests/reports
+          mkdir -p test_results
+
+      - name: Run Selenium tests
+        env:
+          DISPLAY: :99
+          DATABASE_URL: sqlite:///tests/test_selenium.db
+          CHROME_HEADLESS: true
+        run: |
+          cd tests/config
+          python run_tests.py --selenium
+        continue-on-error: true
+
+      - name: Run pytest Selenium directly (fallback)
+        env:
+          DISPLAY: :99
+          DATABASE_URL: sqlite:///tests/test_selenium.db
+          CHROME_HEADLESS: true
+        run: |
+          pytest tests/selenium_tests/ \
+            --junitxml=test_results/selenium-test-results.xml \
+            --html=test_results/selenium-report.html \
+            --self-contained-html \
+            -v
+
+      - name: Display test results summary
+        if: always()
+        run: |
+          echo "## 🌐 Selenium Test Summary" >> $GITHUB_STEP_SUMMARY
+          if [ -f "test_results/selenium-test-results.xml" ]; then
+            echo "📊 **Selenium Results**: Available in artifacts" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Publish Test Results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Selenium UI Tests
+          path: test_results/selenium-test-results.xml
+          reporter: java-junit
+          fail-on-error: false
+
+      - name: Upload Selenium test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: selenium-test-results
+          path: |
+            test_results/
+            tests/reports/
+            tests/test_screenshots/
+          retention-days: 30
+
+      - name: Comment PR with test results
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            try {
+              let comment = `## 🧪 CI/CD Pipeline Results - Run #${{ github.run_number }}\n\n`;
+              
+              // Unit test results
+              const unitXmlPath = path.join('test_results', 'unit-test-results.xml');
+              if (fs.existsSync(unitXmlPath)) {
+                const unitXml = fs.readFileSync(unitXmlPath, 'utf8');
+                const unitTotal = parseInt(unitXml.match(/tests="(\d+)"/)?.[1] || '0', 10);
+                const unitFailures = parseInt(unitXml.match(/failures="(\d+)"/)?.[1] || '0', 10);
+                const unitErrors = parseInt(unitXml.match(/errors="(\d+)"/)?.[1] || '0', 10);
+                const unitPassed = unitTotal - unitFailures - unitErrors;
+                
+                comment += `### 📊 Unit & Integration Tests\n`;
+                comment += `**Summary**: ${unitPassed}/${unitTotal} tests passed `;
+                comment += (unitFailures > 0 || unitErrors > 0)
+                  ? `❌ (${unitFailures} failures, ${unitErrors} errors)\n\n`
+                  : `✅\n\n`;
+              }
+              
+              // Selenium test results
+              const seleniumXmlPath = path.join('test_results', 'selenium-test-results.xml');
+              if (fs.existsSync(seleniumXmlPath)) {
+                const seleniumXml = fs.readFileSync(seleniumXmlPath, 'utf8');
+                const seleniumTotal = parseInt(seleniumXml.match(/tests="(\d+)"/)?.[1] || '0', 10);
+                const seleniumFailures = parseInt(seleniumXml.match(/failures="(\d+)"/)?.[1] || '0', 10);
+                const seleniumErrors = parseInt(seleniumXml.match(/errors="(\d+)"/)?.[1] || '0', 10);
+                const seleniumPassed = seleniumTotal - seleniumFailures - seleniumErrors;
+                
+                comment += `### 🌐 Selenium UI Tests\n`;
+                comment += `**Summary**: ${seleniumPassed}/${seleniumTotal} tests passed `;
+                comment += (seleniumFailures > 0 || seleniumErrors > 0)
+                  ? `❌ (${seleniumFailures} failures, ${seleniumErrors} errors)\n\n`
+                  : `✅\n\n`;
+              }
+              
+              comment += `📊 **View Details**: [Pipeline Results](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n`;
+              comment += `📁 **Artifacts**: Test reports and coverage available in workflow artifacts\n`;
+              
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            } catch (error) {
+              console.error('Error posting comment:', error);
+            } 

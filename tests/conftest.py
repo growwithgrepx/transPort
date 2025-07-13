@@ -177,6 +177,27 @@ def seeded_db(test_app):
     yield _seeded_data
     logger.info("Test data preserved in database for debugging")
 
+@pytest.fixture(scope='function')
+def clean_db(test_app):
+    """Clean database between tests to avoid constraint violations"""
+    with test_app.app_context():
+        # Clear all data except the seeded data
+        from models.user import User
+        from models.job import Job
+        from models.role import Role
+        
+        # Delete all users except the seeded one
+        User.query.filter(User.username != 'fleetmanager').delete()
+        
+        # Delete all jobs
+        Job.query.delete()
+        
+        # Delete all roles except the seeded one
+        Role.query.filter(Role.name != 'fleet_manager').delete()
+        
+        db.session.commit()
+        yield
+
 # --- Live server fixture ---
 @pytest.fixture(scope='session')
 def live_server(test_app):
