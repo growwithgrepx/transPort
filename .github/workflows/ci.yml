@@ -51,47 +51,13 @@ jobs:
 
       - name: Create test directories
         run: |
-          mkdir -p tests/reports
-          mkdir -p tests/reports/htmlcov
           mkdir -p test_results
+          mkdir -p htmlcov
 
       - name: Run unit tests with coverage
         env:
           DATABASE_URL: sqlite:///tests/test_selenium.db
         run: |
-          cd tests/config
-          python run_tests.py --unit
-        continue-on-error: true
-
-      - name: Run integration tests
-        env:
-          DATABASE_URL: sqlite:///tests/test_selenium.db
-        run: |
-          cd tests/config
-          python run_tests.py --integration
-        continue-on-error: true
-
-      - name: Run all tests with coverage
-        env:
-          DATABASE_URL: sqlite:///tests/test_selenium.db
-        run: |
-          cd tests/config
-          python run_tests.py --all
-        continue-on-error: true
-
-      - name: Manage test databases
-        env:
-          DATABASE_URL: sqlite:///tests/test_selenium.db
-        run: |
-          cd tests/config
-          python run_tests.py --manage-db
-        continue-on-error: true
-
-      - name: Run pytest directly (fallback)
-        env:
-          DATABASE_URL: sqlite:///tests/test_selenium.db
-        run: |
-          # Always run pytest as the primary test method
           pytest tests/unit/ \
             --cov=./ \
             --cov-report=xml:coverage.xml \
@@ -99,13 +65,20 @@ jobs:
             --junitxml=test_results/unit-test-results.xml \
             --html=test_results/unit-report.html \
             --self-contained-html \
-            -v || true
-          
-          # Also run integration tests if they exist
-          if [ -d "tests/unit" ] && find tests/unit -name "*integration*" -type f | grep -q .; then
-            pytest tests/unit/ -k "integration" \
+            -v
+
+      - name: Run integration tests
+        env:
+          DATABASE_URL: sqlite:///tests/test_selenium.db
+        run: |
+          if [ -d "tests/integration" ]; then
+            pytest tests/integration/ \
               --junitxml=test_results/integration-test-results.xml \
-              -v || true
+              --html=test_results/integration-report.html \
+              --self-contained-html \
+              -v
+          else
+            echo "No integration tests directory found, skipping"
           fi
 
       - name: Display test results summary
@@ -114,7 +87,6 @@ jobs:
           echo "## ✅ Unit & Integration Test Summary" >> $GITHUB_STEP_SUMMARY
           echo "🐍 **Python Version**: ${{ matrix.python-version }}" >> $GITHUB_STEP_SUMMARY
           
-          # Check for test results
           if [ -f "test_results/unit-test-results.xml" ]; then
             echo "📊 **Unit Test Results**: Available in artifacts" >> $GITHUB_STEP_SUMMARY
           else
@@ -127,15 +99,7 @@ jobs:
           
           if [ -f "coverage.xml" ]; then
             echo "📈 **Coverage Report**: Available in artifacts" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "⚠️ **Coverage Report**: No coverage data found" >> $GITHUB_STEP_SUMMARY
           fi
-          
-          # List created files for debugging
-          echo "📁 **Created Files**:"
-          ls -la test_results/ 2>/dev/null || echo "  No test_results directory"
-          ls -la *.xml 2>/dev/null || echo "  No XML files in root"
-          ls -la htmlcov/ 2>/dev/null || echo "  No htmlcov directory"
 
       - name: Publish Test Results
         uses: dorny/test-reporter@v1
@@ -146,25 +110,13 @@ jobs:
           reporter: java-junit
           fail-on-error: false
 
-      - name: Upload coverage report
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: coverage-report-${{ matrix.python-version }}
-          path: |
-            coverage.xml
-            htmlcov/
-            tests/reports/
-            test_results/
-
-      - name: Upload test results
+      - name: Upload test artifacts
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: test-results-${{ matrix.python-version }}
           path: |
             test_results/
-            tests/reports/
             coverage.xml
             htmlcov/
           retention-days: 30
@@ -211,9 +163,7 @@ jobs:
           Xvfb :99 & export DISPLAY=:99
 
       - name: Create test directories
-        run: |
-          mkdir -p tests/reports
-          mkdir -p test_results
+        run: mkdir -p test_results
 
       - name: Run Selenium tests
         env:
@@ -221,22 +171,15 @@ jobs:
           DATABASE_URL: sqlite:///tests/test_selenium.db
           CHROME_HEADLESS: true
         run: |
-          cd tests/config
-          python run_tests.py --selenium
-        continue-on-error: true
-
-      - name: Run pytest Selenium directly (fallback)
-        env:
-          DISPLAY: :99
-          DATABASE_URL: sqlite:///tests/test_selenium.db
-          CHROME_HEADLESS: true
-        run: |
-          # Always run Selenium tests as the primary method
-          pytest tests/selenium_tests/ \
-            --junitxml=test_results/selenium-test-results.xml \
-            --html=test_results/selenium-report.html \
-            --self-contained-html \
-            -v || true
+          if [ -d "tests/selenium_tests" ]; then
+            pytest tests/selenium_tests/ \
+              --junitxml=test_results/selenium-test-results.xml \
+              --html=test_results/selenium-report.html \
+              --self-contained-html \
+              -v
+          else
+            echo "No selenium tests directory found, skipping"
+          fi
 
       - name: Display test results summary
         if: always()
@@ -247,10 +190,6 @@ jobs:
           else
             echo "⚠️ **Selenium Results**: No results found" >> $GITHUB_STEP_SUMMARY
           fi
-          
-          # List created files for debugging
-          echo "📁 **Created Files**:"
-          ls -la test_results/ 2>/dev/null || echo "  No test_results directory"
 
       - name: Publish Test Results
         uses: dorny/test-reporter@v1
@@ -268,7 +207,6 @@ jobs:
           name: selenium-test-results
           path: |
             test_results/
-            tests/reports/
             tests/test_screenshots/
           retention-days: 30
 
@@ -325,4 +263,4 @@ jobs:
               });
             } catch (error) {
               console.error('Error posting comment:', error);
-            } 
+            }
