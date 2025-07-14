@@ -1,6 +1,15 @@
 import xml.etree.ElementTree as ET
 import os
 
+def safe_print(s):
+    try:
+        print(s)
+    except UnicodeEncodeError:
+        s = s.replace('✅', '[PASS]').replace('❌', '[FAIL]').replace('🔥', '[ERR]')
+        try:
+            print(s)
+        except Exception:
+            print(s.encode('ascii', errors='replace').decode('ascii'))
 
 if __name__ == "__main__":
     import argparse
@@ -21,14 +30,17 @@ if __name__ == "__main__":
             failures = int(root.get('failures', 0))
             errors = int(root.get('errors', 0))
         passed = total - failures - errors
-        print(f"- **Total Tests**: {total}")
-        print(f"- **Passed**: {passed} \u2705")
-        print(f"- **Failed**: {failures} \u274c")
-        print(f"- **Errors**: {errors} \ud83d\udd25")
+        safe_print(f"- **Total Tests**: {total}")
+        safe_print(f"- **Passed**: {passed} ✅")
+        safe_print(f"- **Failed**: {failures} ❌")
+        safe_print(f"- **Errors**: {errors} 🔥")
         if total > 0:
-            print(f"- **Pass Rate**: {passed * 100 // total}%")
-        print("")
-        with open(args.out, 'w') as tf:
+            safe_print(f"- **Pass Rate**: {passed * 100 // total}%")
+        safe_print("")
+        with open(args.out, 'w', encoding='utf-8') as tf:
             tf.write(f"{total},{passed},{failures},{errors}")
     except Exception as e:
-        print(f"\u274c Error processing results: {e}\n")
+        safe_print(f"[FAIL] Error processing results: {e}\n")
+        # Always write a summary file, even if error
+        with open(args.out, 'w', encoding='utf-8') as tf:
+            tf.write("0,0,0,0")
