@@ -104,6 +104,7 @@ jobs:
       - name: Generate comprehensive report
         run: |
           export PYTHONIOENCODING=utf-8
+          export LC_ALL=en_US.UTF-8
           echo "# 📊 Comprehensive Test Report - Run #${{ github.run_number }}" > report.md
           echo "" >> report.md
           echo "Generated on: $(date)" >> report.md
@@ -135,12 +136,14 @@ jobs:
           echo "| Category | Total Tests | Passed ✅ | Failed ❌ | Errors 🔥 | Pass Rate | Coverage |" >> report.md
           echo "|----------|-------------|-----------|-----------|-----------|-----------|----------|" >> report.md
           if [ -f /tmp/unit_3.11.txt ]; then
+            cat /tmp/unit_3.11.txt
             IFS=',' read total passed failed errors coverage < /tmp/unit_3.11.txt
             passrate=0
             if [ "$total" -gt 0 ]; then passrate=$((passed * 100 / total)); fi
             echo "| Unit & Integration | $total | $passed | $failed | $errors | ${passrate}% | ${coverage}% |" >> report.md
           fi
           if [ -f /tmp/selenium.txt ]; then
+            cat /tmp/selenium.txt
             IFS=',' read total passed failed errors < /tmp/selenium.txt
             passrate=0
             if [ "$total" -gt 0 ]; then passrate=$((passed * 100 / total)); fi
@@ -161,9 +164,16 @@ jobs:
           echo "## 🎯 Overall Summary" >> report.md
           echo "" >> report.md
           echo "### 🔗 Detailed Reports" >> report.md
-          echo "- [Unit & Integration Test Results (Python 3.11)](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts)" >> report.md
-          echo "- [Selenium UI Test Results](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts)" >> report.md
-          echo "- [Coverage Report](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts)" >> report.md
+          echo "- [Unit & Integration Test Results (Python 3.11)](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts)" >> report.md
+          echo "- [Selenium UI Test Results](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts)" >> report.md
+          echo "- [Coverage Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts)" >> report.md
+
+      - name: Debug /tmp summary files
+        run: |
+          echo "/tmp/unit_3.11.txt contents:"
+          cat /tmp/unit_3.11.txt || echo "unit_3.11.txt not found"
+          echo "/tmp/selenium.txt contents:"
+          cat /tmp/selenium.txt || echo "selenium.txt not found"
 
       - name: Display report content
         run: |
