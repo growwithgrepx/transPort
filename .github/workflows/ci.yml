@@ -90,15 +90,17 @@ jobs:
       # Show Markdown coverage table in Actions summary tab
       - name: Coverage Report
         run: |
-          if [ -f artifacts/unit/coverage.xml ]; then
-            python3 scripts/coverage_to_md.py artifacts/unit/coverage.xml >> $GITHUB_STEP_SUMMARY
+          pytest --cov --cov-report=html:tests/reports
+          if [ -f tests/reports/index.html ]; then
+            echo '### [Open HTML Coverage Report](./tests/reports/index.html)' >> $GITHUB_STEP_SUMMARY
+            echo 'HTML coverage report generated at tests/reports/index.html' >> $GITHUB_STEP_SUMMARY
           else
-            echo 'No coverage XML file found for Markdown table.' >> $GITHUB_STEP_SUMMARY
+            echo 'No HTML coverage report found.' >> $GITHUB_STEP_SUMMARY
           fi
 
       # Optionally upload coverage.xml as an artifact (for local download)
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-report
-          path: artifacts/unit/coverage.xml
+          name: html-coverage-report
+          path: tests/reports/

@@ -271,3 +271,9 @@ def cleanup_session(browser):
         browser.execute_script("window.sessionStorage.clear();")
     except Exception:
         pass  # Ignore cleanup errors 
+
+@pytest.fixture
+def client(app):
+    """Flask test client for route coverage."""
+    with app.test_client() as client:
+        yield client 

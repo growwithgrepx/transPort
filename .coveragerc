@@ -1,5 +1,12 @@
 [run]
+branch = True
+source =
+    app
+    extensions
+    blueprints
+
+[report]
 omit =
-    tests/*
     */tests/*
+    */venv/*
     */__init__.py 
