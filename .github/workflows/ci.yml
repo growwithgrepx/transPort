@@ -1,265 +1,104 @@
-name: CI/CD Pipeline with Inline Reports
+name: CI - Unit & Selenium Tests
 
 on:
   push:
-    branches:
-      - main
-      - fleet-enhancements
+    branches: [main, fleet-enhancements]
   pull_request:
-    branches:
-      - main
-      - fleet-enhancements
+    branches: [main, fleet-enhancements]
 
 jobs:
-  unit-tests:
+  test:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ['3.11']
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      # Checkout code
+      - uses: actions/checkout@v4
         with:
-          clean: true  
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
-      - name: Run unit tests
-        run: |
-          mkdir -p artifacts/test-results-3.11/test_results
-          mkdir -p artifacts/test-results-3.11/tests/reports/htmlcov/unit
-          pytest --junitxml=artifacts/test-results-3.11/test_results/unit-test-results.xml \
-                 --cov=tests --cov-report=xml:artifacts/test-results-3.11/tests/reports/coverage_unit.xml \
-                 --cov-report=html:artifacts/test-results-3.11/tests/reports/htmlcov/unit
-      - name: Debug artifact paths
-        run: |
-          echo "Contents of test_results:"
-          ls -la test_results/
-          echo "Contents of tests/reports:"
-          ls -la tests/reports/
-      - name: Upload test artifacts
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: test-results-${{ matrix.python-version }}
-          path: |
-            artifacts/test-results-3.11/test_results/
-            artifacts/test-results-3.11/tests/reports/coverage_unit.xml
-            artifacts/test-results-3.11/tests/reports/htmlcov/unit/
-          retention-days: 30
-          if-no-files-found: warn
+          clean: true
 
-  selenium-tests:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      # Debug: Show workspace contents after checkout
+      - name: Debug - Workspace after checkout
+        run: |
+          echo "[DEBUG] Workspace contents after checkout:" && ls -la
+
+      # Set up Python
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Install dependencies
+
+      # Debug: Show Python version
+      - name: Debug - Python version
         run: |
-          pip install -r requirements.txt
+          echo "[DEBUG] Python version:" && python --version
+
+      # Install dependencies
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      # Debug: List installed packages
+      - name: Debug - List installed packages
+        run: |
+          echo "[DEBUG] Installed pip packages:" && pip list
+
+      # Run unit tests with coverage and output results
+      - name: Run unit tests with coverage
+        run: |
+          mkdir -p artifacts/unit
+          pytest --junitxml=artifacts/unit/unit-test-results.xml \
+                 --cov=tests --cov-report=xml:artifacts/unit/coverage.xml \
+                 --cov-report=term-missing
+
+      # Debug: Show unit test artifacts
+      - name: Debug - Unit test artifacts
+        run: |
+          echo "[DEBUG] Contents of artifacts/unit:" && ls -la artifacts/unit || echo "artifacts/unit not found"
+          echo "[DEBUG] unit-test-results.xml head:" && head -20 artifacts/unit/unit-test-results.xml || echo "unit-test-results.xml not found"
+          echo "[DEBUG] coverage.xml head:" && head -20 artifacts/unit/coverage.xml || echo "coverage.xml not found"
+
+      # Show unit test summary in Actions summary tab
+      - name: Unit test summary
+        run: |
+          echo '## Unit Test Results' >> $GITHUB_STEP_SUMMARY
+          if [ -f artifacts/unit/unit-test-results.xml ]; then
+            python3 scripts/generate_unit_report.py --xml artifacts/unit/unit-test-results.xml --cov artifacts/unit/coverage.xml --out /tmp/unit_summary.txt >> $GITHUB_STEP_SUMMARY || echo 'Unit test summary generation failed.' >> $GITHUB_STEP_SUMMARY
+          else
+            echo 'No unit test results found.' >> $GITHUB_STEP_SUMMARY
+          fi
+
+      # Run Selenium tests and output results
       - name: Run Selenium tests
         run: |
-          mkdir -p artifacts/selenium-test-results/test_results
-          mkdir -p artifacts/selenium-test-results/test_screenshots
-          pytest tests/selenium_tests/ --junitxml=artifacts/selenium-test-results/test_results/selenium-test-results.xml
-      - name: Debug artifact paths
+          mkdir -p artifacts/selenium
+          pytest tests/selenium_tests/ --junitxml=artifacts/selenium/selenium-test-results.xml
+
+      # Debug: Show Selenium test artifacts
+      - name: Debug - Selenium test artifacts
         run: |
-          echo "Contents of test_results:"
-          ls -la test_results/
-          echo "Contents of tests/test_screenshots:"
-          ls -la tests/test_screenshots/
-      - name: Upload Selenium test results
+          echo "[DEBUG] Contents of artifacts/selenium:" && ls -la artifacts/selenium || echo "artifacts/selenium not found"
+          echo "[DEBUG] selenium-test-results.xml head:" && head -20 artifacts/selenium/selenium-test-results.xml || echo "selenium-test-results.xml not found"
+
+      # Show Selenium test summary in Actions summary tab
+      - name: Selenium test summary
+        run: |
+          echo '## Selenium Test Results' >> $GITHUB_STEP_SUMMARY
+          if [ -f artifacts/selenium/selenium-test-results.xml ]; then
+            python3 scripts/generate_selenium_report.py --xml artifacts/selenium/selenium-test-results.xml --out /tmp/selenium_summary.txt >> $GITHUB_STEP_SUMMARY || echo 'Selenium test summary generation failed.' >> $GITHUB_STEP_SUMMARY
+          else
+            echo 'No Selenium test results found.' >> $GITHUB_STEP_SUMMARY
+          fi
+
+      # Show coverage summary in Actions summary tab
+      - name: Coverage summary
+        run: |
+          echo '## Coverage Report' >> $GITHUB_STEP_SUMMARY
+          if [ -f artifacts/unit/coverage.xml ]; then
+            coverage report --data-file=artifacts/unit/coverage.xml >> $GITHUB_STEP_SUMMARY || echo 'Coverage summary failed.' >> $GITHUB_STEP_SUMMARY
+          else
+            echo 'No coverage file found.' >> $GITHUB_STEP_SUMMARY
+          fi
+
+      # Optionally upload coverage.xml as an artifact (for local download)
+      - name: Upload coverage report
         uses: actions/upload-artifact@v4
-        if: always()
         with:
-          name: selenium-test-results
-          path: |
-            artifacts/selenium-test-results/test_results/
-            artifacts/selenium-test-results/test_screenshots/
-          retention-days: 30
-          if-no-files-found: warn
-
-  generate-report:
-    runs-on: ubuntu-latest
-    name: Generate Comprehensive Report
-    needs: [unit-tests, selenium-tests]
-    if: always()
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-      - name: Debug artifact structure
-        run: |
-          echo "=== Artifact Structure ==="
-          find artifacts -type f -name "*.xml" -print0 | xargs -0 -I {} ls -la {} | head -20 || echo "No XML files found"
-          echo "=== Directory Structure ==="
-          ls -la artifacts/ || echo "Artifacts directory is empty or does not exist"
-          echo "=== Test Results Files ==="
-          find artifacts -name "*test-results.xml" -exec ls -la {} \; || echo "No test results files found"
-
-      - name: Generate comprehensive report
-        run: |
-          # Install dependencies (if not already present)
-          pip install -r requirements.txt > pip_install.log 2>&1
-          if [ $? -ne 0 ]; then
-            echo "pip install failed, see pip_install.log"
-            cat pip_install.log
-            exit 1
-          fi
-      
-          # Set environment variables
-          echo "pip install completed"
-          export PYTHONIOENCODING=utf-8
-          echo "PYTHONIOENCODING set"
-          export LC_ALL=en_US.UTF-8
-          echo "LC_ALL set"
-      
-          # Create initial report
-          echo "# Test Report - Run #${{ github.run_number }}" > report.md
-          echo "" >> report.md
-          echo "Generated on: $(date)" >> report.md
-          echo "" >> report.md
-      
-          # Process unit tests with error logging
-          xml_file="artifacts/test-results-3.11/test_results/unit-test-results.xml"
-          cov_file="artifacts/test-results-3.11/tests/reports/coverage_unit.xml"
-          if [ -f "$xml_file" ]; then
-            echo "### Python 3.11 Unit & Integration Tests" >> report.md
-            python3 scripts/generate_unit_report.py --xml "$xml_file" --cov "$cov_file" --out /tmp/unit_3.11.txt >> report.md 2>> error.log || { echo "Unit report script failed, see error.log"; cat error.log; exit 1; }
-          else
-            echo "No unit test results found for Python 3.11" >> report.md
-            echo "" >> report.md
-          fi
-      
-          # Process Selenium tests with error logging
-          selenium_xml="artifacts/selenium-test-results/test_results/selenium-test-results.xml"
-          if [ -f "$selenium_xml" ]; then
-            echo "### Selenium UI Tests" >> report.md
-            python3 scripts/generate_selenium_report.py --xml "$selenium_xml" --out /tmp/selenium.txt >> report.md 2>> error.log || { echo "Selenium report script failed, see error.log"; cat error.log; exit 1; }
-          else
-            echo "No Selenium test results found" >> report.md
-            echo "" >> report.md
-          fi
-      
-          # Add debugging for file contents
-          echo "Debug: Checking /tmp/unit_3.11.txt" >> report.md
-          cat /tmp/unit_3.11.txt >> report.md 2>/dev/null || echo "File not found or empty" >> report.md
-          echo "Debug: Checking /tmp/selenium.txt" >> report.md
-          cat /tmp/selenium.txt >> report.md 2>/dev/null || echo "File not found or empty" >> report.md
-      
-          # Summary Table
-          echo "### Summary Table" >> report.md
-          echo "+---------------------+-------------+--------+--------+--------+-----------+----------+" >> report.md
-          echo "|     Category        | Total Tests | Passed | Failed | Errors | Pass Rate | Coverage |" >> report.md
-          echo "+---------------------+-------------+--------+--------+--------+-----------+----------+" >> report.md
-      
-          if [ -f /tmp/unit_3.11.txt ]; then
-            IFS=',' read total passed failed errors coverage < /tmp/unit_3.11.txt
-            passrate=0
-            if [[ "$total" =~ ^[0-9]+$ ]] && [[ "$passed" =~ ^[0-9]+$ ]] && [ "$total" -gt 0 ]; then
-              passrate=$((passed * 100 / total))
-            fi
-            printf "| %-19s | %11s | %6s | %6s | %6s | %9s | %8s |\n" "Unit & Integration" "$total" "$passed" "$failed" "$errors" "${passrate}%" "${coverage}%" >> report.md
-          else
-            printf "| %-19s | %11s | %6s | %6s | %6s | %9s | %8s |\n" "Unit & Integration" "N/A" "N/A" "N/A" "N/A" "N/A" "N/A" >> report.md
-          fi
-      
-          if [ -f /tmp/selenium.txt ]; then
-            IFS=',' read total passed failed errors < /tmp/selenium.txt
-            passrate=0
-            if [[ "$total" =~ ^[0-9]+$ ]] && [[ "$passed" =~ ^[0-9]+$ ]] && [ "$total" -gt 0 ]; then
-              passrate=$((passed * 100 / total))
-            fi
-            printf "| %-19s | %11s | %6s | %6s | %6s | %9s | %8s |\n" "UI Tests" "$total" "$passed" "$failed" "$errors" "${passrate}%" "N/A" >> report.md
-          else
-            printf "| %-19s | %11s | %6s | %6s | %6s | %9s | %8s |\n" "UI Tests" "N/A" "N/A" "N/A" "N/A" "N/A" "N/A" >> report.md
-          fi
-      
-          if [ -f /tmp/unit_3.11.txt ] && [ -f /tmp/selenium.txt ]; then
-            IFS=',' read utotal upassed ufailed uerrors ucoverage < /tmp/unit_3.11.txt
-            IFS=',' read stotal spassed sfailed serrors < /tmp/selenium.txt
-            gtotal=$((utotal + stotal))
-            gpassed=$((upassed + spassed))
-            gfailed=$((ufailed + sfailed))
-            gerrors=$((uerrors + serrors))
-            gpassrate=0
-            if [[ "$gtotal" =~ ^[0-9]+$ ]] && [[ "$gpassed" =~ ^[0-9]+$ ]] && [ "$gtotal" -gt 0 ]; then
-              gpassrate=$((gpassed * 100 / gtotal))
-            fi
-            printf "| %-19s | %11s | %6s | %6s | %6s | %9s | %8s |\n" "Total" "$gtotal" "$gpassed" "$gfailed" "$gerrors" "${gpassrate}%" "N/A" >> report.md
-          fi
-      
-          echo "+---------------------+-------------+--------+--------+--------+-----------+----------+" >> report.md
-          echo "" >> report.md
-          echo "## Overall Summary" >> report.md
-          echo "" >> report.md
-          echo "### Detailed Reports" >> report.md
-          echo "- [Unit & Integration Test Results (Python 3.11)](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts)" >> report.md
-          echo "- [Selenium UI Test Results](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts)" >> report.md
-          echo "- [Coverage Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts)" >> report.md
-      
-      - name: Debug /tmp summary files
-        run: |
-          echo "/tmp/unit_3.11.txt contents:"
-          cat /tmp/unit_3.11.txt || echo "unit_3.11.txt not found"
-          echo "/tmp/selenium.txt contents:"
-          cat /tmp/selenium.txt || echo "selenium.txt not found"
-
-      - name: Display report content
-        run: |
-          echo "=== Generated Report Content ==="
-          cat report.md
-
-      - name: Generate step summary (Pipeline Summary First)
-        run: |
-          echo "## Pipeline Summary" > $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          cat report.md >> $GITHUB_STEP_SUMMARY
-
-      - name: Comment PR with comprehensive report
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const fs = require('fs');
-            try {
-              const report = fs.readFileSync('report.md', 'utf8');
-              const repoUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}`;
-              const runUrl = `${repoUrl}/actions/runs/${context.runId}`;
-              const branch = context.ref.replace('refs/heads/', '');
-              const fullReport = report + [
-                '',
-                '## Quick Links',
-                `- [View Full Pipeline Results](${runUrl})`,
-                `- [Coverage Report](https://${context.repo.owner}.github.io/${context.repo.repo}/coverage/${branch}/index.html)`,
-                `- [Download All Artifacts](${runUrl}/artifacts)`,
-                `- [Repository](${repoUrl})`,
-                '',
-                '---',
-                'This report was automatically generated by the CI/CD pipeline'
-              ].join('\n');
-              await github.rest.issues.createComment({
-                ...context.issue,
-                body: fullReport
-              });
-            } catch (error) {
-              console.error('Error posting comprehensive report:', error);
-              console.error('Error details:', error.message);
-            }
-
-      - name: Copy HTML coverage report to artifacts for direct linking
-        run: |
-          mkdir -p artifacts/coverage_html
-          cp -r artifacts/test-results-3.11/tests/reports/htmlcov/unit/* artifacts/coverage_html/ || true
+          name: coverage-report
+          path: artifacts/unit/coverage.xml
