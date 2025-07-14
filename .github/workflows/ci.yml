@@ -101,14 +101,23 @@ jobs:
           ls -la artifacts/ || echo "Artifacts directory is empty or does not exist"
           echo "=== Test Results Files ==="
           find artifacts -name "*test-results.xml" -exec ls -la {} \; || echo "No test results files found"
+
       - name: Generate comprehensive report
         run: |
           # Install dependencies (if not already present)
-          pip install -r requirements.txt
+          pip install -r requirements.txt > pip_install.log 2>&1
+          if [ $? -ne 0 ]; then
+            echo "pip install failed, see pip_install.log"
+            cat pip_install.log
+            exit 1
+          fi
       
           # Set environment variables
+          echo "pip install completed"
           export PYTHONIOENCODING=utf-8
+          echo "PYTHONIOENCODING set"
           export LC_ALL=en_US.UTF-8
+          echo "LC_ALL set"
       
           # Create initial report
           echo "# Test Report - Run #${{ github.run_number }}" > report.md
@@ -141,14 +150,14 @@ jobs:
           echo "Debug: Checking /tmp/unit_3.11.txt" >> report.md
           cat /tmp/unit_3.11.txt >> report.md 2>/dev/null || echo "File not found or empty" >> report.md
           echo "Debug: Checking /tmp/selenium.txt" >> report.md
-          cat /tmp/selenium.txt >> report.md 2>/dev/null || echo "File not found or empty" >> report.md     
-        
+          cat /tmp/selenium.txt >> report.md 2>/dev/null || echo "File not found or empty" >> report.md
+      
           # Summary Table
           echo "### Summary Table" >> report.md
           echo "+---------------------+-------------+--------+--------+--------+-----------+----------+" >> report.md
           echo "|     Category        | Total Tests | Passed | Failed | Errors | Pass Rate | Coverage |" >> report.md
           echo "+---------------------+-------------+--------+--------+--------+-----------+----------+" >> report.md
-
+      
           if [ -f /tmp/unit_3.11.txt ]; then
             IFS=',' read total passed failed errors coverage < /tmp/unit_3.11.txt
             passrate=0
@@ -159,7 +168,7 @@ jobs:
           else
             printf "| %-19s | %11s | %6s | %6s | %6s | %9s | %8s |\n" "Unit & Integration" "N/A" "N/A" "N/A" "N/A" "N/A" "N/A" >> report.md
           fi
-
+      
           if [ -f /tmp/selenium.txt ]; then
             IFS=',' read total passed failed errors < /tmp/selenium.txt
             passrate=0
@@ -170,7 +179,7 @@ jobs:
           else
             printf "| %-19s | %11s | %6s | %6s | %6s | %9s | %8s |\n" "UI Tests" "N/A" "N/A" "N/A" "N/A" "N/A" "N/A" >> report.md
           fi
-
+      
           if [ -f /tmp/unit_3.11.txt ] && [ -f /tmp/selenium.txt ]; then
             IFS=',' read utotal upassed ufailed uerrors ucoverage < /tmp/unit_3.11.txt
             IFS=',' read stotal spassed sfailed serrors < /tmp/selenium.txt
@@ -184,7 +193,7 @@ jobs:
             fi
             printf "| %-19s | %11s | %6s | %6s | %6s | %9s | %8s |\n" "Total" "$gtotal" "$gpassed" "$gfailed" "$gerrors" "${gpassrate}%" "N/A" >> report.md
           fi
-
+      
           echo "+---------------------+-------------+--------+--------+--------+-----------+----------+" >> report.md
           echo "" >> report.md
           echo "## Overall Summary" >> report.md
@@ -193,7 +202,7 @@ jobs:
           echo "- [Unit & Integration Test Results (Python 3.11)](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts)" >> report.md
           echo "- [Selenium UI Test Results](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts)" >> report.md
           echo "- [Coverage Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts)" >> report.md
-
+      
       - name: Debug /tmp summary files
         run: |
           echo "/tmp/unit_3.11.txt contents:"
