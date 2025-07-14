@@ -44,7 +44,8 @@ jobs:
         run: |
           mkdir -p artifacts/unit
           pytest --junitxml=artifacts/unit/unit-test-results.xml \
-                 --cov=tests --cov-report=xml:artifacts/unit/coverage.xml \
+                 --cov=app.py --cov=models --cov=blueprints \
+                 --cov-report=xml:artifacts/unit/coverage.xml \
                  --cov-report=term-missing
 
       # Debug: Show unit test artifacts
