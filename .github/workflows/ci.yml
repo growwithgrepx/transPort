@@ -103,6 +103,7 @@ jobs:
           find artifacts -name "*test-results.xml" -exec ls -la {} \; || echo "No test results files found"
       - name: Generate comprehensive report
         run: |
+          export PYTHONIOENCODING=utf-8
           echo "# 📊 Comprehensive Test Report - Run #${{ github.run_number }}" > report.md
           echo "" >> report.md
           echo "Generated on: $(date)" >> report.md
@@ -110,9 +111,10 @@ jobs:
 
           # Process unit tests
           xml_file="artifacts/test-results-3.11/test_results/unit-test-results.xml"
+          cov_file="artifacts/test-results-3.11/tests/reports/coverage_unit.xml"
           if [ -f "$xml_file" ]; then
             echo "### 🐍 Python 3.11 Unit & Integration Tests" >> report.md
-            python3 scripts/generate_unit_report.py >> report.md
+            python3 scripts/generate_unit_report.py --xml "$xml_file" --cov "$cov_file" --out /tmp/unit_3.11.txt >> report.md
           else
             echo "⚠️ No unit test results found for Python 3.11" >> report.md
             echo "" >> report.md
@@ -122,7 +124,7 @@ jobs:
           selenium_xml="artifacts/selenium-test-results/test_results/selenium-test-results.xml"
           if [ -f "$selenium_xml" ]; then
             echo "### 🌐 Selenium UI Tests" >> report.md
-            python3 scripts/generate_selenium_report.py >> report.md
+            python3 scripts/generate_selenium_report.py --xml "$selenium_xml" --out /tmp/selenium.txt >> report.md
           else
             echo "⚠️ No Selenium test results found" >> report.md
             echo "" >> report.md
@@ -159,9 +161,9 @@ jobs:
           echo "## 🎯 Overall Summary" >> report.md
           echo "" >> report.md
           echo "### 🔗 Detailed Reports" >> report.md
-          echo "- [Unit & Integration Test Results (Python 3.11)](https://github.com/growwithgrepx/transPort/actions/runs/${{ github.run_id }}/artifacts)" >> report.md
-          echo "- [Selenium UI Test Results](https://github.com/growwithgrepx/transPort/actions/runs/${{ github.run_id }}/artifacts)" >> report.md
-          echo "- [Coverage Report](https://growwithgrepx.github.io/growwithgrepx/transPort/coverage/fleet-enhancements/index.html)" >> report.md
+          echo "- [Unit & Integration Test Results (Python 3.11)](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts)" >> report.md
+          echo "- [Selenium UI Test Results](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts)" >> report.md
+          echo "- [Coverage Report](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts)" >> report.md
 
       - name: Display report content
         run: |
@@ -205,3 +207,8 @@ jobs:
               console.error('Error posting comprehensive report:', error);
               console.error('Error details:', error.message);
             }
+
+      - name: Copy HTML coverage report to artifacts for direct linking
+        run: |
+          mkdir -p artifacts/coverage_html
+          cp -r artifacts/test-results-3.11/tests/reports/htmlcov/unit/* artifacts/coverage_html/ || true
