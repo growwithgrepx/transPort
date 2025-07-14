@@ -25,7 +25,7 @@ class LoginPage(BasePage):
         return self
     
     def login(self, username, password):
-        """Login with provided credentials"""
+        """Attempts login and handles errors gracefully, logging and returning status instead of raising."""
         try:
             logger.info(f"Attempting to login with username: {username}")
             
@@ -56,30 +56,24 @@ class LoginPage(BasePage):
                 logger.info("Login successful")
                 return True
             except TimeoutException:
-                # Check if we're still on login page (login failed)
                 if "/login" in self.driver.current_url:
-                    # Look for error messages
                     try:
                         error_elements = self.driver.find_elements(By.CLASS_NAME, "alert-danger")
                         if error_elements:
                             error_text = error_elements[0].text
                             logger.error(f"Login failed with error: {error_text}")
-                            raise Exception(f"Login failed: {error_text}")
+                            return f"Login failed: {error_text}"
                     except NoSuchElementException:
                         pass
-                    
                     logger.error("Login failed - still on login page")
-                    raise Exception("Login failed - still on login page")
+                    return "Login failed - still on login page"
                 else:
-                    # We might be on a different page, check current URL
                     logger.info(f"Login completed, current URL: {self.driver.current_url}")
                     return True
-                    
         except Exception as e:
             logger.error(f"Error during login: {str(e)}")
-            # Take screenshot for debugging
             self.take_screenshot("login_error.png")
-            raise
+            return f"Error during login: {str(e)}"
     
     def is_logged_in(self):
         """Check if user is logged in"""

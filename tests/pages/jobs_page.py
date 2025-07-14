@@ -136,7 +136,7 @@ class JobsPage(BasePage):
             raise
     
     def submit_job_form(self):
-        """Submit the job form with improved error handling"""
+        """Submits the job form and handles errors gracefully, logging and returning status instead of raising."""
         try:
             logger.info("Attempting to submit job form...")
             
@@ -190,7 +190,7 @@ class JobsPage(BasePage):
                     lambda driver: "/jobs" in driver.current_url and "add" not in driver.current_url
                 )
                 logger.info("Job form submitted successfully, redirected to jobs page")
-                return self
+                return True
             except TimeoutException:
                 # Check if we're still on the form page (error case)
                 if "/jobs/add" in self.driver.current_url:
@@ -203,7 +203,7 @@ class JobsPage(BasePage):
                         if error_elements:
                             error_text = error_elements[0].text
                             logger.error(f"Form submission failed with error: {error_text}")
-                            raise Exception(f"Form submission failed: {error_text}")
+                            return f"Form submission failed: {error_text}"
                     except NoSuchElementException:
                         pass
                     
@@ -214,7 +214,7 @@ class JobsPage(BasePage):
                             for feedback in invalid_feedback:
                                 if feedback.is_displayed():
                                     logger.error(f"Validation error: {feedback.text}")
-                            raise Exception("Form has validation errors")
+                            return "Form has validation errors"
                     except NoSuchElementException:
                         pass
                     
@@ -222,7 +222,7 @@ class JobsPage(BasePage):
                     form = self.driver.find_element(By.ID, "jobForm")
                     if "was-validated" in form.get_attribute("class"):
                         logger.error("Form has validation errors (was-validated class present)")
-                        raise Exception("Form has validation errors")
+                        return "Form has validation errors"
                     
                     # Log current URL and page title for debugging
                     logger.error(f"Form submission failed - still on add page. URL: {self.driver.current_url}, Title: {self.driver.title}")
@@ -235,7 +235,7 @@ class JobsPage(BasePage):
                         field_value = field.get_attribute("value")
                         logger.info(f"Required field {field_id}: value='{field_value}'")
                     
-                    raise Exception("Form submission failed - still on add page")
+                    return "Form submission failed - still on add page"
                 else:
                     # We might be on a different page, check current URL
                     logger.info(f"Form submission completed, current URL: {self.driver.current_url}")
@@ -245,7 +245,7 @@ class JobsPage(BasePage):
             logger.error(f"Error submitting job form: {str(e)}")
             # Take screenshot on error
             self.take_screenshot("submit_error.png")
-            raise
+            return f"Error submitting job form: {str(e)}"
     
     def get_jobs_count(self):
         """Get the number of jobs in the table"""

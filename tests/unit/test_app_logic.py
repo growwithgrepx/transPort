@@ -237,17 +237,16 @@ class TestValidationDecorators:
                 assert json.loads(response.data)['status'] == 'success'
     
     def test_handle_database_errors_exception(self, test_app):
-        """Test handle_database_errors decorator with database exception"""
+        """Test handle_database_errors decorator with database exception, gracefully handle and assert redirect."""
         with test_app.test_client() as client:
             with test_app.app_context():
                 @app.route('/test-db-error', methods=['GET'])
                 @handle_database_errors
                 def test_endpoint():
                     raise SQLAlchemyError("Database error")
-                
-                response = client.get('/test-db-error')
-                assert response.status_code == 302  # Redirect to dashboard
-                # Note: In a real test, we'd need to follow the redirect to see the flash message
+                response = client.get('/test-db-error', follow_redirects=False)
+                assert response.status_code == 302, "Should redirect on DB error"
+                assert response.headers.get('Location'), "Should have redirect location"
 
 
 class TestRouteHandlers:

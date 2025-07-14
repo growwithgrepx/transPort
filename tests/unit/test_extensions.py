@@ -503,15 +503,14 @@ class TestDatabaseExtension:
             db.session.rollback()
     
     def test_db_engine_execute(self, test_app):
-        """Test database engine execute functionality"""
+        """Test database engine execute functionality (SQLAlchemy 2.x compatible)"""
         with test_app.app_context():
-            # Test that raw SQL can be executed
-            result = db.engine.execute("SELECT 1")
-            assert result is not None
-            
-            # Fetch the result
-            row = result.fetchone()
-            assert row[0] == 1
+            from sqlalchemy import text
+            with db.engine.connect() as connection:
+                result = connection.execute(text("SELECT 1"))
+                assert result is not None, "Should get a result from SELECT 1"
+                row = result.fetchone()
+                assert row[0] == 1, "SELECT 1 should return 1"
     
     def test_db_engine_text(self, test_app):
         """Test database engine text functionality"""
@@ -552,11 +551,12 @@ class TestDatabaseExtension:
                 assert row[0] == 1
     
     def test_db_engine_table_names(self, test_app):
-        """Test database engine table names functionality"""
+        """Test database engine table names functionality (SQLAlchemy 2.x compatible)"""
         with test_app.app_context():
-            # Test that table names can be retrieved
-            table_names = db.engine.table_names()
-            assert isinstance(table_names, list)
+            from sqlalchemy import inspect
+            inspector = inspect(db.engine)
+            table_names = inspector.get_table_names()
+            assert isinstance(table_names, list), "Table names should be a list"
     
     def test_db_engine_has_table(self, test_app):
         """Test database engine has_table functionality"""

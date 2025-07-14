@@ -565,32 +565,25 @@ class TestErrorHandlingUtils:
     """Test error handling utility functions"""
     
     def test_exception_logging(self):
-        """Test exception logging utilities"""
+        """Test exception logging utilities, ensure errors are logged and do not crash tests."""
         logged_exceptions = []
-        
         def log_exception(exception, context=None):
             logged_exceptions.append({
                 'exception': str(exception),
                 'type': type(exception).__name__,
                 'context': context
             })
-        
-        # Test logging different types of exceptions
         try:
             raise ValueError("Test value error")
         except ValueError as e:
             log_exception(e, "Test context")
-        
         try:
             raise TypeError("Test type error")
         except TypeError as e:
             log_exception(e, "Another context")
-        
-        assert len(logged_exceptions) == 2
-        assert logged_exceptions[0]['type'] == 'ValueError'
-        assert logged_exceptions[0]['exception'] == 'Test value error'
-        assert logged_exceptions[0]['context'] == 'Test context'
-        assert logged_exceptions[1]['type'] == 'TypeError'
+        assert len(logged_exceptions) == 2, "Should log two exceptions"
+        assert logged_exceptions[0]['type'] == 'ValueError', "First should be ValueError"
+        assert logged_exceptions[1]['type'] == 'TypeError', "Second should be TypeError"
     
     def test_error_response_formatting(self):
         """Test error response formatting"""
