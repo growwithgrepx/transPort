@@ -87,18 +87,8 @@ jobs:
             echo 'No Selenium test results found.' >> $GITHUB_STEP_SUMMARY
           fi
 
-      # Show coverage summary in Actions summary tab
-      - name: Coverage summary
-        run: |
-          echo '## Coverage Report' >> $GITHUB_STEP_SUMMARY
-          if [ -f .coverage ]; then
-            coverage report --data-file=.coverage >> $GITHUB_STEP_SUMMARY || echo 'Coverage summary failed.' >> $GITHUB_STEP_SUMMARY
-          else
-            echo 'No .coverage data file found.' >> $GITHUB_STEP_SUMMARY
-          fi
-
       # Show Markdown coverage table in Actions summary tab
-      - name: Markdown coverage table
+      - name: Coverage Report
         run: |
           if [ -f artifacts/unit/coverage.xml ]; then
             python3 scripts/coverage_to_md.py artifacts/unit/coverage.xml >> $GITHUB_STEP_SUMMARY

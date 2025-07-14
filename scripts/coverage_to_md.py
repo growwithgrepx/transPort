@@ -2,17 +2,20 @@ import sys
 import xml.etree.ElementTree as ET
 
 def main(xml_path):
-    print("## Coverage Report (Markdown Table)\n")
+    print("## Coverage Report\n")
     print("| File | Statements | Missed | Coverage |")
     print("|------|------------|--------|----------|")
     tree = ET.parse(xml_path)
     root = tree.getroot()
     total_stmts = total_miss = 0
-    for cls in root.findall(".//class"):
-        filename = cls.attrib["filename"]
-        stmts = int(cls.attrib["statements"])
-        miss = int(cls.attrib["missed"])
-        cover = 100 if stmts == 0 else int(100 * (stmts - miss) / stmts)
+    # coverage.py XML puts files under <packages>/<package>/<class> or <packages>/<package>/<file>
+    for file_elem in root.findall(".//class") + root.findall(".//file"):
+        filename = file_elem.attrib.get("filename")
+        # Try both coverage.py v4 and v5+ attributes
+        stmts = int(file_elem.attrib.get("lines-valid") or file_elem.attrib.get("statements") or 0)
+        covered = int(file_elem.attrib.get("lines-covered") or 0)
+        miss = stmts - covered
+        cover = 100 if stmts == 0 else int(100 * covered / stmts)
         print(f"| `{filename}` | {stmts} | {miss} | {cover}% |")
         total_stmts += stmts
         total_miss += miss
