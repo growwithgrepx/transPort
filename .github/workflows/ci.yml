@@ -90,10 +90,10 @@ jobs:
       - name: Coverage summary
         run: |
           echo '## Coverage Report' >> $GITHUB_STEP_SUMMARY
-          if [ -f artifacts/unit/coverage.xml ]; then
-            coverage report --data-file=artifacts/unit/coverage.xml >> $GITHUB_STEP_SUMMARY || echo 'Coverage summary failed.' >> $GITHUB_STEP_SUMMARY
+          if [ -f .coverage ]; then
+            coverage report --data-file=.coverage >> $GITHUB_STEP_SUMMARY || echo 'Coverage summary failed.' >> $GITHUB_STEP_SUMMARY
           else
-            echo 'No coverage file found.' >> $GITHUB_STEP_SUMMARY
+            echo 'No .coverage data file found.' >> $GITHUB_STEP_SUMMARY
           fi
 
       # Optionally upload coverage.xml as an artifact (for local download)
