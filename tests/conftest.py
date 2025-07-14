@@ -57,8 +57,12 @@ def app():
         'TESTING': True,
         'WTF_CSRF_ENABLED': False,
         'SECRET_KEY': 'test-secret-key',
-        'SERVER_NAME': 'localhost:5000',
+        # 'SERVER_NAME': 'localhost:5000',  # REMOVE or comment out this line
+        'SERVER_NAME': None,  # Explicitly set to None for test
     })
+    print("Registered routes in test app:")
+    for rule in flask_app.url_map.iter_rules():
+        print(rule)
     with flask_app.app_context():
         try:
             db.create_all()

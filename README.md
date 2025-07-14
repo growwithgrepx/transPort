@@ -113,4 +113,49 @@ A `Dockerfile` is provided for running tests in a containerized environment. See
 
 Tests are run automatically on every push and pull request using GitHub Actions. Screenshots and logs are uploaded as artifacts on failure.
 
+## Test & Report Workflow
+
+### Running All Tests Locally
+
+```bash
+pip install -r requirements.txt
+pytest -v --tb=short
+```
+
+### Running Specific Test Categories
+
+```bash
+pytest tests/unit/         # Unit tests only
+pytest tests/selenium_tests/     # Selenium browser tests only
+```
+
+### Generating Test Reports Locally
+
+After running tests with `--junitxml` output (or using the CI artifacts), you can generate summary reports:
+
+```bash
+# Unit test report
+python scripts/generate_unit_report.py --xml <path-to-unit-xml> --cov <path-to-coverage-xml> --out <output-summary-file>
+
+# Selenium test report
+python scripts/generate_selenium_report.py --xml <path-to-selenium-xml> --out <output-summary-file>
+```
+
+All arguments are optional; defaults match the CI layout.
+
+### Standard Test Flow (Local & CI)
+- All test configuration is in the root `pytest.ini`.
+- Use `pytest` directly for all test runs.
+- Test dependencies are managed in `requirements.txt`.
+- Test reports are generated using the scripts in `scripts/`.
+- CI runs the same commands as local development for consistency.
+
+### Environment Setup
+- Use `.env.test` for test-specific environment variables.
+- The test database is isolated and reset for each run.
+
+### Cleaning Up Test Artifacts
+- Screenshots and logs are stored in `test_screenshots/` and `logs/`.
+- Use `python scripts/cleanup_screenshots.py --execute` to clean up old screenshots.
+
 --- 

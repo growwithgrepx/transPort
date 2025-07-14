@@ -26,7 +26,7 @@ class TestMigratedJobsCRUD:
     @pytest.fixture(autouse=True)
     def setup_login(self, live_server, browser, seeded_db):
         """Setup login for all jobs tests"""
-        login_page = LoginPage(browser, live_server)
+        login_page = LoginPage(browser, live_server.url)
         login_page.load()
         login_page.login("fleetmanager", "manager123")
         return login_page

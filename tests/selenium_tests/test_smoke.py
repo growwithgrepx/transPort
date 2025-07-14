@@ -24,7 +24,7 @@ class TestMigratedSmoke:
         # Arrange
         username = os.environ.get("TEST_USERNAME", "fleetmanager")
         password = os.environ.get("TEST_PASSWORD", "manager123")
-        login_page = LoginPage(browser, live_server)
+        login_page = LoginPage(browser, live_server.url)
         
         # Act
         login_page.load().login(username, password)
@@ -44,7 +44,7 @@ class TestMigratedSmoke:
     # def test_login_form_validation(self, live_server, browser):
     #     """Test login form validation - migrated from old smoke test"""
     #     # Arrange
-    #     login_page = LoginPage(browser, live_server)
+    #     login_page = LoginPage(browser, live_server.url)
     #     # Act
     #     login_page.load()
     #     # Assert

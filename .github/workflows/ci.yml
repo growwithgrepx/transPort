@@ -25,7 +25,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
-          pip install pytest pytest-cov selenium webdriver-manager
+          pip install -r requirements.txt
       - name: Run unit tests
         run: |
           mkdir -p test_results tests/reports/htmlcov/unit
@@ -59,11 +59,11 @@ jobs:
           python-version: '3.11'
       - name: Install dependencies
         run: |
-          pip install pytest selenium webdriver-manager
+          pip install -r requirements.txt
       - name: Run Selenium tests
         run: |
           mkdir -p test_results tests/test_screenshots
-          pytest tests/selenium_tests.py --junitxml=test_results/selenium-test-results.xml
+          pytest tests/selenium_tests/ --junitxml=test_results/selenium-test-results.xml
       - name: Debug artifact paths
         run: |
           echo "Contents of test_results:"
@@ -89,12 +89,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
-
       - name: Debug artifact structure
         run: |
           echo "=== Artifact Structure ==="
@@ -103,7 +101,6 @@ jobs:
           ls -la artifacts/ || echo "Artifacts directory is empty or does not exist"
           echo "=== Test Results Files ==="
           find artifacts -name "*test-results.xml" -exec ls -la {} \; || echo "No test results files found"
-
       - name: Generate comprehensive report
         run: |
           echo "# 📊 Comprehensive Test Report - Run #${{ github.run_number }}" > report.md
