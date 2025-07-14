@@ -30,8 +30,11 @@ jobs:
           pip install -r requirements.txt
       - name: Run unit tests
         run: |
-          mkdir -p test_results tests/reports/htmlcov/unit
-          pytest --junitxml=test_results/unit-test-results.xml --cov=tests --cov-report=xml:tests/reports/coverage_unit.xml --cov-report=html:tests/reports/htmlcov/unit
+          mkdir -p artifacts/test-results-3.11/test_results
+          mkdir -p artifacts/test-results-3.11/tests/reports/htmlcov/unit
+          pytest --junitxml=artifacts/test-results-3.11/test_results/unit-test-results.xml \
+                 --cov=tests --cov-report=xml:artifacts/test-results-3.11/tests/reports/coverage_unit.xml \
+                 --cov-report=html:artifacts/test-results-3.11/tests/reports/htmlcov/unit
       - name: Debug artifact paths
         run: |
           echo "Contents of test_results:"
@@ -44,9 +47,9 @@ jobs:
         with:
           name: test-results-${{ matrix.python-version }}
           path: |
-            test_results/
-            tests/reports/coverage_unit.xml
-            tests/reports/htmlcov/unit/
+            artifacts/test-results-3.11/test_results/
+            artifacts/test-results-3.11/tests/reports/coverage_unit.xml
+            artifacts/test-results-3.11/tests/reports/htmlcov/unit/
           retention-days: 30
           if-no-files-found: warn
 
@@ -64,8 +67,9 @@ jobs:
           pip install -r requirements.txt
       - name: Run Selenium tests
         run: |
-          mkdir -p test_results tests/test_screenshots
-          pytest tests/selenium_tests/ --junitxml=test_results/selenium-test-results.xml
+          mkdir -p artifacts/selenium-test-results/test_results
+          mkdir -p artifacts/selenium-test-results/test_screenshots
+          pytest tests/selenium_tests/ --junitxml=artifacts/selenium-test-results/test_results/selenium-test-results.xml
       - name: Debug artifact paths
         run: |
           echo "Contents of test_results:"
@@ -78,8 +82,8 @@ jobs:
         with:
           name: selenium-test-results
           path: |
-            test_results/
-            tests/test_screenshots/
+            artifacts/selenium-test-results/test_results/
+            artifacts/selenium-test-results/test_screenshots/
           retention-days: 30
           if-no-files-found: warn
 
