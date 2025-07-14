@@ -37,7 +37,7 @@ class TestMigratedJobsCRUD:
     def test_jobs_crud_operations(self, live_server, browser, seeded_db):
         """[core happy flow] Test basic job creation - minimal happy path"""
         # Arrange
-        jobs_page = JobsPage(browser, live_server)
+        jobs_page = JobsPage(browser, live_server.url)
         jobs_page.load()
 
         # Get seeded data

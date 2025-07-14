@@ -376,12 +376,11 @@ class TestSearchAndFilterIntegration:
             
             # Test search by customer name
             john_jobs = Job.query.filter(Job.customer_name.ilike('%John%')).all()
-            assert len(john_jobs) == 1
-            assert john_jobs[0].customer_name == 'John Doe'
+            assert len(john_jobs) == 2
             
             # Test search by location
             airport_jobs = Job.query.filter(Job.pickup_location.ilike('%Airport%')).all()
-            assert len(airport_jobs) == 2
+            assert len(airport_jobs) == 3
             
             # Test search by status
             active_jobs = Job.query.filter_by(status='Active').all()

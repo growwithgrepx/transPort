@@ -608,21 +608,39 @@ def smart_add_job():
 
 
 def parse_job_message(message):
-    """Parse a job message string into a dict. Handles None/empty input and always includes 'customer_name' key."""
+    """Parse a job message string into a dict. Handles None/empty input and always includes all expected keys."""
+    expected_fields = [
+        'customer_name', 'customer_email', 'customer_mobile', 'pickup_location', 'dropoff_location',
+        'pickup_date', 'pickup_time', 'type_of_service', 'vehicle_type', 'payment_mode',
+        'passenger_name', 'passenger_email', 'passenger_mobile', 'customer_reference', 'order_status',
+        'payment_status', 'vehicle_number', 'driver_contact', 'reference', 'status', 'message', 'remarks'
+    ]
+    # Map legacy/alternate keys to canonical keys
+    key_map = {
+        'customer': 'customer_name',
+        'email': 'customer_email',
+        'phone': 'customer_mobile',
+        'pickup': 'pickup_location',
+        'dropoff': 'dropoff_location',
+        'date': 'pickup_date',
+        'time': 'pickup_time',
+        'service': 'type_of_service',
+        'vehicle': 'vehicle_type',
+        'payment': 'payment_mode',
+    }
+    result = {field: None for field in expected_fields}
     if not message:
-        return {'customer_name': None}
-    data = {}
+        return result
     lines = message.splitlines()
     for line in lines:
         if ':' in line:
             key, value = line.split(':', 1)
             key = key.strip().lower().replace(' ', '_')
             value = value.strip()
-            data[key] = value
-    # Always include 'customer_name' key
-    if 'customer_name' not in data:
-        data['customer_name'] = None
-    return data
+            canonical_key = key_map.get(key, key)
+            if canonical_key in result:
+                result[canonical_key] = value
+    return result
 
 
 # DRIVERS CRUD
