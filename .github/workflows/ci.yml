@@ -141,7 +141,7 @@ jobs:
             cat /tmp/unit_3.11.txt
             IFS=',' read total passed failed errors coverage < /tmp/unit_3.11.txt
             passrate=0
-            if [ -n "$total" ] && [ "$total" -gt 0 ] && [ -n "$passed" ]; then
+            if [[ "$total" =~ ^[0-9]+$ ]] && [[ "$passed" =~ ^[0-9]+$ ]] && [ "$total" -gt 0 ]; then
               passrate=$((passed * 100 / total))
             fi
             printf "| %-19s | %11s | %6s | %6s | %6s | %9s | %8s |\n" "Unit & Integration" "$total" "$passed" "$failed" "$errors" "${passrate}%" "${coverage}%" >> report.md
@@ -153,7 +153,7 @@ jobs:
             cat /tmp/selenium.txt
             IFS=',' read total passed failed errors < /tmp/selenium.txt
             passrate=0
-            if [ -n "$total" ] && [ "$total" -gt 0 ] && [ -n "$passed" ]; then
+            if [[ "$total" =~ ^[0-9]+$ ]] && [[ "$passed" =~ ^[0-9]+$ ]] && [ "$total" -gt 0 ]; then
               passrate=$((passed * 100 / total))
             fi
             printf "| %-19s | %11s | %6s | %6s | %6s | %9s | %8s |\n" "UI Tests" "$total" "$passed" "$failed" "$errors" "${passrate}%" "N/A" >> report.md
@@ -169,7 +169,7 @@ jobs:
             gfailed=$((ufailed + sfailed))
             gerrors=$((uerrors + serrors))
             gpassrate=0
-            if [ -n "$gtotal" ] && [ "$gtotal" -gt 0 ] && [ -n "$gpassed" ]; then
+            if [[ "$gtotal" =~ ^[0-9]+$ ]] && [[ "$gpassed" =~ ^[0-9]+$ ]] && [ "$gtotal" -gt 0 ]; then
               gpassrate=$((gpassed * 100 / gtotal))
             fi
             printf "| %-19s | %11s | %6s | %6s | %6s | %9s | %8s |\n" "Total" "$gtotal" "$gpassed" "$gfailed" "$gerrors" "${gpassrate}%" "N/A" >> report.md
