@@ -608,56 +608,20 @@ def smart_add_job():
 
 
 def parse_job_message(message):
-    # Try to parse as field: value pairs
+    """Parse a job message string into a dict. Handles None/empty input and always includes 'customer_name' key."""
+    if not message:
+        return {'customer_name': None}
     data = {}
     lines = message.splitlines()
     for line in lines:
         if ':' in line:
-            field, value = line.split(':', 1)
-            field = field.strip().lower().replace(' ', '_')
+            key, value = line.split(':', 1)
+            key = key.strip().lower().replace(' ', '_')
             value = value.strip()
-            # Map common aliases to job fields
-            field_map = {
-                'agent': 'customer_name',
-                'agent_email': 'customer_email',
-                'agent_mobile': 'customer_mobile',
-                'service': 'type_of_service',
-                'vehicle': 'vehicle_type',
-                'vehicle_number': 'vehicle_number',
-                'pickup': 'pickup_location',
-                'drop': 'dropoff_location',
-                'date': 'pickup_date',
-                'time': 'pickup_time',
-                'status': 'status',
-                'passenger': 'passenger_name',
-                'passenger_email': 'passenger_email',
-                'passenger_mobile': 'passenger_mobile',
-                'reference': 'reference',
-                'remarks': 'remarks',
-                'message': 'message',
-            }
-            mapped_field = field_map.get(field, field)
-            data[mapped_field] = value
-    # Fallback to regex for common fields if not found
-    if not data:
-        patterns = {
-            'customer_name': r'Customer[:\-]?\s*([\w\s]+)',
-            'customer_email': r'Email[:\-]?\s*([\w\.-]+@[\w\.-]+)',
-            'customer_mobile': r'Mobile[:\-]?\s*(\d+)',
-            'type_of_service': r'Service[:\-]?\s*([\w\s]+)',
-            'pickup_date': r'Date[:\-]?\s*([\d\-/]+)',
-            'pickup_time': r'Time[:\-]?\s*([\d:apmAPM\s]+)',
-            'pickup_location': r'Pickup[:\-]?\s*([\w\s]+)',
-            'dropoff_location': r'Drop[:\-]?\s*([\w\s]+)',
-            'vehicle_type': r'Vehicle[:\-]?\s*([\w\s]+)',
-            'driver_contact': r'Driver[:\-]?\s*([\w\s]+)',
-            'payment_status': r'Payment[:\-]?\s*([\w\s]+)',
-            'order_status': r'Status[:\-]?\s*([\w\s]+)',
-        }
-        for field, pattern in patterns.items():
-            match = re.search(pattern, message, re.IGNORECASE)
-            if match:
-                data[field] = match.group(1).strip()
+            data[key] = value
+    # Always include 'customer_name' key
+    if 'customer_name' not in data:
+        data['customer_name'] = None
     return data
 
 
