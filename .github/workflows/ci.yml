@@ -138,7 +138,6 @@ jobs:
           echo "+---------------------+-------------+--------+--------+--------+-----------+----------+" >> report.md
 
           if [ -f /tmp/unit_3.11.txt ]; then
-            cat /tmp/unit_3.11.txt
             IFS=',' read total passed failed errors coverage < /tmp/unit_3.11.txt
             passrate=0
             if [[ "$total" =~ ^[0-9]+$ ]] && [[ "$passed" =~ ^[0-9]+$ ]] && [ "$total" -gt 0 ]; then
@@ -150,7 +149,6 @@ jobs:
           fi
 
           if [ -f /tmp/selenium.txt ]; then
-            cat /tmp/selenium.txt
             IFS=',' read total passed failed errors < /tmp/selenium.txt
             passrate=0
             if [[ "$total" =~ ^[0-9]+$ ]] && [[ "$passed" =~ ^[0-9]+$ ]] && [ "$total" -gt 0 ]; then
