@@ -103,34 +103,46 @@ jobs:
           find artifacts -name "*test-results.xml" -exec ls -la {} \; || echo "No test results files found"
       - name: Generate comprehensive report
         run: |
+          # Install dependencies (if not already present)
+          pip install -r requirements.txt
+      
+          # Set environment variables
           export PYTHONIOENCODING=utf-8
           export LC_ALL=en_US.UTF-8
+      
+          # Create initial report
           echo "# Test Report - Run #${{ github.run_number }}" > report.md
           echo "" >> report.md
           echo "Generated on: $(date)" >> report.md
           echo "" >> report.md
-
-          # Process unit tests
+      
+          # Process unit tests with error logging
           xml_file="artifacts/test-results-3.11/test_results/unit-test-results.xml"
           cov_file="artifacts/test-results-3.11/tests/reports/coverage_unit.xml"
           if [ -f "$xml_file" ]; then
             echo "### Python 3.11 Unit & Integration Tests" >> report.md
-            python3 scripts/generate_unit_report.py --xml "$xml_file" --cov "$cov_file" --out /tmp/unit_3.11.txt >> report.md || true
+            python3 scripts/generate_unit_report.py --xml "$xml_file" --cov "$cov_file" --out /tmp/unit_3.11.txt >> report.md 2>> error.log || { echo "Unit report script failed, see error.log"; cat error.log; exit 1; }
           else
             echo "No unit test results found for Python 3.11" >> report.md
             echo "" >> report.md
           fi
-
-          # Process Selenium tests
+      
+          # Process Selenium tests with error logging
           selenium_xml="artifacts/selenium-test-results/test_results/selenium-test-results.xml"
           if [ -f "$selenium_xml" ]; then
             echo "### Selenium UI Tests" >> report.md
-            python3 scripts/generate_selenium_report.py --xml "$selenium_xml" --out /tmp/selenium.txt >> report.md || true
+            python3 scripts/generate_selenium_report.py --xml "$selenium_xml" --out /tmp/selenium.txt >> report.md 2>> error.log || { echo "Selenium report script failed, see error.log"; cat error.log; exit 1; }
           else
             echo "No Selenium test results found" >> report.md
             echo "" >> report.md
           fi
-
+      
+          # Add debugging for file contents
+          echo "Debug: Checking /tmp/unit_3.11.txt" >> report.md
+          cat /tmp/unit_3.11.txt >> report.md 2>/dev/null || echo "File not found or empty" >> report.md
+          echo "Debug: Checking /tmp/selenium.txt" >> report.md
+          cat /tmp/selenium.txt >> report.md 2>/dev/null || echo "File not found or empty" >> report.md     
+        
           # Summary Table
           echo "### Summary Table" >> report.md
           echo "+---------------------+-------------+--------+--------+--------+-----------+----------+" >> report.md
