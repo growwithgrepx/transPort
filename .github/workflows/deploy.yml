@@ -23,9 +23,6 @@ jobs:
           cd /home/ubuntu/transPort
           git pull origin main
           source venv/bin/activate
-          pip install -r requirements.txt
-          # Run migrations if needed
-          # flask db upgrade
-          # Restart your app (systemd or nohup or supervisor)
+          ./venv/bin/pip install -r requirements.txt
           pkill -f "python app.py" || true
-          nohup python app.py > app.log 2>&1 &
+          nohup ./venv/bin/python app.py > app.log 2>&1 &
