@@ -54,18 +54,25 @@ class VehiclesPage(BasePage):
         return self
 
     def fill_vehicle_form(self, vehicle_data):
-        WebDriverWait(self.driver, 10).until(
-            EC.presence_of_element_located((By.ID, "vehicleForm"))
+        form = WebDriverWait(self.driver, 10).until(
+            EC.visibility_of_element_located((By.ID, "vehicleForm"))
         )
-        for field_name, value in vehicle_data.items():
+        field_map = {
+            "registration": "registration",
+            "make": "make",
+            "model": "model",
+            "year": "year",
+            # Add more mappings as needed based on the actual form
+        }
+        for key, value in vehicle_data.items():
+            field_id = field_map.get(key, key)
             try:
-                field = self.driver.find_element(By.ID, field_name)
-                field.clear()
-                field.send_keys(str(value))
+                input_elem = form.find_element(By.XPATH, f'.//*[@id="{field_id}"] | .//*[@name="{field_id}"]')
+                input_elem.clear()
+                input_elem.send_keys(value)
             except Exception as e:
-                logger.warning(f"Error filling field {field_name}: {str(e)}")
-                continue
-        return self
+                logger.error(f"Field {field_id} not found in vehicle form. Error: {e}")
+                raise
 
     def submit_vehicle_form(self):
         submit_btn = self.driver.find_element(By.XPATH, "//form[@id='vehicleForm']//button[@type='submit']")
@@ -86,5 +93,11 @@ class VehiclesPage(BasePage):
     def create_vehicle(self, vehicle_data):
         self.click_add_vehicle_button()
         self.fill_vehicle_form(vehicle_data)
-        self.submit_vehicle_form()
+        submit_btn = WebDriverWait(self.driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, './/button[contains(@type, "submit") and (contains(text(), "Save") or contains(text(), "Add") or contains(text(), "Submit"))]'))
+        )
+        submit_btn.click()
+        WebDriverWait(self.driver, 10).until(
+            EC.visibility_of_element_located((By.XPATH, '//tbody[@id="vehicles-table-body"]/ancestor::table'))
+        )
         return self 

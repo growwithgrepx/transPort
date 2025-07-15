@@ -54,18 +54,25 @@ class DriversPage(BasePage):
         return self
 
     def fill_driver_form(self, driver_data):
-        WebDriverWait(self.driver, 10).until(
-            EC.presence_of_element_located((By.ID, "driverForm"))
+        form = WebDriverWait(self.driver, 10).until(
+            EC.visibility_of_element_located((By.ID, "driverForm"))
         )
-        for field_name, value in driver_data.items():
+        field_map = {
+            "name": "name",
+            "email": "email",
+            "phone": "phone",
+            "license": "license",
+            # Add more mappings as needed based on the actual form
+        }
+        for key, value in driver_data.items():
+            field_id = field_map.get(key, key)
             try:
-                field = self.driver.find_element(By.ID, field_name)
-                field.clear()
-                field.send_keys(str(value))
+                input_elem = form.find_element(By.XPATH, f'.//*[@id="{field_id}"] | .//*[@name="{field_id}"]')
+                input_elem.clear()
+                input_elem.send_keys(value)
             except Exception as e:
-                logger.warning(f"Error filling field {field_name}: {str(e)}")
-                continue
-        return self
+                logger.error(f"Field {field_id} not found in driver form. Error: {e}")
+                raise
 
     def submit_driver_form(self):
         submit_btn = self.driver.find_element(By.XPATH, "//form[@id='driverForm']//button[@type='submit']")
@@ -86,5 +93,11 @@ class DriversPage(BasePage):
     def create_driver(self, driver_data):
         self.click_add_driver_button()
         self.fill_driver_form(driver_data)
-        self.submit_driver_form()
+        submit_btn = WebDriverWait(self.driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, './/button[contains(@type, "submit") and (contains(text(), "Save") or contains(text(), "Add") or contains(text(), "Submit"))]'))
+        )
+        submit_btn.click()
+        WebDriverWait(self.driver, 10).until(
+            EC.visibility_of_element_located((By.XPATH, '//*[@id="drivers-table"]//table'))
+        )
         return self 

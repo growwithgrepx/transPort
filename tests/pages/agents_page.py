@@ -56,18 +56,26 @@ class AgentsPage(BasePage):
         return self
 
     def fill_agent_form(self, agent_data):
-        WebDriverWait(self.driver, 10).until(
-            EC.presence_of_element_located((By.ID, "agentForm"))
+        form = WebDriverWait(self.driver, 10).until(
+            EC.visibility_of_element_located((By.ID, "agentForm"))
         )
-        for field_name, value in agent_data.items():
+        # Map test data keys to actual form field IDs/names as per form_debug.html
+        field_map = {
+            "name": "name",
+            "email": "email",
+            "phone": "phone",
+            "address": "address",
+            # Add more mappings as needed based on the actual form
+        }
+        for key, value in agent_data.items():
+            field_id = field_map.get(key, key)
             try:
-                field = self.driver.find_element(By.ID, field_name)
-                field.clear()
-                field.send_keys(str(value))
+                input_elem = form.find_element(By.XPATH, f'.//*[@id="{field_id}"] | .//*[@name="{field_id}"]')
+                input_elem.clear()
+                input_elem.send_keys(value)
             except Exception as e:
-                logger.warning(f"Error filling field {field_name}: {str(e)}")
-                continue
-        return self
+                logger.error(f"Field {field_id} not found in agent form. Error: {e}")
+                raise
 
     def submit_agent_form(self):
         submit_btn = self.driver.find_element(By.XPATH, "//form[@id='agentForm']//button[@type='submit']")
@@ -90,5 +98,13 @@ class AgentsPage(BasePage):
     def create_agent(self, agent_data):
         self.click_add_agent_button()
         self.fill_agent_form(agent_data)
-        self.submit_agent_form()
+        # Wait for submit button and click
+        submit_btn = WebDriverWait(self.driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, './/button[contains(@type, "submit") and (contains(text(), "Save") or contains(text(), "Add") or contains(text(), "Submit"))]'))
+        )
+        submit_btn.click()
+        # Wait for the table to update or a success message
+        WebDriverWait(self.driver, 10).until(
+            EC.visibility_of_element_located((By.XPATH, '//*[@id="agents-table"]//table'))
+        )
         return self 

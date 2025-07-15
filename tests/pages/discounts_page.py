@@ -54,18 +54,24 @@ class DiscountsPage(BasePage):
         return self
 
     def fill_discount_form(self, discount_data):
-        WebDriverWait(self.driver, 10).until(
-            EC.presence_of_element_located((By.ID, "discountForm"))
+        form = WebDriverWait(self.driver, 10).until(
+            EC.visibility_of_element_located((By.ID, "discountForm"))
         )
-        for field_name, value in discount_data.items():
+        field_map = {
+            "name": "name",
+            "amount": "amount",
+            "type": "type",
+            # Add more mappings as needed based on the actual form
+        }
+        for key, value in discount_data.items():
+            field_id = field_map.get(key, key)
             try:
-                field = self.driver.find_element(By.ID, field_name)
-                field.clear()
-                field.send_keys(str(value))
+                input_elem = form.find_element(By.XPATH, f'.//*[@id="{field_id}"] | .//*[@name="{field_id}"]')
+                input_elem.clear()
+                input_elem.send_keys(value)
             except Exception as e:
-                logger.warning(f"Error filling field {field_name}: {str(e)}")
-                continue
-        return self
+                logger.error(f"Field {field_id} not found in discount form. Error: {e}")
+                raise
 
     def submit_discount_form(self):
         submit_btn = self.driver.find_element(By.XPATH, "//form[@id='discountForm']//button[@type='submit']")
@@ -86,5 +92,11 @@ class DiscountsPage(BasePage):
     def create_discount(self, discount_data):
         self.click_add_discount_button()
         self.fill_discount_form(discount_data)
-        self.submit_discount_form()
+        submit_btn = WebDriverWait(self.driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, './/button[contains(@type, "submit") and (contains(text(), "Save") or contains(text(), "Add") or contains(text(), "Submit"))]'))
+        )
+        submit_btn.click()
+        WebDriverWait(self.driver, 10).until(
+            EC.visibility_of_element_located((By.XPATH, '//div[contains(@class,"card-body")]/div[contains(@class,"table-responsive")]/table'))
+        )
         return self 
