@@ -1,0 +1,90 @@
+import logging
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from .base_page import BasePage
+
+logger = logging.getLogger(__name__)
+
+class BillingPage(BasePage):
+    """Page Object Model for the Billing page"""
+    def __init__(self, driver, base_url):
+        super().__init__(driver, base_url)
+        self.billing_url = f"{base_url}/billing"
+
+    def load(self):
+        self.driver.get(self.billing_url)
+        WebDriverWait(self.driver, 10).until(
+            EC.presence_of_element_located((By.ID, "billing-table"))
+        )
+        logger.info(f"Loaded billing page: {self.driver.current_url}")
+        return self
+
+    def wait_for_page_ready(self, timeout=20):
+        WebDriverWait(self.driver, timeout).until(
+            lambda d: d.execute_script('return document.readyState') == 'complete'
+        )
+
+    def is_loaded(self):
+        try:
+            self.wait_for_page_ready()
+            WebDriverWait(self.driver, 20).until(
+                EC.visibility_of_element_located((By.XPATH, '//*[contains(@class, "card") or contains(@class, "container") or contains(text(), "Billing")]'))
+            )
+            WebDriverWait(self.driver, 10).until(
+                EC.visibility_of_element_located((By.XPATH, '//div[contains(@class,"card-body")]/div[contains(@class,"table-responsive")]/table'))
+            )
+            return True
+        except TimeoutException:
+            logger.error("Billing table not found on page load. Page source:\n%s", self.driver.page_source)
+            return False
+
+    def click_add_billing_button(self):
+        try:
+            WebDriverWait(self.driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH, '//a[contains(@class, "btn") and contains(translate(text(), "ADD", "add"), "add bill")] | //button[contains(@class, "btn") and contains(translate(text(), "ADD", "add"), "add bill")]'))
+            ).click()
+        except TimeoutException:
+            logger.error("Add Billing button not found or not clickable. Page source:\n%s", self.driver.page_source)
+            raise
+        WebDriverWait(self.driver, 10).until(
+            EC.presence_of_element_located((By.ID, "billingForm"))
+        )
+        return self
+
+    def fill_billing_form(self, billing_data):
+        WebDriverWait(self.driver, 10).until(
+            EC.presence_of_element_located((By.ID, "billingForm"))
+        )
+        for field_name, value in billing_data.items():
+            try:
+                field = self.driver.find_element(By.ID, field_name)
+                field.clear()
+                field.send_keys(str(value))
+            except Exception as e:
+                logger.warning(f"Error filling field {field_name}: {str(e)}")
+                continue
+        return self
+
+    def submit_billing_form(self):
+        submit_btn = self.driver.find_element(By.XPATH, "//form[@id='billingForm']//button[@type='submit']")
+        self.driver.execute_script("arguments[0].scrollIntoView(true);", submit_btn)
+        submit_btn.click()
+        WebDriverWait(self.driver, 10).until(
+            EC.presence_of_element_located((By.ID, "billing-table"))
+        )
+        return self
+
+    def is_billing_in_table(self, billing_name):
+        try:
+            table = self.driver.find_element(By.ID, "billing-table")
+            return billing_name.lower() in table.text.lower()
+        except Exception:
+            return False
+
+    def create_billing(self, billing_data):
+        self.click_add_billing_button()
+        self.fill_billing_form(billing_data)
+        self.submit_billing_form()
+        return self 

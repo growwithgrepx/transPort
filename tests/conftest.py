@@ -1,14 +1,34 @@
 import os
 import sys
+import glob
+import atexit
 
-# --- ROOT CAUSE FIX: Always use a single, deterministic file-based SQLite DB for all Selenium tests ---
-TEST_DB_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), 'test_selenium.db'))
+# --- Pre-run cleanup: Remove all test_selenium_gw*.db files before any worker starts ---
+for dbfile in glob.glob(os.path.join(os.path.dirname(__file__), 'test_selenium_gw*.db')):
+    try:
+        os.remove(dbfile)
+    except Exception:
+        pass
+
+# --- Use a unique SQLite DB file per xdist worker ---
+worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+TEST_DB_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), f'test_selenium_{worker_id}.db'))
 SQLITE_URI = f'sqlite:///{TEST_DB_PATH}?check_same_thread=False'
 os.environ['DATABASE_URL'] = SQLITE_URI
 os.environ['FLASK_ENV'] = 'test'
 # Remove the DB file at the start of the session for a clean slate
 if os.path.exists(TEST_DB_PATH):
     os.remove(TEST_DB_PATH)
+
+# --- Clean up all test_selenium_gw*.db files after the run ---
+def cleanup_test_dbs():
+    db_pattern = os.path.join(os.path.dirname(__file__), 'test_selenium_gw*.db')
+    for dbfile in glob.glob(db_pattern):
+        try:
+            os.remove(dbfile)
+        except Exception:
+            pass
+atexit.register(cleanup_test_dbs)
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
@@ -102,13 +122,12 @@ def seed_test_data():
     # User
     user = User.query.filter_by(username='fleetmanager').first()
     if not user:
-        user = User(
-            username='fleetmanager',
-            email='fleetmanager@example.com',
-            password='manager123',
-            active=True,
-            fs_uniquifier=str(uuid.uuid4())
-        )
+        user = User()
+        user.username = 'fleetmanager'
+        user.email = 'fleetmanager@example.com'
+        user.password = 'manager123'
+        user.active = True
+        user.fs_uniquifier = str(uuid.uuid4())
         user.roles.append(role)
         db.session.add(user)
     else:
@@ -243,20 +262,92 @@ def live_server(app):
     server.shutdown()
 
 # --- Selenium browser fixture ---
-@pytest.fixture(scope='session')
+@pytest.fixture(scope='function')  # Changed from 'session' for parallelization
 def browser():
     options = Options()
-    options.add_argument('--headless')
+    options.add_argument('--headless')  # Use new headless mode for speed
+    options.add_argument('--remote-debugging-port=9222')  # Enable DevTools
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
     options.add_argument('--disable-gpu')
     options.add_argument('--window-size=1920,1080')
+
+    # Suppress Chrome's internal logs while preserving test errors
+    options.add_argument('--log-level=3')
+    options.add_argument('--disable-logging')
+    options.add_argument('--silent')
+    options.add_argument('--disable-gpu-logging')
+    options.add_argument('--disable-background-timer-throttling')
+    options.add_argument('--disable-backgrounding-occluded-windows')
+    options.add_argument('--disable-renderer-backgrounding')
+    
+    # SPEED OPTIMIZATIONS - Disable unnecessary features
+    options.add_argument('--disable-extensions')
+    options.add_argument('--disable-plugins')
+    options.add_argument('--disable-images')  # Don't load images
+    options.add_argument('--disable-web-security')
+    options.add_argument('--disable-features=TranslateUI')
+    options.add_argument('--disable-features=VizDisplayCompositor')
+    options.add_argument('--disable-ipc-flooding-protection')
+    options.add_argument('--disable-default-apps')
+    options.add_argument('--disable-sync')
+    options.add_argument('--disable-background-networking')
+    options.add_argument('--disable-background-downloads')
+    options.add_argument('--disable-client-side-phishing-detection')
+    options.add_argument('--disable-component-update')
+    options.add_argument('--disable-domain-reliability')
+    options.add_argument('--disable-features=AudioServiceOutOfProcess')
+    options.add_argument('--disable-features=MediaRouter')
+    options.add_argument('--disable-hang-monitor')
+    options.add_argument('--disable-prompt-on-repost')
+    options.add_argument('--disable-breakpad')
+    options.add_argument('--disable-component-extensions-with-background-pages')
+    options.add_argument('--disable-datasaver-prompt')
+    options.add_argument('--disable-desktop-notifications')
+    options.add_argument('--disable-device-discovery-notifications')
+    options.add_argument('--disable-renderer-accessibility')
+    options.add_argument('--disable-speech-api')
+    options.add_argument('--disable-file-system')
+    options.add_argument('--disable-permissions-api')
+    options.add_argument('--disable-presentation-api')
+    options.add_argument('--disable-print-preview')
+    options.add_argument('--disable-web-bluetooth')
+    options.add_argument('--disable-webgl')
+    options.add_argument('--disable-webrtc')
+    options.add_argument('--remote-debugging-port=0')
+    
+    # Network optimizations
+    options.add_argument('--aggressive-cache-discard')
+    options.add_argument('--memory-pressure-off')
+    options.add_argument('--max_old_space_size=4096')
+    
+    # Disable unnecessary Chrome services
+    options.add_experimental_option('excludeSwitches', ['enable-logging'])
+    options.add_experimental_option('useAutomationExtension', False)
+    
+    # Prefs for faster startup
+    prefs = {
+        'profile.default_content_setting_values.notifications': 2,
+        'profile.default_content_settings.popups': 0,
+        'profile.managed_default_content_settings.images': 2,  # Block images
+        'profile.default_content_setting_values.plugins': 2,
+        'profile.default_content_setting_values.geolocation': 2,
+        'profile.default_content_setting_values.media_stream': 2,
+        'profile.default_content_setting_values.media_stream_mic': 2,
+        'profile.default_content_setting_values.media_stream_camera': 2,
+        'profile.default_content_setting_values.automatic_downloads': 2,
+    }
+    options.add_experimental_option('prefs', prefs)
+
     driver = None
     try:
-        service = ChromeService(executable_path=ChromeDriverManager().install())
+        service = ChromeService(
+            executable_path=ChromeDriverManager().install(),
+            log_output=os.devnull
+        )
         driver = webdriver.Chrome(service=service, options=options)
-        driver.implicitly_wait(10)
-        driver.set_page_load_timeout(30)
+        driver.implicitly_wait(5)  
+        driver.set_page_load_timeout(10)  
         yield driver
     finally:
         if driver:
@@ -277,3 +368,6 @@ def client(app):
     """Flask test client for route coverage."""
     with app.test_client() as client:
         yield client 
+
+# NOTE: For profiling slow tests, run: pytest --durations=10
+# NOTE: With function-scoped browser, you can run: pytest -n auto for parallel execution (requires enough CPU/RAM) 
