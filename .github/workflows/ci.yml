@@ -58,6 +58,13 @@ jobs:
         run: |
           mkdir -p artifacts/selenium
           pytest tests/selenium_tests/ -n auto --durations=10 --tb=short --disable-warnings --junitxml=artifacts/selenium/selenium-test-results.xml --cov=. --cov-append --cov-report=term-missing
+        continue-on-error: true
+      - name: Upload Selenium test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: selenium-test-results
+          path: artifacts/selenium/
       - name: Upload selenium .coverage data
         uses: actions/upload-artifact@v4
         with:
@@ -81,7 +88,8 @@ jobs:
         with:
           name: selenium-coverage-data
           path: artifacts/selenium/
-      - name: Combine coverage data and generate reports
+      - name: Combine coverage and generate report
+        if: always()
         run: |
           coverage combine artifacts/unit/.coverage artifacts/selenium/.coverage
           coverage html -d tests/reports
