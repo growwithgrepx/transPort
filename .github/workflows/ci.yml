@@ -32,10 +32,11 @@ jobs:
                  --cov-report=term-missing \
                  --ignore=tests/selenium_tests/
       - name: Upload unit .coverage data
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: unit-coverage-data
-          path: .coverage
+          path: artifacts/unit/
 
   selenium-tests:
     name: Selenium End-to-End Tests
@@ -77,17 +78,22 @@ jobs:
     needs: [unit-tests, selenium-tests]
     if: always()
     steps:
-      - uses: actions/checkout@v4
-      - name: Download unit .coverage data
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Download unit coverage data
         uses: actions/download-artifact@v4
         with:
           name: unit-coverage-data
           path: artifacts/unit/
-      - name: Download selenium .coverage data
+      - name: Download selenium coverage data
         uses: actions/download-artifact@v4
         with:
           name: selenium-coverage-data
           path: artifacts/selenium/
+      - name: Install coverage and requirements
+        run: |
+          pip install coverage
+          pip install -r requirements.txt
       - name: Combine coverage and generate report
         if: always()
         run: |
