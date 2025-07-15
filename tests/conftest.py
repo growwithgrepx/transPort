@@ -362,19 +362,22 @@ def cleanup_session(browser):
     except Exception:
         pass  # Ignore cleanup errors 
 
-@pytest.fixture(autouse=True)
-def screenshot_on_failure(request, browser):
-    yield
-    # Only take screenshot for Selenium tests (browser fixture)
-    if request.node.rep_call is not None and request.node.rep_call.failed:
-        test_name = request.node.nodeid.replace('::', '__').replace('/', '_').replace('\\', '_')
-        screenshots_dir = os.path.join(os.path.dirname(__file__), 'test_screenshots')
-        os.makedirs(screenshots_dir, exist_ok=True)
-        screenshot_path = os.path.join(screenshots_dir, f"{test_name}.png")
-        try:
-            browser.save_screenshot(screenshot_path)
-        except Exception as e:
-            print(f"[WARN] Could not save screenshot for failed test: {test_name}: {e}")
+# --- Screenshot on failure fixture ---
+# Disabled in CI due to rep_call error; see workflow and CI logs for details.
+if not os.environ.get('CI'):
+    @pytest.fixture(autouse=True)
+    def screenshot_on_failure(request, browser):
+        yield
+        # Only take screenshot for Selenium tests (browser fixture)
+        if hasattr(request.node, 'rep_call') and request.node.rep_call is not None and request.node.rep_call.failed:
+            test_name = request.node.nodeid.replace('::', '__').replace('/', '_').replace('\\', '_')
+            screenshots_dir = os.path.join(os.path.dirname(__file__), 'test_screenshots')
+            os.makedirs(screenshots_dir, exist_ok=True)
+            screenshot_path = os.path.join(screenshots_dir, f"{test_name}.png")
+            try:
+                browser.save_screenshot(screenshot_path)
+            except Exception as e:
+                print(f"[WARN] Could not save screenshot for failed test: {test_name}: {e}")
 
 @pytest.fixture
 def client(app):
@@ -388,6 +391,5 @@ def client(app):
 def pytest_sessionstart(session):
     # Clean up screenshots at the start of the session
     screenshots_dir = os.path.join(os.path.dirname(__file__), 'test_screenshots')
-    if os.path.exists(screenshots_dir):
-        shutil.rmtree(screenshots_dir)
+    shutil.rmtree(screenshots_dir, ignore_errors=True)
     os.makedirs(screenshots_dir, exist_ok=True) 
