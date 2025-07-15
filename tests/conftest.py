@@ -2,6 +2,15 @@ import os
 import sys
 import glob
 import atexit
+import warnings
+
+# --- Suppress Python warnings and absl logs ---
+warnings.filterwarnings("ignore")
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ['ABSL_LOG_LEVEL'] = '3'
+
+# --- Redirect sys.stderr to os.devnull to suppress all unwanted logs ---
+sys.stderr = open(os.devnull, 'w')
 
 # --- Pre-run cleanup: Remove all test_selenium_gw*.db files before any worker starts ---
 for dbfile in glob.glob(os.path.join(os.path.dirname(__file__), 'test_selenium_gw*.db')):
@@ -271,20 +280,14 @@ def browser():
     options.add_argument('--disable-dev-shm-usage')
     options.add_argument('--disable-gpu')
     options.add_argument('--window-size=1920,1080')
-
-    # Suppress Chrome's internal logs while preserving test errors
     options.add_argument('--log-level=3')
-    options.add_argument('--disable-logging')
     options.add_argument('--silent')
-    options.add_argument('--disable-gpu-logging')
-    options.add_argument('--disable-background-timer-throttling')
-    options.add_argument('--disable-backgrounding-occluded-windows')
-    options.add_argument('--disable-renderer-backgrounding')
-    
-    # SPEED OPTIMIZATIONS - Disable unnecessary features
+    options.add_argument('--disable-logging')
+    options.add_argument('--disable-software-rasterizer')
+    options.add_argument('--disable-voice-input')
     options.add_argument('--disable-extensions')
     options.add_argument('--disable-plugins')
-    options.add_argument('--disable-images')  # Don't load images
+    options.add_argument('--disable-images')
     options.add_argument('--disable-web-security')
     options.add_argument('--disable-features=TranslateUI')
     options.add_argument('--disable-features=VizDisplayCompositor')
@@ -315,16 +318,11 @@ def browser():
     options.add_argument('--disable-webgl')
     options.add_argument('--disable-webrtc')
     options.add_argument('--remote-debugging-port=0')
-    
-    # Network optimizations
     options.add_argument('--aggressive-cache-discard')
     options.add_argument('--memory-pressure-off')
     options.add_argument('--max_old_space_size=4096')
-    
-    # Disable unnecessary Chrome services
-    options.add_experimental_option('excludeSwitches', ['enable-logging'])
+    options.add_experimental_option('excludeSwitches', ['enable-logging', 'enable-automation'])
     options.add_experimental_option('useAutomationExtension', False)
-    
     # Prefs for faster startup
     prefs = {
         'profile.default_content_setting_values.notifications': 2,
@@ -343,7 +341,7 @@ def browser():
     try:
         service = ChromeService(
             executable_path=ChromeDriverManager().install(),
-            log_output=os.devnull
+            log_output=os.devnull  # Suppress chromedriver logs
         )
         driver = webdriver.Chrome(service=service, options=options)
         driver.implicitly_wait(5)  

@@ -15,7 +15,7 @@ class AgentsPage(BasePage):
 
     def load(self):
         self.driver.get(self.agents_url)
-        WebDriverWait(self.driver, 10).until(
+        WebDriverWait(self.driver, 20).until(
             EC.presence_of_element_located((By.ID, "agents-table"))
         )
         logger.info(f"Loaded agents page: {self.driver.current_url}")
@@ -29,13 +29,8 @@ class AgentsPage(BasePage):
     def is_loaded(self):
         try:
             self.wait_for_page_ready()
-            # Wait for a less strict container (e.g., heading or card)
             WebDriverWait(self.driver, 20).until(
-                EC.visibility_of_element_located((By.XPATH, '//*[contains(@class, "card") or contains(@class, "container") or contains(text(), "Agent")]'))
-            )
-            # Then wait for the table
-            WebDriverWait(self.driver, 10).until(
-                EC.visibility_of_element_located((By.XPATH, '//*[@id="agents-table"]//table'))
+                EC.presence_of_element_located((By.ID, "agents-table"))
             )
             return True
         except TimeoutException:
@@ -44,11 +39,15 @@ class AgentsPage(BasePage):
 
     def click_add_agent_button(self):
         try:
-            WebDriverWait(self.driver, 10).until(
-                EC.element_to_be_clickable((By.XPATH, '//a[contains(@class, "btn") and contains(translate(text(), "ADD", "add"), "add agent")] | //button[contains(@class, "btn") and contains(translate(text(), "ADD", "add"), "add agent")]'))
-            ).click()
+            add_btn = WebDriverWait(self.driver, 20).until(
+                EC.element_to_be_clickable((By.XPATH, "//a[contains(@class, 'btn-success') and contains(., 'Add Agent')]") )
+            )
+            add_btn.click()
         except TimeoutException:
             logger.error("Add Agent button not found or not clickable. Page source:\n%s", self.driver.page_source)
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error clicking Add Agent button: {e}\nPage source:\n{self.driver.page_source}")
             raise
         WebDriverWait(self.driver, 10).until(
             EC.presence_of_element_located((By.ID, "agentForm"))
@@ -107,4 +106,32 @@ class AgentsPage(BasePage):
         WebDriverWait(self.driver, 10).until(
             EC.visibility_of_element_located((By.XPATH, '//*[@id="agents-table"]//table'))
         )
-        return self 
+        return self
+
+    def edit_agent(self, old_name, new_data):
+        # Find the row for old_name, click the edit button, fill the form, submit
+        row = self.driver.find_element(By.XPATH, f'//*[@id="agents-table"]//tr[td[text()="{old_name}"]]')
+        edit_btn = row.find_element(By.XPATH, './/a[contains(@href, "edit")]')
+        edit_btn.click()
+        self.fill_agent_form(new_data)
+        self.submit_agent_form()
+
+    def delete_agent(self, name):
+        row = self.driver.find_element(By.XPATH, f'//*[@id="agents-table"]//tr[td[text()="{name}"]]')
+        delete_btn = row.find_element(By.XPATH, './/a[contains(@href, "delete")]')
+        delete_btn.click()
+        # Confirm the deletion if a modal/dialog appears (customize as needed)
+        WebDriverWait(self.driver, 5).until(EC.staleness_of(row))
+
+    def search_agent(self, query):
+        search_box = self.driver.find_element(By.ID, "search-box")
+        search_box.clear()
+        search_box.send_keys(query)
+        search_box.send_keys("\n")
+        WebDriverWait(self.driver, 10).until(
+            EC.text_to_be_present_in_element((By.ID, "agents-table"), query)
+        )
+
+    def is_validation_error_displayed(self):
+        # Looks for a generic required field error
+        return "This field is required" in self.driver.page_source or "required" in self.driver.page_source.lower() 

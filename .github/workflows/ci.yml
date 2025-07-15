@@ -69,7 +69,7 @@ jobs:
       - name: Run Selenium tests
         run: |
           mkdir -p artifacts/selenium
-          pytest tests/selenium_tests/ --junitxml=artifacts/selenium/selenium-test-results.xml
+          pytest tests/selenium_tests/ -n auto --durations=10 --tb=short --disable-warnings --junitxml=artifacts/selenium/selenium-test-results.xml
 
       # Debug: Show Selenium test artifacts
       - name: Debug - Selenium test artifacts

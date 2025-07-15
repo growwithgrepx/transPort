@@ -25,4 +25,33 @@ class TestAgentsCRUD:
         agents_page = AgentsPage(browser, live_server.url)
         agents_page.load()
         agents_page.create_agent(agent_data)
-        assert agents_page.is_agent_in_table(agent_data["name"]), f"Agent {agent_data['name']} should appear in the agents table." 
+        assert agents_page.agent_in_table(agent_data["name"]), f"Agent {agent_data['name']} should appear in the agents table."
+
+    def test_edit_agent(self, live_server, browser):
+        agents_page = AgentsPage(browser, live_server.url)
+        agents_page.load()
+        agents_page.create_agent({"name": "EditMe", "email": "editme@example.com"})
+        agents_page.edit_agent("EditMe", {"name": "Edited Agent", "email": "edited@example.com"})
+        assert agents_page.agent_in_table("Edited Agent"), "Edited agent should appear in the table."
+
+    def test_delete_agent(self, live_server, browser):
+        agents_page = AgentsPage(browser, live_server.url)
+        agents_page.load()
+        agents_page.create_agent({"name": "DeleteMe", "email": "deleteme@example.com"})
+        agents_page.delete_agent("DeleteMe")
+        assert not agents_page.agent_in_table("DeleteMe"), "Deleted agent should not appear in the table."
+
+    def test_search_agent(self, live_server, browser):
+        agents_page = AgentsPage(browser, live_server.url)
+        agents_page.load()
+        agents_page.create_agent({"name": "Searchable", "email": "searchable@example.com"})
+        agents_page.search_agent("Searchable")
+        assert agents_page.agent_in_table("Searchable"), "Search should return the correct agent."
+
+    def test_agent_form_validation(self, live_server, browser):
+        agents_page = AgentsPage(browser, live_server.url)
+        agents_page.load()
+        agents_page.click_add_agent_button()
+        agents_page.fill_agent_form({"name": "", "email": ""})  # Intentionally invalid
+        agents_page.submit_agent_form()
+        assert agents_page.is_validation_error_displayed(), "Validation error should be displayed for empty fields." 

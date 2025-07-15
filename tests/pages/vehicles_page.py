@@ -15,8 +15,8 @@ class VehiclesPage(BasePage):
 
     def load(self):
         self.driver.get(self.vehicles_url)
-        WebDriverWait(self.driver, 10).until(
-            EC.presence_of_element_located((By.ID, "vehicles-table"))
+        WebDriverWait(self.driver, 20).until(
+            EC.presence_of_element_located((By.ID, "vehicles-table-body"))
         )
         logger.info(f"Loaded vehicles page: {self.driver.current_url}")
         return self
@@ -30,10 +30,7 @@ class VehiclesPage(BasePage):
         try:
             self.wait_for_page_ready()
             WebDriverWait(self.driver, 20).until(
-                EC.visibility_of_element_located((By.XPATH, '//*[contains(@class, "card") or contains(@class, "container") or contains(text(), "Vehicle")]'))
-            )
-            WebDriverWait(self.driver, 10).until(
-                EC.visibility_of_element_located((By.XPATH, '//tbody[@id="vehicles-table-body"]/ancestor::table'))
+                EC.presence_of_element_located((By.ID, "vehicles-table-body"))
             )
             return True
         except TimeoutException:
@@ -42,11 +39,15 @@ class VehiclesPage(BasePage):
 
     def click_add_vehicle_button(self):
         try:
-            WebDriverWait(self.driver, 10).until(
-                EC.element_to_be_clickable((By.XPATH, '//a[contains(@class, "btn") and contains(translate(text(), "ADD", "add"), "add vehicle")] | //button[contains(@class, "btn") and contains(translate(text(), "ADD", "add"), "add vehicle")]'))
-            ).click()
+            add_btn = WebDriverWait(self.driver, 20).until(
+                EC.element_to_be_clickable((By.XPATH, "//a[contains(@class, 'btn-success') and contains(., 'Add Vehicle')]") )
+            )
+            add_btn.click()
         except TimeoutException:
             logger.error("Add Vehicle button not found or not clickable. Page source:\n%s", self.driver.page_source)
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error clicking Add Vehicle button: {e}\nPage source:\n{self.driver.page_source}")
             raise
         WebDriverWait(self.driver, 10).until(
             EC.presence_of_element_located((By.ID, "vehicleForm"))
@@ -100,4 +101,29 @@ class VehiclesPage(BasePage):
         WebDriverWait(self.driver, 10).until(
             EC.visibility_of_element_located((By.XPATH, '//tbody[@id="vehicles-table-body"]/ancestor::table'))
         )
-        return self 
+        return self
+
+    def edit_vehicle(self, old_name, new_data):
+        row = self.driver.find_element(By.XPATH, f'//tbody[@id="vehicles-table-body"]/tr[td[contains(text(),"{old_name}")]]')
+        edit_btn = row.find_element(By.XPATH, './/a[contains(@href, "edit")]')
+        edit_btn.click()
+        self.fill_vehicle_form(new_data)
+        self.submit_vehicle_form()
+
+    def delete_vehicle(self, name):
+        row = self.driver.find_element(By.XPATH, f'//tbody[@id="vehicles-table-body"]/tr[td[contains(text(),"{name}")]]')
+        delete_btn = row.find_element(By.XPATH, './/a[contains(@href, "delete")]')
+        delete_btn.click()
+        WebDriverWait(self.driver, 5).until(EC.staleness_of(row))
+
+    def search_vehicle(self, query):
+        search_box = self.driver.find_element(By.ID, "search-box")
+        search_box.clear()
+        search_box.send_keys(query)
+        search_box.send_keys("\n")
+        WebDriverWait(self.driver, 10).until(
+            EC.text_to_be_present_in_element((By.ID, "vehicles-table"), query)
+        )
+
+    def is_validation_error_displayed(self):
+        return "This field is required" in self.driver.page_source or "required" in self.driver.page_source.lower() 

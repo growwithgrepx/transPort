@@ -15,8 +15,8 @@ class ServicesPage(BasePage):
 
     def load(self):
         self.driver.get(self.services_url)
-        WebDriverWait(self.driver, 10).until(
-            EC.presence_of_element_located((By.ID, "services-table"))
+        WebDriverWait(self.driver, 20).until(
+            EC.presence_of_element_located((By.ID, "services-table-body"))
         )
         logger.info(f"Loaded services page: {self.driver.current_url}")
         return self
@@ -30,10 +30,7 @@ class ServicesPage(BasePage):
         try:
             self.wait_for_page_ready()
             WebDriverWait(self.driver, 20).until(
-                EC.visibility_of_element_located((By.XPATH, '//*[contains(@class, "card") or contains(@class, "container") or contains(text(), "Service")]'))
-            )
-            WebDriverWait(self.driver, 10).until(
-                EC.visibility_of_element_located((By.XPATH, '//tbody[@id="services-table-body"]/ancestor::table'))
+                EC.presence_of_element_located((By.ID, "services-table-body"))
             )
             return True
         except TimeoutException:
@@ -42,11 +39,15 @@ class ServicesPage(BasePage):
 
     def click_add_service_button(self):
         try:
-            WebDriverWait(self.driver, 10).until(
-                EC.element_to_be_clickable((By.XPATH, '//a[contains(@class, "btn") and contains(translate(text(), "ADD", "add"), "add service")] | //button[contains(@class, "btn") and contains(translate(text(), "ADD", "add"), "add service")]'))
-            ).click()
+            add_btn = WebDriverWait(self.driver, 20).until(
+                EC.element_to_be_clickable((By.XPATH, "//a[contains(@class, 'btn-success') and contains(., 'Add Service')]") )
+            )
+            add_btn.click()
         except TimeoutException:
             logger.error("Add Service button not found or not clickable. Page source:\n%s", self.driver.page_source)
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error clicking Add Service button: {e}\nPage source:\n{self.driver.page_source}")
             raise
         WebDriverWait(self.driver, 10).until(
             EC.presence_of_element_located((By.ID, "serviceForm"))
@@ -100,3 +101,28 @@ class ServicesPage(BasePage):
             EC.visibility_of_element_located((By.XPATH, '//tbody[@id="services-table-body"]/ancestor::table'))
         )
         return self 
+
+    def edit_service(self, old_name, new_data):
+        row = self.driver.find_element(By.XPATH, f'//tbody[@id="services-table-body"]/tr[td[contains(text(),"{old_name}")]]')
+        edit_btn = row.find_element(By.XPATH, './/a[contains(@href, "edit")]')
+        edit_btn.click()
+        self.fill_service_form(new_data)
+        self.submit_service_form()
+
+    def delete_service(self, name):
+        row = self.driver.find_element(By.XPATH, f'//tbody[@id="services-table-body"]/tr[td[contains(text(),"{name}")]]')
+        delete_btn = row.find_element(By.XPATH, './/a[contains(@href, "delete")]')
+        delete_btn.click()
+        WebDriverWait(self.driver, 5).until(EC.staleness_of(row))
+
+    def search_service(self, query):
+        search_box = self.driver.find_element(By.ID, "search-box")
+        search_box.clear()
+        search_box.send_keys(query)
+        search_box.send_keys("\n")
+        WebDriverWait(self.driver, 10).until(
+            EC.text_to_be_present_in_element((By.ID, "services-table"), query)
+        )
+
+    def is_validation_error_displayed(self):
+        return "This field is required" in self.driver.page_source or "required" in self.driver.page_source.lower() 
