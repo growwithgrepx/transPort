@@ -54,14 +54,6 @@ jobs:
           python-version: '3.11'
       - name: Install Python dependencies
         run: pip install -r requirements.txt
-      - name: Start Flask app
-        run: |
-          nohup flask run --host=127.0.0.1 --port=5001 &
-      - name: Wait for web app to be ready
-        run: |
-          for i in {1..30}; do
-            curl -f http://127.0.0.1:5001/ && break || sleep 2
-          done
       - name: Run Selenium tests
         run: |
           mkdir -p artifacts/selenium
