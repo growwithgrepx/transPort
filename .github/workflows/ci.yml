@@ -29,7 +29,8 @@ jobs:
           mkdir -p artifacts/unit
           pytest --junitxml=artifacts/unit/unit-test-results.xml \
                  --cov=. \
-                 --cov-report=term-missing
+                 --cov-report=term-missing \
+                 --ignore=tests/selenium_tests/
       - name: Upload unit .coverage data
         uses: actions/upload-artifact@v4
         with:

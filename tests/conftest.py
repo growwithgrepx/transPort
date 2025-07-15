@@ -249,7 +249,17 @@ def clean_db(app):
 # --- Live server fixture ---
 @pytest.fixture(scope='session')
 def live_server(app):
-    port = 5001
+    # Assign a unique port per worker for parallel test execution
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+    base_port = 5001
+    if worker_id == 'master':
+        port = base_port
+    else:
+        try:
+            worker_num = int(worker_id.replace('gw', ''))
+        except Exception:
+            worker_num = 0
+        port = base_port + worker_num
     server = make_server('127.0.0.1', port, app)
     thread = threading.Thread(target=server.serve_forever)
     thread.daemon = True
