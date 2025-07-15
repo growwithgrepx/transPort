@@ -58,19 +58,34 @@ jobs:
       - name: Run Selenium tests
         run: |
           mkdir -p artifacts/selenium
-          pytest tests/selenium_tests/ -n auto --durations=10 --tb=short --disable-warnings --junitxml=artifacts/selenium/selenium-test-results.xml --cov=. --cov-append --cov-report=term-missing
-        continue-on-error: true
+          pytest tests/selenium_tests/ -n auto --durations=10 --tb=short --disable-warnings --junitxml=artifacts/selenium/selenium-test-results.xml --cov=. --cov-append --cov-report=term-missing || true
+      - name: Debug List files after Selenium tests
+        run: |
+          echo "Workspace root:"
+          ls -alh
+          echo "artifacts/selenium directory:"
+          ls -alh artifacts/selenium || true
       - name: Upload Selenium test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: selenium-test-results
           path: artifacts/selenium/
+      - name: Move .coverage to artifacts/selenium/
+        if: always()
+        run: |
+          mkdir -p artifacts/selenium
+          if [ -f .coverage ]; then
+            mv .coverage artifacts/selenium/.coverage
+          else
+            echo "::warning::No .coverage file found after Selenium tests."
+          fi
       - name: Upload selenium .coverage data
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: selenium-coverage-data
-          path: .coverage
+          path: artifacts/selenium/.coverage
 
   coverage-report:
     name: Coverage Report & Summary
