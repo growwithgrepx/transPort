@@ -1,4 +1,4 @@
-name: CI - Unit & Selenium Tests
+name: "TransPort CI: Unit, Integration & Selenium Tests"
 
 on:
   push:
@@ -7,103 +7,92 @@ on:
     branches: [main, fleet-enhancements]
 
 jobs:
-  test:
+  unit-tests:
+    name: Unit & Integration Tests
     runs-on: ubuntu-latest
     steps:
-      # Checkout code
       - uses: actions/checkout@v4
+      - name: Cache pip
+        uses: actions/cache@v4
         with:
-          clean: true
-
-      # Debug: Show workspace contents after checkout
-      - name: Debug - Workspace after checkout
-        run: |
-          echo "[DEBUG] Workspace contents after checkout:" && ls -la
-
-      # Set up Python
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
-      # Debug: Show Python version
-      - name: Debug - Python version
-        run: |
-          echo "[DEBUG] Python version:" && python --version
-
-      # Install dependencies
       - name: Install Python dependencies
         run: pip install -r requirements.txt
-
-      # Debug: List installed packages
-      - name: Debug - List installed packages
-        run: |
-          echo "[DEBUG] Installed pip packages:" && pip list
-
-      # Run unit tests with coverage and output results
       - name: Run unit tests with coverage
         run: |
           mkdir -p artifacts/unit
           pytest --junitxml=artifacts/unit/unit-test-results.xml \
                  --cov=. \
-                 --cov-report=xml:artifacts/unit/coverage.xml \
                  --cov-report=term-missing
+      - name: Upload unit .coverage data
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-coverage-data
+          path: .coverage
 
-      # Debug: Show unit test artifacts
-      - name: Debug - Unit test artifacts
+  selenium-tests:
+    name: Selenium End-to-End Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+      - name: Start Flask app
         run: |
-          echo "[DEBUG] Contents of artifacts/unit:" && ls -la artifacts/unit || echo "artifacts/unit not found"
-          echo "[DEBUG] unit-test-results.xml head:" && head -20 artifacts/unit/unit-test-results.xml || echo "unit-test-results.xml not found"
-          echo "[DEBUG] coverage.xml head:" && head -20 artifacts/unit/coverage.xml || echo "coverage.xml not found"
-
-      # Show unit test summary in Actions summary tab
-      - name: Unit test summary
+          nohup flask run --host=127.0.0.1 --port=5001 &
+      - name: Wait for web app to be ready
         run: |
-          echo '## Unit Test Results' >> $GITHUB_STEP_SUMMARY
-          if [ -f artifacts/unit/unit-test-results.xml ]; then
-            python3 scripts/generate_unit_report.py --xml artifacts/unit/unit-test-results.xml --cov artifacts/unit/coverage.xml --out /tmp/unit_summary.txt >> $GITHUB_STEP_SUMMARY || echo 'Unit test summary generation failed.' >> $GITHUB_STEP_SUMMARY
-          else
-            echo 'No unit test results found.' >> $GITHUB_STEP_SUMMARY
-          fi
-
-      # Run Selenium tests and output results
+          for i in {1..30}; do
+            curl -f http://127.0.0.1:5001/ && break || sleep 2
+          done
       - name: Run Selenium tests
         run: |
           mkdir -p artifacts/selenium
-          pytest tests/selenium_tests/ -n auto --durations=10 --tb=short --disable-warnings --junitxml=artifacts/selenium/selenium-test-results.xml
+          pytest tests/selenium_tests/ -n auto --durations=10 --tb=short --disable-warnings --junitxml=artifacts/selenium/selenium-test-results.xml --cov=. --cov-append --cov-report=term-missing
+      - name: Upload selenium .coverage data
+        uses: actions/upload-artifact@v4
+        with:
+          name: selenium-coverage-data
+          path: .coverage
 
-      # Debug: Show Selenium test artifacts
-      - name: Debug - Selenium test artifacts
+  coverage-report:
+    name: Coverage Report & Summary
+    runs-on: ubuntu-latest
+    needs: [unit-tests, selenium-tests]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download unit .coverage data
+        uses: actions/download-artifact@v4
+        with:
+          name: unit-coverage-data
+          path: artifacts/unit/
+      - name: Download selenium .coverage data
+        uses: actions/download-artifact@v4
+        with:
+          name: selenium-coverage-data
+          path: artifacts/selenium/
+      - name: Combine coverage data and generate reports
         run: |
-          echo "[DEBUG] Contents of artifacts/selenium:" && ls -la artifacts/selenium || echo "artifacts/selenium not found"
-          echo "[DEBUG] selenium-test-results.xml head:" && head -20 artifacts/selenium/selenium-test-results.xml || echo "selenium-test-results.xml not found"
-
-      # Show Selenium test summary in Actions summary tab
-      - name: Selenium test summary
-        run: |
-          echo '## Selenium Test Results' >> $GITHUB_STEP_SUMMARY
-          if [ -f artifacts/selenium/selenium-test-results.xml ]; then
-            python3 scripts/generate_selenium_report.py --xml artifacts/selenium/selenium-test-results.xml --out /tmp/selenium_summary.txt >> $GITHUB_STEP_SUMMARY || echo 'Selenium test summary generation failed.' >> $GITHUB_STEP_SUMMARY
-          else
-            echo 'No Selenium test results found.' >> $GITHUB_STEP_SUMMARY
-          fi
-
-      # Show Markdown coverage table in Actions summary tab
-      - name: Coverage Report
-        run: |
-          pytest --cov --cov-report=xml:artifacts/unit/coverage.xml --cov-report=html:tests/reports
-          if [ -f artifacts/unit/coverage.xml ]; then
-            python3 scripts/coverage_to_md.py artifacts/unit/coverage.xml >> $GITHUB_STEP_SUMMARY
-          else
-            echo 'No coverage XML file found for Markdown table.' >> $GITHUB_STEP_SUMMARY
-          fi
-          if [ -f tests/reports/index.html ]; then
-            echo '### [Open HTML Coverage Report](./tests/reports/index.html)' >> $GITHUB_STEP_SUMMARY
-            echo 'HTML coverage report generated at tests/reports/index.html' >> $GITHUB_STEP_SUMMARY
-          else
-            echo 'No HTML coverage report found.' >> $GITHUB_STEP_SUMMARY
-          fi
-
-      # Optionally upload coverage.xml as an artifact (for local download)
+          coverage combine artifacts/unit/.coverage artifacts/selenium/.coverage
+          coverage html -d tests/reports
+          coverage xml -o artifacts/unit/coverage.xml
+          python3 scripts/coverage_to_md.py artifacts/unit/coverage.xml >> $GITHUB_STEP_SUMMARY
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:
