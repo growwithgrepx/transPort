@@ -4,7 +4,15 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
   <h2 class="fw-bold mb-0"><i class="bi bi-briefcase-fill me-2"></i>Manage Jobs</h2>
   <div>
-    <a href="{{ url_for('add_job') }}" class="btn btn-success btn-lg me-2"><i class="bi bi-plus-circle me-1"></i>Create Job</a>
+    <button id="downloadBtn" class="btn btn-info btn-lg me-2" disabled>
+      <i class="bi bi-download me-1"></i>Download Selected
+    </button>
+    <a href="{{ url_for('add_job') }}" class="btn btn-success btn-lg me-2">
+      <i class="bi bi-plus-circle me-1"></i>Create Job
+    </a>
+    <a href="{{ url_for('add_bulk_jobs') }}" class="btn btn-primary btn-lg">
+      <i class="bi bi-list-ul me-1"></i>Create Bulk Jobs
+    </a>
   </div>
 </div>
 <div class="card shadow-sm mb-4">
@@ -30,4 +38,78 @@
   </div>
 </div>
 <div id="jobs-error" class="mt-2"></div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const downloadBtn = document.getElementById('downloadBtn');
+  const checkboxes = document.querySelectorAll('input[name="selected_jobs"]');
+  
+  // Function to update download button state
+  function updateDownloadButton() {
+    const checkedBoxes = document.querySelectorAll('input[name="selected_jobs"]:checked');
+    downloadBtn.disabled = checkedBoxes.length === 0;
+  }
+  
+  // Add event listeners to checkboxes
+  checkboxes.forEach(checkbox => {
+    checkbox.addEventListener('change', updateDownloadButton);
+  });
+  
+  // Download functionality
+  downloadBtn.addEventListener('click', function() {
+    const checkedBoxes = document.querySelectorAll('input[name="selected_jobs"]:checked');
+    if (checkedBoxes.length === 0) {
+      alert('Please select at least one job to download.');
+      return;
+    }
+    
+    const selectedIds = Array.from(checkedBoxes).map(cb => cb.value);
+    
+    // Create form and submit
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '{{ url_for("download_jobs") }}';
+    
+    // Add CSRF token
+    const csrfInput = document.createElement('input');
+    csrfInput.type = 'hidden';
+    csrfInput.name = 'csrf_token';
+    csrfInput.value = '{{ csrf_token() }}';
+    form.appendChild(csrfInput);
+    
+    // Add selected job IDs
+    selectedIds.forEach(id => {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'selected_jobs';
+      input.value = id;
+      form.appendChild(input);
+    });
+    
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+  });
+  
+  // Select all functionality
+  const selectAllCheckbox = document.getElementById('selectAll');
+  if (selectAllCheckbox) {
+    selectAllCheckbox.addEventListener('change', function() {
+      checkboxes.forEach(checkbox => {
+        checkbox.checked = this.checked;
+      });
+      updateDownloadButton();
+    });
+  }
+});
+
+window.reloadJobsTable = function() {
+  if (window.htmx) {
+    htmx.ajax('GET', '/jobs/table', {target: '#jobs-table'});
+  } else {
+    // fallback: reload the page
+    window.location.reload();
+  }
+};
+</script>
 {% endblock %} 

@@ -17,6 +17,16 @@
     - Inherit Bootstrap's font stack and sizing.
     - Maintain spacing, padding, and border-radius as in light theme.
 */
+
+/* Prevent flash of unstyled content */
+html:not([data-theme]) {
+  visibility: hidden;
+}
+
+html[data-theme] {
+  visibility: visible;
+}
+
 :root {
   --color-bg: #f8f9fa;
   --color-surface: #fff;
@@ -323,4 +333,116 @@ body {
   overflow: hidden;
   background-clip: padding-box;
   box-shadow: 0 2px 16px 0 rgba(60,80,120,0.18);
+} 
+
+#chat-window {
+  display: none;
+}
+
+/* Bulk Job Form Styles */
+#bulkJobsForm .table {
+  font-size: 0.9rem;
+}
+
+#bulkJobsForm .form-select-sm,
+#bulkJobsForm .form-control-sm {
+  font-size: 0.85rem;
+  padding: 0.25rem 0.5rem;
+}
+
+#bulkJobsForm .table td {
+  padding: 0.5rem;
+  vertical-align: middle;
+}
+
+#bulkJobsForm .btn-sm {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+}
+
+#bulkJobsForm .card-header {
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+  color: white;
+  border-bottom: none;
+}
+
+#bulkJobsForm .card-header h5 {
+  margin: 0;
+  font-weight: 600;
+}
+
+#bulkJobsForm .table thead th {
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-weight: 600;
+  border-bottom: 2px solid var(--color-border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+#bulkJobsForm .table tbody tr:hover {
+  background-color: rgba(var(--color-primary), 0.1);
+}
+
+#bulkJobsForm .table tbody tr:nth-child(even) {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+[data-theme="dark"] #bulkJobsForm .table tbody tr:nth-child(even) {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+/* Mode Toggle Styles */
+.btn-group .btn-check:checked + .btn {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
+}
+
+.btn-group .btn-check:not(:checked) + .btn {
+  background-color: transparent;
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.btn-group .btn-check:not(:checked) + .btn:hover {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
+}
+
+/* Row counter badge */
+#rowCount {
+  font-size: 0.8rem;
+  padding: 0.25rem 0.5rem;
+}
+
+/* Default values section */
+#bulkJobsForm .card-body .row {
+  margin-bottom: 1rem;
+}
+
+#bulkJobsForm .btn-group {
+  gap: 0.5rem;
+}
+
+/* Responsive table */
+@media (max-width: 768px) {
+  #bulkJobsForm .table-responsive {
+    font-size: 0.8rem;
+  }
+  
+  #bulkJobsForm .form-select-sm,
+  #bulkJobsForm .form-control-sm {
+    font-size: 0.75rem;
+    padding: 0.2rem 0.4rem;
+  }
+} 
+
+[data-theme="dark"] .text-danger {
+  color: #ff6b6b !important; /* brighter red for dark bg */
+}
+[data-theme="dark"] .text-muted {
+  color: #b0b8c1 !important; /* lighter muted text for dark bg */
 } 

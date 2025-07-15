@@ -1,4 +1,4 @@
-<form method="post" action="{{ action_url }}" {% if hx_post_url %}hx-post="{{ hx_post_url }}"{% endif %} {% if hx_target %}hx-target="{{ hx_target }}"{% endif %} {% if hx_swap %}hx-swap="{{ hx_swap }}"{% endif %} id="agent-form">
+<form method="post" action="{{ action_url or url_for('add_agent_ajax') }}" {% if hx_post_url is defined %}hx-post="{{ hx_post_url }}"{% else %}hx-post="{{ url_for('add_agent_ajax') }}"{% endif %} {% if hx_target is defined %}hx-target="{{ hx_target }}"{% else %}hx-target="#agent-modal-body"{% endif %} {% if hx_swap is defined %}hx-swap="{{ hx_swap }}"{% else %}hx-swap="outerHTML"{% endif %} id="agent-form">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="card mb-3">
     <div class="card-body">
@@ -41,11 +41,19 @@
             <div class="text-danger small">{{ errors['status'][0] }}</div>
           {% endif %}
         </div>
+        <div class="col-md-6">
+          <label for="agent_discount_percent" class="form-label">Agent Discount (%)</label>
+          <input type="number" class="form-control" id="agent_discount_percent" name="agent_discount_percent" value="{{ agent.agent_discount_percent if agent else '' }}" step="0.01" min="0" max="100">
+          {% if errors and errors.get('agent_discount_percent') %}
+            <div class="text-danger small">{{ errors['agent_discount_percent'][0] }}</div>
+          {% endif %}
+          <small class="text-muted">Percentage discount for this agent</small>
+        </div>
       </div>
     </div>
   </div>
   <div class="d-flex justify-content-end gap-2">
-    <button type="submit" class="btn btn-primary">{{ action }}</button>
+    <button type="submit" class="btn btn-primary">{{ action or 'Add Agent' }}</button>
     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
   </div>
 </form> 
