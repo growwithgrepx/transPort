@@ -27,4 +27,5 @@ jobs:
           # Run migrations if needed
           # flask db upgrade
           # Restart your app (systemd or nohup or supervisor)
-          sudo systemctl restart transport
+          pkill -f "python app.py" || true
+          nohup python app.py > app.log 2>&1 &
