@@ -59,6 +59,8 @@ jobs:
         run: |
           mkdir -p artifacts/selenium
           pytest tests/selenium_tests/ -n auto --durations=10 --tb=short --disable-warnings --junitxml=artifacts/selenium/selenium-test-results.xml --cov=. --cov-append --cov-report=term-missing || true
+      - name: Print pytest output
+        run: cat artifacts/selenium/selenium-test-results.xml || true
       - name: Debug List files after Selenium tests
         run: |
           echo "Workspace root:"
@@ -72,7 +74,6 @@ jobs:
           name: selenium-test-results
           path: artifacts/selenium/
       - name: Move .coverage to artifacts/selenium/
-        if: always()
         run: |
           mkdir -p artifacts/selenium
           if [ -f .coverage ]; then
@@ -93,6 +94,10 @@ jobs:
     needs: [unit-tests, selenium-tests]
     if: always()
     steps:
+      - name: Install coverage and requirements
+        run: |
+          pip install coverage
+          pip install -r requirements.txt
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Download unit coverage data
@@ -105,10 +110,6 @@ jobs:
         with:
           name: selenium-coverage-data
           path: artifacts/selenium/
-      - name: Install coverage and requirements
-        run: |
-          pip install coverage
-          pip install -r requirements.txt
       - name: Combine coverage and generate report
         if: always()
         run: |
