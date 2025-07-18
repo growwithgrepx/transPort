@@ -25,7 +25,7 @@
       <div class="card-body">
         <form id="jobForm" method="post" action="{{ url_for('update_job_view', job_id=job.id) if job else url_for('add_job') }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          
+
           <div class="row g-3">
             <!-- Customer Information -->
             <div class="col-md-6">
@@ -37,7 +37,8 @@
                   <select class="form-select" id="agent_id" name="agent_id" required>
                     <option value="">Select Agent</option>
                     {% for agent in agents %}
-                      <option value="{{ agent.id }}" data-email="{{ agent.email }}" data-mobile="{{ agent.mobile }}">
+                      <option value="{{ agent.id }}" data-email="{{ agent.email }}" data-mobile="{{ agent.mobile }}"
+                        {% if form_data and form_data.agent_id == agent.id|string %}selected{% endif %}>
                         {{ agent.name }}
                       </option>
                     {% endfor %}
@@ -50,68 +51,144 @@
             </div>
             <div class="col-md-6">
               <label class="form-label fw-bold">Agent Email</label>
-              <input type="email" class="form-control" id="customer_email" name="customer_email" value="{{ job.customer_email or '' }}" {% if job %}readonly{% endif %} placeholder="Auto-filled">
+              <input type="email" class="form-control {% if errors and errors.customer_email %}is-invalid{% endif %}" id="customer_email" name="customer_email" value="{{ job.customer_email if job else form_data.customer_email if form_data else '' }}" {% if job %}readonly{% endif %} placeholder="Auto-filled">
+              {% if errors and errors.customer_email %}
+                <div class="invalid-feedback">{{ errors.customer_email }}</div>
+              {% endif %}
             </div>
             <div class="col-md-6">
               <label class="form-label fw-bold">Agent Mobile</label>
-              <input type="text" class="form-control" id="customer_mobile" name="customer_mobile" value="{{ job.customer_mobile or '' }}" {% if job %}readonly{% endif %} placeholder="Auto-filled">
+              <input type="text"
+                     class="form-control {% if errors and errors.customer_mobile %}is-invalid{% endif %}"
+                     id="customer_mobile"
+                     name="customer_mobile"
+                     value="{% if form_data %}{{ form_data.customer_mobile }}{% elif job %}{{ job.customer_mobile }}{% else %}{{ '' }}{% endif %}"
+                     {% if job %}readonly{% endif %}
+                     placeholder="Auto-filled">
+              {% if errors and errors.customer_mobile %}
+                <div class="invalid-feedback">{{ errors.customer_mobile }}</div>
+              {% endif %}
             </div>
             <div class="col-md-6">
               <label class="form-label fw-bold">Customer Reference</label>
-              <input type="text" class="form-control" name="customer_reference" value="{{ job.customer_reference or '' }}" placeholder="Customer reference">
+              <input type="text"
+                     class="form-control"
+                     name="customer_reference"
+                     value="{% if form_data %}{{ form_data.customer_reference }}{% elif job %}{{ job.customer_reference }}{% else %}{% endif %}"
+                     placeholder="Customer reference">
             </div>
 
             <!-- Service Information -->
             <div class="col-md-6">
               <label class="form-label fw-bold">Service <span class="text-danger">*</span></label>
               {% if job %}
-                <input type="text" class="form-control" name="type_of_service" value="{{ job.type_of_service or '' }}" readonly>
+              <input type="text" class="form-control" name="type_of_service" value="{{ job.type_of_service or '' }}"
+                readonly>
               {% else %}
-                <div class="input-group">
-                  <select class="form-select" id="service_id" name="service_id" required>
-                    <option value="">Select Service</option>
-                    {% for service in services %}
-                      <option value="{{ service.id }}" data-base-price="{{ service.base_price or 0 }}">
-                        {{ service.name }} (SGD {{ "%.2f"|format(service.base_price or 0) }})
-                      </option>
-                    {% endfor %}
-                  </select>
-                  <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#serviceModal">
-                    <i class="fas fa-plus"></i> Add
-                  </button>
-                </div>
+              <div class="input-group">
+                <select class="form-select" id="service_id" name="service_id" required>
+                  <option value="">Select Service</option>
+                  {% for service in services %}
+                    <option value="{{ service.id }}" data-base-price="{{ service.base_price or 0 }}"
+                      {% if form_data and form_data.service_id == service.id|string %}selected{% endif %}>
+                      {{ service.name }} (SGD {{ "%.2f"|format(service.base_price or 0) }})
+                    </option>
+                  {% endfor %}
+                </select>
+                <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal"
+                  data-bs-target="#serviceModal">
+                  <i class="fas fa-plus"></i> Add
+                </button>
+              </div>
               {% endif %}
             </div>
 
             <!-- Trip Details -->
             <div class="col-md-6">
               <label class="form-label fw-bold">Pickup Date <span class="text-danger">*</span></label>
-              <input type="date" class="form-control" name="pickup_date" value="{{ job.pickup_date or '' }}" required>
+              <input type="date" class="form-control {% if errors and errors.pickup_date %}is-invalid{% endif %}"
+                     name="pickup_date"
+                     value="{% if form_data %}{{ form_data.pickup_date }}{% elif job %}{{ job.pickup_date }}{% else %}{% endif %}"
+                     required>
+              {% if errors and errors.pickup_date %}
+                <div class="invalid-feedback">{{ errors.pickup_date }}</div>
+              {% endif %}
             </div>
             <div class="col-md-6">
               <label class="form-label fw-bold">Pickup Time <span class="text-danger">*</span></label>
-              <input type="time" class="form-control" name="pickup_time" value="{{ job.pickup_time or '' }}" required>
+              <input type="time"
+                class="form-control {% if form_data and errors and errors.pickup_time %}is-invalid{% endif %}"
+                name="pickup_time"
+                value="{% if form_data %}{{ form_data.pickup_time }}{% elif job %}{{ job.pickup_time }}{% else %}{% endif %}"
+                required>
+              {% if errors and errors.pickup_time %}
+              <div class="invalid-feedback">{{ errors.pickup_time }}</div>
+              {% endif %}
             </div>
             <div class="col-md-6">
               <label class="form-label fw-bold">Pickup Location <span class="text-danger">*</span></label>
-              <input type="text" class="form-control" name="pickup_location" value="{{ job.pickup_location or '' }}" placeholder="Pick-up location" required>
+              <input type="text" 
+                     class="form-control {% if errors and errors.pickup_location %}is-invalid{% endif %}" 
+                     name="pickup_location" 
+                     value="{% if form_data %}{{ form_data.pickup_location }}{% elif job %}{{ job.pickup_location }}{% else %}{% endif %}"
+                     placeholder="Pick-up location" 
+                     required>
+              {% if errors and errors.pickup_location %}
+                <div class="invalid-feedback">{{ errors.pickup_location }}</div>
+              {% endif %}
             </div>
             <div class="col-md-6">
               <label class="form-label fw-bold">Drop-off Location <span class="text-danger">*</span></label>
-              <input type="text" class="form-control" name="dropoff_location" value="{{ job.dropoff_location or '' }}" placeholder="Drop-off location" required>
+              <input type="text" 
+                     class="form-control {% if errors and errors.dropoff_location %}is-invalid{% endif %}" 
+                     name="dropoff_location" 
+                     value="{% if form_data %}{{ form_data.dropoff_location }}{% elif job %}{{ job.dropoff_location }}{% else %}{% endif %}"
+                     placeholder="Drop-off location" 
+                     required>
+              {% if errors and errors.dropoff_location %}
+                <div class="invalid-feedback">{{ errors.dropoff_location }}</div>
+              {% endif %}
             </div>
 
             <!-- Vehicle & Driver -->
+            <!-- <div class="col-md-6">
+              <label class="form-label fw-bold">Vehicle <span class="text-danger">*</span></label>
+              {% if job %}
+              <input type="text" class="form-control" name="vehicle_info"
+                value="{{ job.vehicle.number if job.vehicle else job.vehicle_number or '' }} ({{ job.vehicle.name if job.vehicle else job.vehicle_type or '' }})"
+                readonly>
+              {% else %}
+              <div class="input-group">
+                <select class="form-select" id="vehicle_id" name="vehicle_id" required>
+                  <option value="">Select Vehicle</option>
+                  {% for vehicle in vehicles %}
+                  <option value="{{ vehicle.id }}" data-type="{{ vehicle.type }}" data-number="{{ vehicle.number }}">
+                    {{ vehicle.number }} ({{ vehicle.name }})
+                  </option>
+                  {% endfor %}
+                </select>
+                <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal"
+                  data-bs-target="#vehicleModal">
+                  <i class="fas fa-plus"></i> Add
+                </button>
+              </div>
+              {% endif %}
+            </div> -->
             <div class="col-md-6">
               <label class="form-label fw-bold">Vehicle <span class="text-danger">*</span></label>
               {% if job %}
-                <input type="text" class="form-control" name="vehicle_info" value="{{ job.vehicle.number if job.vehicle else job.vehicle_number or '' }} ({{ job.vehicle.name if job.vehicle else job.vehicle_type or '' }})" readonly>
+                <input type="text" class="form-control" name="vehicle_info"
+                       value="{{ job.vehicle.number if job.vehicle else job.vehicle_number or '' }} ({{ job.vehicle.name if job.vehicle else job.vehicle_type or '' }})"
+                       readonly>
               {% else %}
                 <div class="input-group">
-                  <select class="form-select" id="vehicle_id" name="vehicle_id" required>
+                  <select class="form-select {% if errors and errors.vehicle_id %}is-invalid{% endif %}" id="vehicle_id" name="vehicle_id" required>
                     <option value="">Select Vehicle</option>
                     {% for vehicle in vehicles %}
-                      <option value="{{ vehicle.id }}" data-type="{{ vehicle.type }}" data-number="{{ vehicle.number }}">
+                      <option value="{{ vehicle.id }}"
+                              data-type="{{ vehicle.type }}"
+                              data-number="{{ vehicle.number }}"
+                              {% if form_data and form_data.vehicle_id == vehicle.id|string %}selected{% endif %}>
                         {{ vehicle.number }} ({{ vehicle.name }})
                       </option>
                     {% endfor %}
@@ -120,18 +197,52 @@
                     <i class="fas fa-plus"></i> Add
                   </button>
                 </div>
+                {% if errors and errors.vehicle_id %}
+                  <div class="invalid-feedback d-block">{{ errors.vehicle_id }}</div>
+                {% endif %}
               {% endif %}
             </div>
+            
+<!-- 
             <div class="col-md-6">
               <label class="form-label fw-bold">Driver <span class="text-danger">*</span></label>
               {% if job %}
-                <input type="text" class="form-control" name="driver_info" value="{{ job.driver.name if job.driver else '' }} ({{ job.driver.phone if job.driver else job.driver_contact or '' }})" readonly>
+              <input type="text" class="form-control" name="driver_info"
+                value="{{ job.driver.name if job.driver else '' }} ({{ job.driver.phone if job.driver else job.driver_contact or '' }})"
+                readonly>
+              {% else %}
+              <div class="input-group">
+                <select class="form-select" id="driver_id" name="driver_id" required>
+                  <option value="">Select Driver</option>
+                  {% for driver in drivers %}
+                  <option value="{{ driver.id }}" data-name="{{ driver.name }}" data-phone="{{ driver.phone }}">
+                    {{ driver.name }} ({{ driver.phone }})
+                  </option>
+                  {% endfor %}
+                </select>
+                <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal"
+                  data-bs-target="#driverModal">
+                  <i class="fas fa-plus"></i> Add
+                </button>
+              </div>
+              {% endif %}
+            </div> -->
+
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Driver <span class="text-danger">*</span></label>
+              {% if job %}
+                <input type="text" class="form-control" name="driver_info"
+                       value="{{ job.driver.name if job.driver else '' }} ({{ job.driver.phone if job.driver else job.driver_contact or '' }})"
+                       readonly>
               {% else %}
                 <div class="input-group">
-                  <select class="form-select" id="driver_id" name="driver_id" required>
+                  <select class="form-select {% if errors and errors.driver_id %}is-invalid{% endif %}" id="driver_id" name="driver_id" required>
                     <option value="">Select Driver</option>
                     {% for driver in drivers %}
-                      <option value="{{ driver.id }}" data-name="{{ driver.name }}" data-phone="{{ driver.phone }}">
+                      <option value="{{ driver.id }}"
+                              data-name="{{ driver.name }}"
+                              data-phone="{{ driver.phone }}"
+                              {% if form_data and form_data.driver_id == driver.id|string %}selected{% endif %}>
                         {{ driver.name }} ({{ driver.phone }})
                       </option>
                     {% endfor %}
@@ -140,55 +251,90 @@
                     <i class="fas fa-plus"></i> Add
                   </button>
                 </div>
+                {% if errors and errors.driver_id %}
+                  <div class="invalid-feedback d-block">{{ errors.driver_id }}</div>
+                {% endif %}
               {% endif %}
             </div>
+            
 
             <!-- Passenger Information -->
             <div class="col-md-4">
               <label class="form-label fw-bold">Passenger Name</label>
-              <input type="text" class="form-control" name="passenger_name" value="{{ job.passenger_name or '' }}" placeholder="Passenger name">
+              <input type="text" class="form-control" name="passenger_name" value="{{ form_data.passenger_name if form_data else job.passenger_name if job else '' }}" placeholder="Passenger name" required>
             </div>
             <div class="col-md-4">
               <label class="form-label fw-bold">Passenger Email</label>
-              <input type="email" class="form-control" name="passenger_email" value="{{ job.passenger_email or '' }}" placeholder="Passenger email">
+              <input type="email" class="form-control {% if errors and errors.passenger_email %}is-invalid{% endif %}"
+                     name="passenger_email"
+                     value="{{ form_data.passenger_email if form_data else job.passenger_email if job else '' }}"
+                     placeholder="Passenger email" required>
+              {% if errors and errors.passenger_email %}
+              <div class="invalid-feedback">{{ errors.passenger_email }}</div>
+              {% endif %}
             </div>
             <div class="col-md-4">
               <label class="form-label fw-bold">Passenger Mobile</label>
-              <input type="text" class="form-control" name="passenger_mobile" value="{{ job.passenger_mobile or '' }}" placeholder="Passenger mobile">
+              <input type="text" class="form-control {% if errors and errors.passenger_mobile %}is-invalid{% endif %}"
+                     name="passenger_mobile"
+                     value="{{ form_data.passenger_mobile if form_data else job.passenger_mobile if job else '' }}"
+                     placeholder="Passenger mobile" required>
+              {% if errors and errors.passenger_mobile %}
+              <div class="invalid-feedback">{{ errors.passenger_mobile }}</div>
+              {% endif %}
             </div>
 
             <!-- Status Information -->
             <div class="col-md-6">
               <label class="form-label fw-bold">Job Status</label>
-              <select class="form-select" name="status">
-                <option value="Scheduled" {% if job and job.status == 'Scheduled' %}selected{% endif %}>Scheduled</option>
-                <option value="In Progress" {% if job and job.status == 'In Progress' %}selected{% endif %}>In Progress</option>
-                <option value="Completed" {% if job and job.status == 'Completed' %}selected{% endif %}>Completed</option>
-                <option value="Cancelled" {% if job and job.status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
-                <option value="Failed" {% if job and job.status == 'Failed' %}selected{% endif %}>Failed</option>
-                <option value="No Show" {% if job and job.status == 'No Show' %}selected{% endif %}>No Show</option>
+              <select class="form-select {% if errors and errors.status %}is-invalid{% endif %}" name="status">
+                {% set selected_status = form_data.status if form_data and form_data.status else job.status if job else '' %}
+                <option value="Scheduled" {% if selected_status == 'Scheduled' %}selected{% endif %}>Scheduled</option>
+                <option value="In Progress" {% if selected_status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                <option value="Completed" {% if selected_status == 'Completed' %}selected{% endif %}>Completed</option>
+                <option value="Cancelled" {% if selected_status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+                <option value="Failed" {% if selected_status == 'Failed' %}selected{% endif %}>Failed</option>
+                <option value="No Show" {% if selected_status == 'No Show' %}selected{% endif %}>No Show</option>
               </select>
+              {% if errors and errors.status %}
+                <div class="invalid-feedback">{{ errors.status }}</div>
+              {% endif %}
             </div>
+            
             <div class="col-md-6">
               <label class="form-label fw-bold">Payment Status</label>
-              <select class="form-select" name="payment_status">
-                <option value="Pending" {% if job and job.payment_status == 'Pending' %}selected{% endif %}>Pending</option>
-                <option value="Partially Paid" {% if job and job.payment_status == 'Partially Paid' %}selected{% endif %}>Partially Paid</option>
-                <option value="Paid" {% if job and job.payment_status == 'Paid' %}selected{% endif %}>Paid</option>
-                <option value="Overdue" {% if job and job.payment_status == 'Overdue' %}selected{% endif %}>Overdue</option>
-                <option value="Refunded" {% if job and job.payment_status == 'Refunded' %}selected{% endif %}>Refunded</option>
-                <option value="Cancelled" {% if job and job.payment_status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+              <select class="form-select {% if errors and errors.payment_status %}is-invalid{% endif %}" name="payment_status">
+                {% set selected_payment_status = form_data.payment_status if form_data and form_data.payment_status else job.payment_status if job else '' %}
+                <option value="Pending" {% if selected_payment_status == 'Pending' %}selected{% endif %}>Pending</option>
+                <option value="Partially Paid" {% if selected_payment_status == 'Partially Paid' %}selected{% endif %}>Partially Paid</option>
+                <option value="Paid" {% if selected_payment_status == 'Paid' %}selected{% endif %}>Paid</option>
+                <option value="Overdue" {% if selected_payment_status == 'Overdue' %}selected{% endif %}>Overdue</option>
+                <option value="Refunded" {% if selected_payment_status == 'Refunded' %}selected{% endif %}>Refunded</option>
+                <option value="Cancelled" {% if selected_payment_status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
               </select>
+              {% if errors and errors.payment_status %}
+                <div class="invalid-feedback">{{ errors.payment_status }}</div>
+              {% endif %}
             </div>
+            
 
             <!-- Additional Information -->
             <div class="col-12">
               <label class="form-label fw-bold">Message</label>
-              <textarea class="form-control" name="message" rows="3" placeholder="Message">{{ job.message or '' }}</textarea>
+              <textarea class="form-control {% if form_data and errors and errors.message %}is-invalid{% endif %}" 
+                        name="message" rows="3" placeholder="Message">{{ form_data.message if form_data and form_data.message else job.message if job else '' }}</textarea>
+              {% if errors and errors.message %}
+                <div class="invalid-feedback">{{ errors.message }}</div>
+              {% endif %}
             </div>
+            
             <div class="col-12">
               <label class="form-label fw-bold">Remarks</label>
-              <textarea class="form-control" name="remarks" rows="3" placeholder="Remarks">{{ job.remarks or '' }}</textarea>
+              <textarea class="form-control {% if form_data and errors and errors.remarks %}is-invalid{% endif %}" 
+                        name="remarks" rows="3" placeholder="Remarks">{{ form_data.remarks if form_data and form_data.remarks else job.remarks if job else '' }}</textarea>
+              {% if errors and errors.remarks %}
+                <div class="invalid-feedback">{{ errors.remarks }}</div>
+              {% endif %}
             </div>
           </div>
         </form>
@@ -204,94 +350,106 @@
       </div>
       <div class="card-body">
         {% if job %}
-          <!-- Edit Mode - Editable pricing -->
-          <div class="row g-3">
-            <div class="col-12">
-              <label for="base_price" class="form-label fw-bold">Base Price</label>
-              <input type="number" class="form-control" id="base_price" name="base_price" step="0.01" value="{{ job.base_price or 0 }}">
-            </div>
-            <div class="col-12">
-              <label for="base_discount_percent" class="form-label fw-bold">Base Discount (%)</label>
-              <input type="number" class="form-control" id="base_discount_percent" name="base_discount_percent" step="0.01" value="{{ job.base_discount_percent or 0 }}">
-            </div>
-            <div class="col-12">
-              <label for="agent_discount_percent" class="form-label fw-bold">Agent Discount (%)</label>
-              <input type="number" class="form-control" id="agent_discount_percent" name="agent_discount_percent" step="0.01" value="{{ job.agent_discount_percent or 0 }}">
-            </div>
-            <div class="col-12">
-              <label for="additional_discount_percent" class="form-label fw-bold">Additional Discount (%)</label>
-              <input type="number" class="form-control" id="additional_discount_percent" name="additional_discount_percent" step="0.01" value="{{ job.additional_discount_percent or 0 }}">
-            </div>
-            <div class="col-12">
-              <label for="additional_charges" class="form-label fw-bold">Additional Charges</label>
-              <input type="number" class="form-control" id="additional_charges" name="additional_charges" step="0.01" value="{{ job.additional_charges or 0 }}">
-            </div>
-            <div class="col-12">
-              <label for="final_price" class="form-label fw-bold">Final Price</label>
-              <input type="number" class="form-control" id="final_price" name="final_price" step="0.01" value="{{ job.final_price or 0 }}">
-            </div>
-            <div class="col-12">
-              <label for="invoice_number" class="form-label fw-bold">Invoice Number</label>
-              <input type="text" class="form-control" id="invoice_number" name="invoice_number" value="{{ job.invoice_number or '' }}">
+        <!-- Edit Mode - Editable pricing -->
+        <div class="row g-3">
+          <div class="col-12">
+            <label for="base_price" class="form-label fw-bold">Base Price</label>
+            <input type="number" class="form-control" id="base_price" name="base_price" step="0.01"
+              value="{{ job.base_price or 0 }}">
+          </div>
+          <div class="col-12">
+            <label for="base_discount_percent" class="form-label fw-bold">Base Discount (%)</label>
+            <input type="number" class="form-control" id="base_discount_percent" name="base_discount_percent"
+              step="0.01" value="{{ job.base_discount_percent or 0 }}">
+          </div>
+          <div class="col-12">
+            <label for="agent_discount_percent" class="form-label fw-bold">Agent Discount (%)</label>
+            <input type="number" class="form-control" id="agent_discount_percent" name="agent_discount_percent"
+              step="0.01" value="{{ job.agent_discount_percent or 0 }}">
+          </div>
+          <div class="col-12">
+            <label for="additional_discount_percent" class="form-label fw-bold">Additional Discount (%)</label>
+            <input type="number" class="form-control" id="additional_discount_percent"
+              name="additional_discount_percent" step="0.01" value="{{ job.additional_discount_percent or 0 }}">
+          </div>
+          <div class="col-12">
+            <label for="additional_charges" class="form-label fw-bold">Additional Charges</label>
+            <input type="number" class="form-control" id="additional_charges" name="additional_charges" step="0.01"
+              value="{{ job.additional_charges or 0 }}">
+          </div>
+          <div class="col-12">
+            <label for="final_price" class="form-label fw-bold">Final Price</label>
+            <input type="number" class="form-control" id="final_price" name="final_price" step="0.01"
+              value="{{ job.final_price or 0 }}">
+          </div>
+          <div class="col-12">
+            <label for="invoice_number" class="form-label fw-bold">Invoice Number</label>
+            <input type="text" class="form-control" id="invoice_number" name="invoice_number"
+              value="{{ job.invoice_number or '' }}">
+          </div>
+        </div>
+
+        <div class="mt-3">
+          <div class="alert alert-info">
+            <strong>Pricing Breakdown:</strong>
+            <div id="pricing-breakdown">
+              <span class="text-muted">Select service and agent to see pricing details</span>
             </div>
           </div>
-          
-          <div class="mt-3">
-            <div class="alert alert-info">
-              <strong>Pricing Breakdown:</strong>
-              <div id="pricing-breakdown">
-                <span class="text-muted">Select service and agent to see pricing details</span>
-              </div>
-            </div>
-          </div>
+        </div>
         {% else %}
-          <!-- Create Mode - Editable pricing -->
-          <div class="row g-3">
-            <div class="col-12">
-              <label for="base_price" class="form-label fw-bold">Base Price</label>
-              <input type="number" class="form-control" id="base_price" name="base_price" step="0.01" readonly>
-              <small class="text-muted">Auto-calculated from service</small>
-            </div>
-            <div class="col-12">
-              <label for="base_discount_percent" class="form-label fw-bold">Base Discount</label>
-              <input type="number" class="form-control" id="base_discount_percent" name="base_discount_percent" step="0.01" readonly>
-              <small class="text-muted">System-wide discount</small>
-            </div>
-            <div class="col-12">
-              <label for="agent_discount_percent" class="form-label fw-bold">Agent Discount</label>
-              <input type="number" class="form-control" id="agent_discount_percent" name="agent_discount_percent" step="0.01" readonly>
-              <small class="text-muted">Agent-specific discount</small>
-            </div>
-            <div class="col-12">
-              <label for="additional_discount_percent" class="form-label fw-bold">Additional Discount</label>
-              <input type="number" class="form-control" id="additional_discount_percent" name="additional_discount_percent" step="0.01" min="0" max="100" onchange="calculatePricing()">
-              <small class="text-muted">Optional additional discount</small>
-            </div>
-            <div class="col-12">
-              <label for="additional_charges" class="form-label fw-bold">Additional Charges</label>
-              <input type="number" class="form-control" id="additional_charges" name="additional_charges" step="0.01" min="0" onchange="calculatePricing()">
-              <small class="text-muted">Extra charges (tolls, waiting, etc.)</small>
-            </div>
-            <div class="col-12">
-              <label for="final_price" class="form-label fw-bold">Final Price</label>
-              <input type="number" class="form-control" id="final_price" name="final_price" step="0.01" readonly>
-              <small class="text-muted">Calculated automatically</small>
-            </div>
-            <div class="col-12">
-              <label for="invoice_number" class="form-label fw-bold">Invoice Number</label>
-              <input type="text" class="form-control" id="invoice_number" name="invoice_number" placeholder="Auto-generated">
-              <small class="text-muted">Generated when invoice is created</small>
+        <!-- Create Mode - Editable pricing -->
+        <div class="row g-3">
+          <div class="col-12">
+            <label for="base_price" class="form-label fw-bold">Base Price</label>
+            <input type="number" class="form-control" id="base_price" name="base_price" step="0.01" readonly>
+            <small class="text-muted">Auto-calculated from service</small>
+          </div>
+          <div class="col-12">
+            <label for="base_discount_percent" class="form-label fw-bold">Base Discount</label>
+            <input type="number" class="form-control" id="base_discount_percent" name="base_discount_percent"
+              step="0.01" readonly>
+            <small class="text-muted">System-wide discount</small>
+          </div>
+          <div class="col-12">
+            <label for="agent_discount_percent" class="form-label fw-bold">Agent Discount</label>
+            <input type="number" class="form-control" id="agent_discount_percent" name="agent_discount_percent"
+              step="0.01" readonly>
+            <small class="text-muted">Agent-specific discount</small>
+          </div>
+          <div class="col-12">
+            <label for="additional_discount_percent" class="form-label fw-bold">Additional Discount</label>
+            <input type="number" class="form-control" id="additional_discount_percent"
+              name="additional_discount_percent" step="0.01" min="0" max="100" onchange="calculatePricing()">
+            <small class="text-muted">Optional additional discount</small>
+          </div>
+          <div class="col-12">
+            <label for="additional_charges" class="form-label fw-bold">Additional Charges</label>
+            <input type="number" class="form-control" id="additional_charges" name="additional_charges" step="0.01"
+              min="0" onchange="calculatePricing()">
+            <small class="text-muted">Extra charges (tolls, waiting, etc.)</small>
+          </div>
+          <div class="col-12">
+            <label for="final_price" class="form-label fw-bold">Final Price</label>
+            <input type="number" class="form-control" id="final_price" name="final_price" step="0.01" readonly>
+            <small class="text-muted">Calculated automatically</small>
+          </div>
+          <div class="col-12">
+            <label for="invoice_number" class="form-label fw-bold">Invoice Number</label>
+            <input type="text" class="form-control" id="invoice_number" name="invoice_number"
+              placeholder="Auto-generated">
+            <small class="text-muted">Generated when invoice is created</small>
+          </div>
+        </div>
+
+        <div class="mt-3">
+          <div class="alert alert-info">
+            <strong>Pricing Breakdown:</strong>
+            <div id="pricing-breakdown">
+              <span class="text-muted">Select service and agent to see pricing details</span>
             </div>
           </div>
-          
-          <div class="mt-3">
-            <div class="alert alert-info">
-              <strong>Pricing Breakdown:</strong>
-              <div id="pricing-breakdown">
-                <span class="text-muted">Select service and agent to see pricing details</span>
-              </div>
-            </div>
-          </div>
+        </div>
         {% endif %}
       </div>
     </div>
@@ -304,22 +462,22 @@
       <div class="card-body">
         <div class="d-grid gap-2">
           {% if job %}
-            <a href="{{ url_for('add_billing') }}?job_id={{ job.id }}" class="btn btn-outline-primary">
-              <i class="bi bi-receipt me-1"></i>Create Invoice
-            </a>
-            <a href="{{ url_for('edit_job', job_id=job.id) }}" class="btn btn-outline-secondary">
-              <i class="bi bi-pencil me-1"></i>Edit Job
-            </a>
-            <button class="btn btn-outline-info" onclick="printJobDetails()">
-              <i class="bi bi-printer me-1"></i>Print Details
-            </button>
+          <a href="{{ url_for('add_billing') }}?job_id={{ job.id }}" class="btn btn-outline-primary">
+            <i class="bi bi-receipt me-1"></i>Create Invoice
+          </a>
+          <a href="{{ url_for('edit_job', job_id=job.id) }}" class="btn btn-outline-secondary">
+            <i class="bi bi-pencil me-1"></i>Edit Job
+          </a>
+          <button class="btn btn-outline-info" onclick="printJobDetails()">
+            <i class="bi bi-printer me-1"></i>Print Details
+          </button>
           {% else %}
-            <button type="button" class="btn btn-outline-primary" onclick="calculatePricing()">
-              <i class="bi bi-calculator me-1"></i>Calculate Pricing
-            </button>
-            <button type="button" class="btn btn-outline-info" onclick="clearForm()">
-              <i class="bi bi-arrow-clockwise me-1"></i>Clear Form
-            </button>
+          <button type="button" class="btn btn-outline-primary" onclick="calculatePricing()">
+            <i class="bi bi-calculator me-1"></i>Calculate Pricing
+          </button>
+          <button type="button" class="btn btn-outline-info" onclick="clearForm()">
+            <i class="bi bi-arrow-clockwise me-1"></i>Clear Form
+          </button>
           {% endif %}
         </div>
       </div>
@@ -336,7 +494,7 @@
 
 <script>
   // Agent selection handler
-  document.getElementById('agent_id').addEventListener('change', function() {
+  document.getElementById('agent_id').addEventListener('change', function () {
     const selectedOption = this.options[this.selectedIndex];
     if (selectedOption.value) {
       document.getElementById('customer_email').value = selectedOption.dataset.email || '';
@@ -349,7 +507,7 @@
   });
 
   // Service selection handler
-  document.getElementById('service_id').addEventListener('change', function() {
+  document.getElementById('service_id').addEventListener('change', function () {
     const selectedOption = this.options[this.selectedIndex];
     if (selectedOption.value) {
       document.getElementById('base_price').value = selectedOption.dataset.basePrice || '';
@@ -384,15 +542,15 @@
         additional_charges: additionalCharges
       })
     })
-    .then(response => response.json())
-    .then(data => {
-      if (data.success) {
-        document.getElementById('base_price').value = data.pricing.base_price;
-        document.getElementById('base_discount_percent').value = data.pricing.base_discount_percent;
-        document.getElementById('agent_discount_percent').value = data.pricing.agent_discount_percent;
-        document.getElementById('final_price').value = data.pricing.final_price;
-        
-        document.getElementById('pricing-breakdown').innerHTML = `
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          document.getElementById('base_price').value = data.pricing.base_price;
+          document.getElementById('base_discount_percent').value = data.pricing.base_discount_percent;
+          document.getElementById('agent_discount_percent').value = data.pricing.agent_discount_percent;
+          document.getElementById('final_price').value = data.pricing.final_price;
+
+          document.getElementById('pricing-breakdown').innerHTML = `
           <div class="row">
             <div class="col-md-6">
               <strong>Base Price:</strong> SGD ${data.pricing.base_price.toFixed(2)}<br>
@@ -407,11 +565,11 @@
             </div>
           </div>
         `;
-      }
-    })
-    .catch(error => {
-      console.error('Error calculating pricing:', error);
-    });
+        }
+      })
+      .catch(error => {
+        console.error('Error calculating pricing:', error);
+      });
   }
 
   // Clear form function
@@ -441,4 +599,4 @@
   }
 </script>
 {% endif %}
-{% endblock %} 
+{% endblock %}
