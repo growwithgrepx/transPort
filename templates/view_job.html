@@ -86,11 +86,11 @@
             <!-- Trip Details -->
             <div class="col-md-6">
               <label class="form-label fw-bold">Pickup Date <span class="text-danger">*</span></label>
-              <input type="date" class="form-control" name="pickup_date" value="{{ job.pickup_date or '' }}" required>
+              <input type="date" class="form-control" name="pickup_date" value="{{ current_date  }}" required>
             </div>
             <div class="col-md-6">
               <label class="form-label fw-bold">Pickup Time <span class="text-danger">*</span></label>
-              <input type="time" class="form-control" name="pickup_time" value="{{ job.pickup_time or '' }}" required>
+              <input type="time" class="form-control" name="pickup_time" value="{{ current_time  }}" required>
             </div>
             <div class="col-md-6">
               <label class="form-label fw-bold">Pickup Location <span class="text-danger">*</span></label>
