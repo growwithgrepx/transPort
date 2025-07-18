@@ -57,6 +57,10 @@ if not app.debug:
     app.logger.setLevel(logging.INFO)
     app.logger.info('Transport Admin Portal startup')
 
+# # Disable CSRF in development
+# if app.config['DEBUG']:
+#     app.config['WTF_CSRF_ENABLED'] = False
+
 
 class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
@@ -432,7 +436,7 @@ def jobs_table():
 
 
 @app.route('/jobs/add', methods=['GET', 'POST'])
-@login_required
+# @login_required
 @handle_database_errors
 def add_job():
     from models import Agent, Service, Vehicle, Driver
@@ -442,6 +446,7 @@ def add_job():
     drivers = Driver.query.all()
     
     if request.method == 'POST':
+            
             return handle_single_job_creation()
     
     now = datetime.now()
@@ -466,76 +471,224 @@ def add_bulk_jobs():
                            drivers=drivers)
 
 
+# def handle_single_job_creation():
+#     """Handle single job creation"""
+#     try:
+#         form_data = request.form.to_dict()
+#         errors = {}
+#         # Validate and sanitize input
+#         agent_id = request.form.get('agent_id')
+#         agent = Agent.query.get(agent_id) if agent_id and agent_id.isdigit() else None
+
+#         service_id = request.form.get('service_id')
+#         service = Service.query.get(service_id) if service_id and service_id.isdigit() else None
+
+#         vehicle_id = request.form.get('vehicle_id')
+#         vehicle = Vehicle.query.get(vehicle_id) if vehicle_id and vehicle_id.isdigit() else None
+
+#         driver_id = request.form.get('driver_id')
+#         driver = Driver.query.get(driver_id) if driver_id and driver_id.isdigit() else None
+
+#         # Validate required fields
+#         customer_name = (agent.name if agent else request.form.get('customer_name', '').strip())
+#         pickup_location = request.form.get('pickup_location', '').strip()
+#         dropoff_location = request.form.get('dropoff_location', '').strip()
+#         pickup_date = request.form.get('pickup_date', '').strip()
+
+#         if not customer_name:
+#             flash('Customer name is required', 'error')
+#             return redirect(request.url)
+
+#         if not pickup_location:
+#             flash('Pickup location is required', 'error')
+#             return redirect(request.url)
+
+#         if not dropoff_location:
+#             flash('Dropoff location is required', 'error')
+#             return redirect(request.url)
+
+#         if not pickup_date:
+#             flash('Pickup date is required', 'error')
+#             return redirect(request.url)
+
+#         # Validate date format
+#         try:
+#             datetime.strptime(pickup_date, '%Y-%m-%d')
+#         except ValueError:
+#             flash('Invalid pickup date format', 'error')
+#             return redirect(request.url)
+
+#         # Validate email if provided
+#         customer_email = (agent.email if agent else request.form.get('customer_email', '').strip())
+#         if customer_email and not re.match(r'^[^@]+@[^@]+\.[^@]+$', customer_email):
+#             flash('Invalid customer email format', 'error')
+#             return redirect(request.url)
+
+#         passenger_email = request.form.get('passenger_email', '').strip()
+#         if passenger_email and not re.match(r'^[^@]+@[^@]+\.[^@]+$', passenger_email):
+#             flash('Invalid passenger email format', 'error')
+#             return redirect(request.url)
+
+#         # Validate mobile numbers
+#         customer_mobile = (agent.mobile if agent else request.form.get('customer_mobile', '').strip())
+#         if customer_mobile and not re.match(r'^[\d\s\-\+\(\)]+$', customer_mobile):
+#             flash('Invalid customer mobile number format', 'error')
+#             return redirect(request.url)
+
+#         passenger_mobile = request.form.get('passenger_mobile', '').strip()
+#         if passenger_mobile and not re.match(r'^[\d\s\-\+\(\)]+$', passenger_mobile):
+#             flash('Invalid passenger mobile number format', 'error')
+#             return redirect(request.url)
+
+#         stops = request.form.getlist('additional_stops[]')
+
+#         # Get pricing information
+#         base_price = float(request.form.get('base_price', 0) or 0)
+#         base_discount_percent = float(request.form.get('base_discount_percent', 0) or 0)
+#         agent_discount_percent = float(request.form.get('agent_discount_percent', 0) or 0)
+#         additional_discount_percent = float(request.form.get('additional_discount_percent', 0) or 0)
+#         additional_charges = float(request.form.get('additional_charges', 0) or 0)
+#         final_price = float(request.form.get('final_price', 0) or 0)
+#         invoice_number = request.form.get('invoice_number', '').strip()
+
+#         job = Job(
+#             customer_name=customer_name,
+#             customer_email=customer_email,
+#             customer_mobile=customer_mobile,
+#             agent_id=agent.id if agent else None,
+#             type_of_service=service.name if service else request.form.get('type_of_service', '').strip(),
+#             vehicle_type=vehicle.type if vehicle else request.form.get('vehicle_type', '').strip(),
+#             vehicle_number=vehicle.number if vehicle else request.form.get('vehicle_number', '').strip(),
+#             driver_contact=driver.name if driver else request.form.get('driver_contact', '').strip(),
+#             driver_id=driver.id if driver else None,
+#             customer_reference=request.form.get('customer_reference', '').strip(),
+#             passenger_name=request.form.get('passenger_name', '').strip(),
+#             passenger_email=passenger_email,
+#             passenger_mobile=passenger_mobile,
+#             pickup_date=pickup_date,
+#             pickup_time=request.form.get('pickup_time', '').strip(),
+#             pickup_location=pickup_location,
+#             dropoff_location=dropoff_location,
+#             payment_mode=request.form.get('payment_mode', '').strip(),
+#             payment_status=request.form.get('payment_status', '').strip(),
+#             order_status=request.form.get('order_status', '').strip(),
+#             message=request.form.get('message', '').strip(),
+#             remarks=request.form.get('remarks', '').strip(),
+#             has_additional_stop=bool(request.form.get('has_additional_stop')),
+#             additional_stops=json.dumps(stops) if stops else None,
+#             has_request=bool(request.form.get('has_request')),
+#             reference=request.form.get('reference', '').strip(),
+#             status=request.form.get('status', '').strip(),
+#             date=pickup_date,
+#             # Pricing fields
+#             base_price=base_price,
+#             base_discount_percent=base_discount_percent,
+#             agent_discount_percent=agent_discount_percent,
+#             additional_discount_percent=additional_discount_percent,
+#             additional_charges=additional_charges,
+#             final_price=final_price,
+#             invoice_number=invoice_number
+#         )
+
+#         db.session.add(job)
+#         db.session.commit()
+
+#         app.logger.info(f'Job created successfully by user {current_user.username}: {job.id}')
+#         flash('Job created successfully', 'success')
+#         return redirect(url_for('jobs'))
+
+#     except Exception as e:
+#         db.session.rollback()
+#         app.logger.error(f'Error creating job: {str(e)}')
+#         flash('Error creating job. Please try again.', 'error')
+#         return redirect(request.url)
+
 def handle_single_job_creation():
-    """Handle single job creation"""
+    """Handle single job creation with validation and form data preservation"""
     try:
-        # Validate and sanitize input
+        form_data = request.form.to_dict()
+        print(form_data)
+        errors = {}
+        print("handle single job creation 1")
         agent_id = request.form.get('agent_id')
-        agent = Agent.query.get(agent_id) if agent_id and agent_id.isdigit() else None
-
         service_id = request.form.get('service_id')
-        service = Service.query.get(service_id) if service_id and service_id.isdigit() else None
-
         vehicle_id = request.form.get('vehicle_id')
-        vehicle = Vehicle.query.get(vehicle_id) if vehicle_id and vehicle_id.isdigit() else None
-
         driver_id = request.form.get('driver_id')
+
+        agent = Agent.query.get(agent_id) if agent_id and agent_id.isdigit() else None
+        service = Service.query.get(service_id) if service_id and service_id.isdigit() else None
+        vehicle = Vehicle.query.get(vehicle_id) if vehicle_id and vehicle_id.isdigit() else None
         driver = Driver.query.get(driver_id) if driver_id and driver_id.isdigit() else None
 
-        # Validate required fields
-        customer_name = (agent.name if agent else request.form.get('customer_name', '').strip())
+        customer_name = agent.name if agent else request.form.get('customer_name', '').strip()
         pickup_location = request.form.get('pickup_location', '').strip()
         dropoff_location = request.form.get('dropoff_location', '').strip()
         pickup_date = request.form.get('pickup_date', '').strip()
+        pickup_time = request.form.get('pickup_time', '').strip()
 
+        customer_email = agent.email if agent else request.form.get('customer_email', '').strip()
+        customer_mobile = agent.mobile if agent else request.form.get('customer_mobile', '').strip()
+        passenger_email = request.form.get('passenger_email', '').strip()
+        passenger_mobile = request.form.get('passenger_mobile', '').strip()
+
+        # Basic required field checks
         if not customer_name:
             flash('Customer name is required', 'error')
             return redirect(request.url)
-
         if not pickup_location:
             flash('Pickup location is required', 'error')
             return redirect(request.url)
-
         if not dropoff_location:
             flash('Dropoff location is required', 'error')
             return redirect(request.url)
-
         if not pickup_date:
             flash('Pickup date is required', 'error')
             return redirect(request.url)
 
-        # Validate date format
+        # Validate pickup_date
         try:
             datetime.strptime(pickup_date, '%Y-%m-%d')
         except ValueError:
             flash('Invalid pickup date format', 'error')
             return redirect(request.url)
 
-        # Validate email if provided
-        customer_email = (agent.email if agent else request.form.get('customer_email', '').strip())
+        # Optional: Validate pickup_time format (if provided)
+        if pickup_time:
+            try:
+                datetime.strptime(pickup_time, '%H:%M')
+            except ValueError:
+                flash('Invalid pickup time format. Expected HH:MM.', 'error')
+                return redirect(request.url)
+
+        # Validate emails
+        if passenger_email and not re.match(r'^[^@]+@[^@]+\.[^@]+$', passenger_email):
+            errors['passenger_email'] = 'Invalid email format'
         if customer_email and not re.match(r'^[^@]+@[^@]+\.[^@]+$', customer_email):
             flash('Invalid customer email format', 'error')
             return redirect(request.url)
 
-        passenger_email = request.form.get('passenger_email', '').strip()
-        if passenger_email and not re.match(r'^[^@]+@[^@]+\.[^@]+$', passenger_email):
-            flash('Invalid passenger email format', 'error')
-            return redirect(request.url)
-
         # Validate mobile numbers
-        customer_mobile = (agent.mobile if agent else request.form.get('customer_mobile', '').strip())
+        if passenger_mobile and not re.match(r'^[\d\s\-\+\(\)]+$', passenger_mobile):
+            errors['passenger_mobile'] = 'Invalid mobile number format'
         if customer_mobile and not re.match(r'^[\d\s\-\+\(\)]+$', customer_mobile):
             flash('Invalid customer mobile number format', 'error')
             return redirect(request.url)
 
-        passenger_mobile = request.form.get('passenger_mobile', '').strip()
-        if passenger_mobile and not re.match(r'^[\d\s\-\+\(\)]+$', passenger_mobile):
-            flash('Invalid passenger mobile number format', 'error')
-            return redirect(request.url)
+        # If errors exist, re-render with preserved data and field-level errors
+        print("handle single job creation 2 working ")
+        if errors:
+            print("handle single job creation 3 working ")
+            return render_template('view_job.html',
+                                   job=None,
+                                   agents=Agent.query.filter_by(status='Active').all(),
+                                   services=Service.query.filter_by(status='Active').all(),
+                                   vehicles=Vehicle.query.filter_by(status='Active').all(),
+                                   drivers=Driver.query.all(),
+                                   errors=errors,
+                                   form_data=form_data)
 
-        stops = request.form.getlist('additional_stops[]')
-
-        # Get pricing information
+        # Collect pricing and other optional fields
+        print("handle single job creation 3 working ", errors)
         base_price = float(request.form.get('base_price', 0) or 0)
         base_discount_percent = float(request.form.get('base_discount_percent', 0) or 0)
         agent_discount_percent = float(request.form.get('agent_discount_percent', 0) or 0)
@@ -543,6 +696,7 @@ def handle_single_job_creation():
         additional_charges = float(request.form.get('additional_charges', 0) or 0)
         final_price = float(request.form.get('final_price', 0) or 0)
         invoice_number = request.form.get('invoice_number', '').strip()
+        stops = request.form.getlist('additional_stops[]')
 
         job = Job(
             customer_name=customer_name,
@@ -559,7 +713,7 @@ def handle_single_job_creation():
             passenger_email=passenger_email,
             passenger_mobile=passenger_mobile,
             pickup_date=pickup_date,
-            pickup_time=request.form.get('pickup_time', '').strip(),
+            pickup_time=pickup_time,
             pickup_location=pickup_location,
             dropoff_location=dropoff_location,
             payment_mode=request.form.get('payment_mode', '').strip(),
@@ -573,7 +727,7 @@ def handle_single_job_creation():
             reference=request.form.get('reference', '').strip(),
             status=request.form.get('status', '').strip(),
             date=pickup_date,
-            # Pricing fields
+            # Pricing
             base_price=base_price,
             base_discount_percent=base_discount_percent,
             agent_discount_percent=agent_discount_percent,
@@ -585,7 +739,6 @@ def handle_single_job_creation():
 
         db.session.add(job)
         db.session.commit()
-
         app.logger.info(f'Job created successfully by user {current_user.username}: {job.id}')
         flash('Job created successfully', 'success')
         return redirect(url_for('jobs'))
