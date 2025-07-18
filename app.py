@@ -449,8 +449,9 @@ def add_job():
             
             return handle_single_job_creation()
     
+    now = datetime.now()
     return render_template('view_job.html', job=None, agents=agents, services=services, vehicles=vehicles,
-                           drivers=drivers)
+                           drivers=drivers, current_date=now.strftime('%Y-%m-%d'),current_time=now.strftime('%H:%M'))
 
 
 @app.route('/jobs/add_bulk', methods=['GET', 'POST'])
