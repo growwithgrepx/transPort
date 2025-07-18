@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
 
 load_dotenv()
-from flask import Flask, render_template, redirect, url_for, request, flash, session, jsonify, make_response
+from flask import Flask, render_template, redirect, url_for, request, flash, session, jsonify, make_response, send_file
 from extensions import db
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
@@ -27,6 +27,11 @@ from sentry_sdk.integrations.flask import FlaskIntegration
 from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 import traceback
 from functools import wraps
+import io
+import pandas as pd
+from models import Driver, Agent, Vehicle, Service, Billing, Discount, Job
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
 
 app = Flask(__name__)
 
@@ -471,138 +476,6 @@ def add_bulk_jobs():
                            drivers=drivers)
 
 
-# def handle_single_job_creation():
-#     """Handle single job creation"""
-#     try:
-#         form_data = request.form.to_dict()
-#         errors = {}
-#         # Validate and sanitize input
-#         agent_id = request.form.get('agent_id')
-#         agent = Agent.query.get(agent_id) if agent_id and agent_id.isdigit() else None
-
-#         service_id = request.form.get('service_id')
-#         service = Service.query.get(service_id) if service_id and service_id.isdigit() else None
-
-#         vehicle_id = request.form.get('vehicle_id')
-#         vehicle = Vehicle.query.get(vehicle_id) if vehicle_id and vehicle_id.isdigit() else None
-
-#         driver_id = request.form.get('driver_id')
-#         driver = Driver.query.get(driver_id) if driver_id and driver_id.isdigit() else None
-
-#         # Validate required fields
-#         customer_name = (agent.name if agent else request.form.get('customer_name', '').strip())
-#         pickup_location = request.form.get('pickup_location', '').strip()
-#         dropoff_location = request.form.get('dropoff_location', '').strip()
-#         pickup_date = request.form.get('pickup_date', '').strip()
-
-#         if not customer_name:
-#             flash('Customer name is required', 'error')
-#             return redirect(request.url)
-
-#         if not pickup_location:
-#             flash('Pickup location is required', 'error')
-#             return redirect(request.url)
-
-#         if not dropoff_location:
-#             flash('Dropoff location is required', 'error')
-#             return redirect(request.url)
-
-#         if not pickup_date:
-#             flash('Pickup date is required', 'error')
-#             return redirect(request.url)
-
-#         # Validate date format
-#         try:
-#             datetime.strptime(pickup_date, '%Y-%m-%d')
-#         except ValueError:
-#             flash('Invalid pickup date format', 'error')
-#             return redirect(request.url)
-
-#         # Validate email if provided
-#         customer_email = (agent.email if agent else request.form.get('customer_email', '').strip())
-#         if customer_email and not re.match(r'^[^@]+@[^@]+\.[^@]+$', customer_email):
-#             flash('Invalid customer email format', 'error')
-#             return redirect(request.url)
-
-#         passenger_email = request.form.get('passenger_email', '').strip()
-#         if passenger_email and not re.match(r'^[^@]+@[^@]+\.[^@]+$', passenger_email):
-#             flash('Invalid passenger email format', 'error')
-#             return redirect(request.url)
-
-#         # Validate mobile numbers
-#         customer_mobile = (agent.mobile if agent else request.form.get('customer_mobile', '').strip())
-#         if customer_mobile and not re.match(r'^[\d\s\-\+\(\)]+$', customer_mobile):
-#             flash('Invalid customer mobile number format', 'error')
-#             return redirect(request.url)
-
-#         passenger_mobile = request.form.get('passenger_mobile', '').strip()
-#         if passenger_mobile and not re.match(r'^[\d\s\-\+\(\)]+$', passenger_mobile):
-#             flash('Invalid passenger mobile number format', 'error')
-#             return redirect(request.url)
-
-#         stops = request.form.getlist('additional_stops[]')
-
-#         # Get pricing information
-#         base_price = float(request.form.get('base_price', 0) or 0)
-#         base_discount_percent = float(request.form.get('base_discount_percent', 0) or 0)
-#         agent_discount_percent = float(request.form.get('agent_discount_percent', 0) or 0)
-#         additional_discount_percent = float(request.form.get('additional_discount_percent', 0) or 0)
-#         additional_charges = float(request.form.get('additional_charges', 0) or 0)
-#         final_price = float(request.form.get('final_price', 0) or 0)
-#         invoice_number = request.form.get('invoice_number', '').strip()
-
-#         job = Job(
-#             customer_name=customer_name,
-#             customer_email=customer_email,
-#             customer_mobile=customer_mobile,
-#             agent_id=agent.id if agent else None,
-#             type_of_service=service.name if service else request.form.get('type_of_service', '').strip(),
-#             vehicle_type=vehicle.type if vehicle else request.form.get('vehicle_type', '').strip(),
-#             vehicle_number=vehicle.number if vehicle else request.form.get('vehicle_number', '').strip(),
-#             driver_contact=driver.name if driver else request.form.get('driver_contact', '').strip(),
-#             driver_id=driver.id if driver else None,
-#             customer_reference=request.form.get('customer_reference', '').strip(),
-#             passenger_name=request.form.get('passenger_name', '').strip(),
-#             passenger_email=passenger_email,
-#             passenger_mobile=passenger_mobile,
-#             pickup_date=pickup_date,
-#             pickup_time=request.form.get('pickup_time', '').strip(),
-#             pickup_location=pickup_location,
-#             dropoff_location=dropoff_location,
-#             payment_mode=request.form.get('payment_mode', '').strip(),
-#             payment_status=request.form.get('payment_status', '').strip(),
-#             order_status=request.form.get('order_status', '').strip(),
-#             message=request.form.get('message', '').strip(),
-#             remarks=request.form.get('remarks', '').strip(),
-#             has_additional_stop=bool(request.form.get('has_additional_stop')),
-#             additional_stops=json.dumps(stops) if stops else None,
-#             has_request=bool(request.form.get('has_request')),
-#             reference=request.form.get('reference', '').strip(),
-#             status=request.form.get('status', '').strip(),
-#             date=pickup_date,
-#             # Pricing fields
-#             base_price=base_price,
-#             base_discount_percent=base_discount_percent,
-#             agent_discount_percent=agent_discount_percent,
-#             additional_discount_percent=additional_discount_percent,
-#             additional_charges=additional_charges,
-#             final_price=final_price,
-#             invoice_number=invoice_number
-#         )
-
-#         db.session.add(job)
-#         db.session.commit()
-
-#         app.logger.info(f'Job created successfully by user {current_user.username}: {job.id}')
-#         flash('Job created successfully', 'success')
-#         return redirect(url_for('jobs'))
-
-#     except Exception as e:
-#         db.session.rollback()
-#         app.logger.error(f'Error creating job: {str(e)}')
-#         flash('Error creating job. Please try again.', 'error')
-#         return redirect(request.url)
-
 def handle_single_job_creation():
     """Handle single job creation with validation and form data preservation"""
     try:
@@ -1026,6 +899,206 @@ def update_job_status(job_id):
         db.session.rollback()
         app.logger.error(f'Error updating job status {job_id}: {str(e)}')
         return jsonify({'success': False, 'message': 'Error updating job status'}), 500
+
+
+@app.route('/download-report', methods=['GET'])
+@login_required
+def download_report():
+    # Query all data
+    drivers = Driver.query.all()
+    agents = Agent.query.all()
+    vehicles = Vehicle.query.all()
+    services = Service.query.all()
+    billings = Billing.query.all()
+    discounts = Discount.query.all()
+    jobs = Job.query.all()
+    print(discounts)
+    # Prepare DataFrames for each sheet
+    drivers_df = pd.DataFrame([
+        {
+            'ID': getattr(d, 'id', ''),
+            'Name': getattr(d, 'name', ''),
+            'Phone': getattr(d, 'phone', ''),
+        } for d in drivers
+    ])
+
+    # AGENTS SHEET
+    agents_df = pd.DataFrame([
+        {
+            'ID': getattr(a, 'id', ''),
+            'Name': getattr(a, 'name', ''),
+            'Email': getattr(a, 'email', ''),
+            'Mobile': getattr(a, 'mobile', ''),
+            'Type': getattr(a, 'type', ''),
+            'Status': getattr(a, 'status', ''),
+            'Agent Discount %': getattr(a, 'agent_discount_percent', 0.0),
+        } for a in agents
+    ])
+
+    # VEHICLES SHEET
+    vehicles_df = pd.DataFrame([
+        {
+            'ID': getattr(v, 'id', ''),
+            'Name': getattr(v, 'name', ''),
+            'Number': getattr(v, 'number', ''),
+            'Type': getattr(v, 'type', ''),
+            'Status': getattr(v, 'status', ''),
+        } for v in vehicles
+    ])
+
+    # SERVICES SHEET
+    services_df = pd.DataFrame([
+        {
+            'ID': getattr(s, 'id', ''),
+            'Name': getattr(s, 'name', ''),
+            'Description': getattr(s, 'description', ''),
+            'Status': getattr(s, 'status', ''),
+            'Base Price': getattr(s, 'base_price', 0.0),
+        } for s in services
+    ])
+
+    # BILLING SHEET
+    billings_df = pd.DataFrame([
+        {
+            'ID': getattr(b, 'id', ''),
+            'Job ID': getattr(b, 'job_id', ''),
+            'Invoice Number': getattr(b, 'invoice_number', ''),
+            'Invoice Date': getattr(b, 'invoice_date', '').strftime('%Y-%m-%d') if getattr(b, 'invoice_date', None) else '',
+            'Due Date': getattr(b, 'due_date', '').strftime('%Y-%m-%d') if getattr(b, 'due_date', None) else '',
+            'Base Price': getattr(b, 'base_price', 0.0),
+            'Base Discount Amount': getattr(b, 'base_discount_amount', 0.0),
+            'Agent Discount Amount': getattr(b, 'agent_discount_amount', 0.0),
+            'Additional Discount Amount': getattr(b, 'additional_discount_amount', 0.0),
+            'Additional Charges': getattr(b, 'additional_charges', 0.0),
+            'Subtotal': getattr(b, 'subtotal', 0.0),
+            'Tax Amount': getattr(b, 'tax_amount', 0.0),
+            'Total Amount': getattr(b, 'total_amount', 0.0),
+            'Payment Status': getattr(b, 'payment_status', ''),
+            'Payment Date': getattr(b, 'payment_date', '').strftime('%Y-%m-%d') if getattr(b, 'payment_date', None) else '',
+            'Payment Method': getattr(b, 'payment_method', ''),
+            'Discount ID': getattr(b, 'discount_id', ''),
+            'Notes': getattr(b, 'notes', ''),
+            'Terms & Conditions': getattr(b, 'terms_conditions', ''),
+        } for b in billings
+    ])
+
+    # JOBS SHEET (for monthly sheets)
+    jobs_df = pd.DataFrame([
+        {
+            'ID': getattr(j, 'id', ''),
+            'Customer Name': getattr(j, 'customer_name', ''),
+            'Customer Email': getattr(j, 'customer_email', ''),
+            'Customer Mobile': getattr(j, 'customer_mobile', ''),
+            'Customer Reference': getattr(j, 'customer_reference', ''),
+            'Passenger Name': getattr(j, 'passenger_name', ''),
+            'Passenger Email': getattr(j, 'passenger_email', ''),
+            'Passenger Mobile': getattr(j, 'passenger_mobile', ''),
+            'Type of Service': getattr(j, 'type_of_service', ''),
+            'Service ID': getattr(j, 'service_id', ''),
+            'Pickup Date': getattr(j, 'pickup_date', ''),
+            'Pickup Time': getattr(j, 'pickup_time', ''),
+            'Pickup Location': getattr(j, 'pickup_location', ''),
+            'Dropoff Location': getattr(j, 'dropoff_location', ''),
+            'Vehicle Type': getattr(j, 'vehicle_type', ''),
+            'Vehicle Number': getattr(j, 'vehicle_number', ''),
+            'Driver Contact': getattr(j, 'driver_contact', ''),
+            'Payment Mode': getattr(j, 'payment_mode', ''),
+            'Payment Status': getattr(j, 'payment_status', ''),
+            'Order Status': getattr(j, 'order_status', ''),
+            'Message': getattr(j, 'message', ''),
+            'Remarks': getattr(j, 'remarks', ''),
+            'Has Additional Stop': getattr(j, 'has_additional_stop', False),
+            'Additional Stops': getattr(j, 'additional_stops', ''),
+            'Has Request': getattr(j, 'has_request', False),
+            'Reference': getattr(j, 'reference', ''),
+            'Status': getattr(j, 'status', ''),
+            'Date': getattr(j, 'date', ''),
+            'Driver ID': getattr(j, 'driver_id', ''),
+            'Agent ID': getattr(j, 'agent_id', ''),
+            'Base Price': getattr(j, 'base_price', 0.0),
+            'Base Discount %': getattr(j, 'base_discount_percent', 0.0),
+            'Agent Discount %': getattr(j, 'agent_discount_percent', 0.0),
+            'Additional Discount %': getattr(j, 'additional_discount_percent', 0.0),
+            'Additional Charges': getattr(j, 'additional_charges', 0.0),
+            'Final Price': getattr(j, 'final_price', 0.0),
+            'Invoice Number': getattr(j, 'invoice_number', ''),
+        } for j in jobs
+    ])
+    # Parse pickup_date to datetime for grouping
+    if not jobs_df.empty:
+        jobs_df['Pickup Date'] = pd.to_datetime(jobs_df['Pickup Date'], errors='coerce')
+        jobs_df['Month'] = jobs_df['Pickup Date'].dt.month
+        jobs_df['Year'] = jobs_df['Pickup Date'].dt.year
+
+    discounts_df = pd.DataFrame([
+        {
+            'ID': getattr(d, 'id', ''),
+            'Name': getattr(d, 'name', ''),
+            'Code': getattr(d, 'code', ''),
+            'Percent': getattr(d, 'percent', 0.0),
+            'Amount': getattr(d, 'amount', 0.0),
+            'Discount Type': getattr(d, 'discount_type', ''),
+            'Is Base Discount': getattr(d, 'is_base_discount', False),
+            'Is Active': getattr(d, 'is_active', False),
+            'Valid From': getattr(d, 'valid_from', '').strftime('%Y-%m-%d') if getattr(d, 'valid_from', None) else '',
+            'Valid To': getattr(d, 'valid_to', '').strftime('%Y-%m-%d') if getattr(d, 'valid_to', None) else ''
+        }
+        for d in discounts
+    ])
+
+    # Write to Excel in memory
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        drivers_df.to_excel(writer, sheet_name='Drivers', index=False)
+        agents_df.to_excel(writer, sheet_name='Agents', index=False)
+        vehicles_df.to_excel(writer, sheet_name='Vehicles', index=False)
+        services_df.to_excel(writer, sheet_name='Services', index=False)
+        billings_df.to_excel(writer, sheet_name='Billing', index=False)
+        discounts_df.to_excel(writer, sheet_name='Discounts', index=False)
+        # Monthly job sheets with unique names
+        if not jobs_df.empty:
+            for (year, month), group in jobs_df.groupby(['Year', 'Month']):
+                if pd.isna(year) or pd.isna(month):
+                    continue
+                month_name = pd.Timestamp(year=int(year), month=int(month), day=1).strftime('%B')
+                sheet_name = f'Jobs - {month_name} {int(year)}'
+                group = group.drop(['Month', 'Year'], axis=1)
+                group.to_excel(writer, sheet_name=sheet_name, index=False)
+        # Formatting: bold headers, date formatting, autofit, borders, header fill
+        for sheet_name, ws in writer.sheets.items():
+            # Bold headers and header fill
+            header_fill = PatternFill(start_color='D9E1F2', end_color='D9E1F2', fill_type='solid')
+            for cell in ws[1]:
+                cell.font = Font(bold=True)
+                cell.fill = header_fill
+                cell.alignment = Alignment(horizontal='center', vertical='center')
+            # Date formatting for Pickup Date
+            headers = [cell.value for cell in ws[1]]
+            if 'Pickup Date' in headers:
+                col_index = headers.index('Pickup Date') + 1
+                for row in ws.iter_rows(min_row=2, min_col=col_index, max_col=col_index):
+                    for cell in row:
+                        cell.number_format = 'YYYY-MM-DD'
+            # Autofit column widths
+            for col in ws.columns:
+                max_length = 0
+                col_letter = col[0].column_letter
+                for cell in col:
+                    try:
+                        cell_value = str(cell.value) if cell.value is not None else ''
+                        if len(cell_value) > max_length:
+                            max_length = len(cell_value)
+                    except Exception:
+                        pass
+                ws.column_dimensions[col_letter].width = max_length + 2
+            # Add borders to all cells
+            thin = Side(border_style="thin", color="B7B7B7")
+            border = Border(left=thin, right=thin, top=thin, bottom=thin)
+            for row in ws.iter_rows():
+                for cell in row:
+                    cell.border = border
+    output.seek(0)
+    return send_file(output, as_attachment=True, download_name='fleet_report.xlsx', mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
 
 @app.route('/jobs/download', methods=['POST'])
@@ -2191,6 +2264,8 @@ def inject_role_helpers():
 def inject_csrf_token():
     from flask_wtf.csrf import generate_csrf
     return dict(csrf_token=generate_csrf)
+
+
 
 
 if __name__ == '__main__':

@@ -150,30 +150,7 @@
               {% endif %}
             </div>
 
-            <!-- Vehicle & Driver -->
-            <!-- <div class="col-md-6">
-              <label class="form-label fw-bold">Vehicle <span class="text-danger">*</span></label>
-              {% if job %}
-              <input type="text" class="form-control" name="vehicle_info"
-                value="{{ job.vehicle.number if job.vehicle else job.vehicle_number or '' }} ({{ job.vehicle.name if job.vehicle else job.vehicle_type or '' }})"
-                readonly>
-              {% else %}
-              <div class="input-group">
-                <select class="form-select" id="vehicle_id" name="vehicle_id" required>
-                  <option value="">Select Vehicle</option>
-                  {% for vehicle in vehicles %}
-                  <option value="{{ vehicle.id }}" data-type="{{ vehicle.type }}" data-number="{{ vehicle.number }}">
-                    {{ vehicle.number }} ({{ vehicle.name }})
-                  </option>
-                  {% endfor %}
-                </select>
-                <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal"
-                  data-bs-target="#vehicleModal">
-                  <i class="fas fa-plus"></i> Add
-                </button>
-              </div>
-              {% endif %}
-            </div> -->
+
             <div class="col-md-6">
               <label class="form-label fw-bold">Vehicle <span class="text-danger">*</span></label>
               {% if job %}
@@ -203,30 +180,7 @@
               {% endif %}
             </div>
             
-<!-- 
-            <div class="col-md-6">
-              <label class="form-label fw-bold">Driver <span class="text-danger">*</span></label>
-              {% if job %}
-              <input type="text" class="form-control" name="driver_info"
-                value="{{ job.driver.name if job.driver else '' }} ({{ job.driver.phone if job.driver else job.driver_contact or '' }})"
-                readonly>
-              {% else %}
-              <div class="input-group">
-                <select class="form-select" id="driver_id" name="driver_id" required>
-                  <option value="">Select Driver</option>
-                  {% for driver in drivers %}
-                  <option value="{{ driver.id }}" data-name="{{ driver.name }}" data-phone="{{ driver.phone }}">
-                    {{ driver.name }} ({{ driver.phone }})
-                  </option>
-                  {% endfor %}
-                </select>
-                <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal"
-                  data-bs-target="#driverModal">
-                  <i class="fas fa-plus"></i> Add
-                </button>
-              </div>
-              {% endif %}
-            </div> -->
+
 
             <div class="col-md-6">
               <label class="form-label fw-bold">Driver <span class="text-danger">*</span></label>
