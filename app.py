@@ -300,7 +300,6 @@ def logout():
 def index():
     return redirect(url_for('dashboard'))
 
-
 @app.route('/dashboard')
 @login_required
 def dashboard():
@@ -321,7 +320,45 @@ def dashboard():
     # Completed Today: jobs with order_status 'Completed' and pickup_date is today
     completed_today = Job.query.filter(Job.order_status == 'Completed',
                                        Job.pickup_date == date.today().isoformat()).count()
-    return render_template('dashboard.html',
+
+   
+    return render_template(
+        'dashboard.html',
+        unassigned_jobs=unassigned_jobs,
+        ready_to_invoice=ready_to_invoice,
+        total_vehicles=total_vehicles,
+        available_drivers=available_drivers,
+        active_jobs=active_jobs,
+        completed_today=completed_today,
+    )
+
+@app.route('/expriment')
+@login_required
+def expriment():
+     return render_template('expriment.html' )
+
+
+@app.route('/demo')
+@login_required
+def demo():
+    from models import Job, Vehicle, Driver
+    from datetime import date
+    # Unassigned Jobs: jobs with no driver or vehicle assigned
+    unassigned_jobs = Job.query.filter((Job.driver_id == None) | (Job.vehicle_type == None)).count()
+    # Ready to Invoice: jobs with order_status 'Completed' and not yet billed (assuming payment_status 'Unpaid')
+    ready_to_invoice = Job.query.filter(Job.order_status == 'Completed', Job.payment_status == 'Unpaid').count()
+    # Total Vehicles
+    total_vehicles = Vehicle.query.count()
+    # Available Drivers: drivers not assigned to any active job (assuming jobs with order_status 'New' or 'In Progress')
+    active_driver_ids = [job.driver_id for job in Job.query.filter(Job.order_status.in_(['New', 'In Progress'])).all()
+                         if job.driver_id]
+    available_drivers = Driver.query.filter(~Driver.id.in_(active_driver_ids)).count()
+    # Active Jobs: jobs with order_status 'New' or 'In Progress'
+    active_jobs = Job.query.filter(Job.order_status.in_(['New', 'In Progress'])).count()
+    # Completed Today: jobs with order_status 'Completed' and pickup_date is today
+    completed_today = Job.query.filter(Job.order_status == 'Completed',
+                                       Job.pickup_date == date.today().isoformat()).count()
+    return render_template('demo.html',
                            unassigned_jobs=unassigned_jobs,
                            ready_to_invoice=ready_to_invoice,
                            total_vehicles=total_vehicles,
@@ -504,7 +541,7 @@ def handle_single_job_creation():
         passenger_email = request.form.get('passenger_email', '').strip()
         passenger_mobile = request.form.get('passenger_mobile', '').strip()
 
-        # Basic required field checks
+
         if not customer_name:
             flash('Customer name is required', 'error')
             return redirect(request.url)

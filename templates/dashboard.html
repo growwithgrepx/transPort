@@ -2,123 +2,456 @@
 {% block title %}Dashboard{% endblock %}
 {% block content %}
 <style>
-  .glow {
-    text-shadow: 0 0 8px #fff, 0 0 16px #2196f3, 0 0 2px #fff;
+  body, .bg-dark, .card, .table, .nav-tabs, .form-control, .form-select {
+    color: var(--color-text) !important;
   }
-  .metric-glow {
-    text-shadow: 0 0 8px #fff, 0 0 16px #2196f3, 0 0 2px #fff;
-    font-weight: bold;
+  .dashboard-top {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 2.5rem;
+    margin-bottom: 2.5rem;
   }
-  .btn-green-soft {
-    color: #fff;
-    background: linear-gradient(90deg, #43e97b 0%, #38f9d7 100%);
-    border: none;
-    border-radius: 2rem;
+  .sidebar {
+    background: var(--color-surface);
+    border-radius: 1rem;
+    box-shadow: 0 2px 12px 0 rgba(33,150,243,0.10);
+    padding: 2rem 1.5rem;
+    min-width: 406px;
+    max-width: 406px;
+    flex: 0 0 406px;
+    margin-bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    border: 1px solid var(--color-border);
+  }
+  .sidebar form {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+  }
+  .sidebar .form-label {
+    text-align: left;
+    width: 100%;
+    margin-bottom: 0.5rem;
+    color: var(--color-text);
+  }
+  .sidebar .form-select,
+  .sidebar .form-control {
+    width: 100%;
+    margin-bottom: 1rem;
+    background: var(--color-surface);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    border-radius: 0.5rem;
+  }
+  .sidebar .date-range-row {
+    display: flex;
+    gap: 1rem;
+    width: 100%;
+    margin-bottom: 1.2rem;
+    margin-top: 0.3rem;
+  }
+  .sidebar .date-range-row input[type="date"] {
+    flex: 1 1 0;
+    min-width: 0;
+    background: var(--color-surface);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    border-radius: 0.5rem;
+    text-align: center;
+  }
+  .sidebar button[type="submit"] {
+    width: 100%;
+    margin-top: 0.5rem;
+    border-radius: 0.5rem;
     font-weight: 600;
-    box-shadow: 0 2px 12px 0 rgba(67,233,123,0.15);
-    transition: background 0.2s, color 0.2s, box-shadow 0.2s;
-    padding-left: 1.5rem;
-    padding-right: 1.5rem;
-  }
-  .btn-green-soft:hover, .btn-green-soft:focus {
-    background: linear-gradient(90deg, #38f9d7 0%, #43e97b 100%);
+    font-size: 1.1rem;
+    padding: 0.7rem 0;
+    background: var(--color-primary);
     color: #fff;
-    box-shadow: 0 4px 24px 0 rgba(67,233,123,0.25);
+    border: none;
   }
-  .card.bg-primary {
-    border-radius: 1.5rem !important;
-    box-shadow: 0 4px 32px 0 rgba(33,150,243,0.10), 0 1.5px 6px 0 rgba(0,0,0,0.05);
+  .metrics-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2rem;
+    flex: 1 1 0;
+    min-width: 0;
+    align-items: stretch;
+    justify-content: flex-start;
+    width: 100%;
+  }
+  .metric-card {
+    background: var(--color-surface);
+    border-radius: 1.5rem;
+    box-shadow: 0 4px 32px 0 rgba(33,150,243,0.10);
+    padding: 1rem 1.5rem;
+    margin-bottom: 1rem;
+    flex: 1 1 220px;
+    max-width: 300px;
+    align-items: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 220px;
+    border: 1px solid var(--color-border);
+  }
+  .metric-value {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: var(--color-success);
+  }
+  .metric-label {
+    font-size: 1.1rem;
+    color: var(--color-text);
+    font-weight: 500;
+  }
+  .metric-change {
+    font-size: 1rem;
+    color: var(--color-success);
+  }
+  .metric-change.negative {
+    color: var(--color-danger);
+  }
+  .table-dark th, .table-dark td {
+    background-color: var(--color-surface) !important;
+    color: var(--color-text) !important;
+    border-color: var(--color-border) !important;
+  }
+  .badge-status {
+    font-size: 0.95em;
+    padding: 0.4em 1em;
+    border-radius: 1em;
+    font-weight: 600;
+  }
+  .badge-completed { background: var(--color-success); color: #fff; }
+  .badge-pending { background: var(--color-warning); color: #000; }
+  .badge-inprogress { background: var(--color-info); color: #fff; }
+  .badge-cancelled { background: var(--color-danger); color: #fff; }
+  .pagination .page-link {
+    background: var(--color-surface);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+  }
+  .pagination .page-item.active .page-link {
+    background: var(--color-primary);
+    color: #fff;
+    border: none;
+  }
+  .metrics-row {
+    display: flex;
+    gap: 2rem;
+    margin-bottom: 2rem;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+  .metric-card {
+    background: var(--color-surface);
+    border-radius: 1.5rem;
+    box-shadow: 0 4px 32px 0 rgba(33,150,243,0.10);
+    padding: 2rem 1.5rem;
+    min-width: 220px;
+    margin-bottom: 1rem;
+    flex: 1 1 220px;
+    max-width: 300px;
+    align-items: center;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--color-border);
+  }
+  .metric-value {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: var(--color-success);
+  }
+  .metric-label {
+    font-size: 1.1rem;
+    color: var(--color-text);
+    font-weight: 500;
+  }
+  .metric-change {
+    font-size: 1rem;
+    color: var(--color-success);
+  }
+  .metric-change.negative {
+    color: var(--color-danger);
+  }
+  .table-dark th, .table-dark td {
+    background-color: var(--color-surface) !important;
+    color: var(--color-text) !important;
+    border-color: var(--color-border) !important;
+  }
+  .badge-status {
+    font-size: 0.95em;
+    padding: 0.4em 1em;
+    border-radius: 1em;
+    font-weight: 600;
+  }
+  .badge-completed { background: var(--color-success); color: #fff; }
+  .badge-pending { background: var(--color-warning); color: #000; }
+  .badge-inprogress { background: var(--color-info); color: #fff; }
+  .badge-cancelled { background: var(--color-danger); color: #fff; }
+  .pagination .page-link {
+    background: var(--color-surface);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+  }
+  .pagination .page-item.active .page-link {
+    background: var(--color-primary);
+    color: #fff;
+    border: none;
+  }
+  .sidebar .mb-3.w-100 {
+    margin-bottom: 1.5rem !important;
+  }
+  /* Actionable Insights Cards */
+  .actionable-insights {
+    margin-bottom: 2.5rem;
+  }
+  .actionable-insights-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2rem;
+    justify-content: center;
+    align-items: stretch;
+  }
+  .actionable-card {
+    background: var(--color-surface);
+    color: var(--color-text);
+    border-radius: 1.5rem;
+    box-shadow: 0 4px 32px 0 rgba(33,150,243,0.10);
+    padding: 2.5rem 2rem 2rem 2rem;
+    min-width: 300px;
+    max-width: 340px;
+    flex: 1 1 320px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    border: 1px solid var(--color-border);
+  }
+  .actionable-card .display-5 {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: var(--color-text);
+  }
+  .actionable-card .btn {
+    margin-top: 1rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 0.7rem;
+    padding: 0.7rem 1.5rem;
+  }
+  @media (max-width: 1200px) {
+    .dashboard-top { flex-direction: column; align-items: center; }
+    .metrics-group { justify-content: center; }
+    .metrics-row { justify-content: center; }
+  }
+  @media (max-width: 900px) {
+    .sidebar { min-width: 100%; max-width: 100%; margin-bottom: 2rem; }
+    .metrics-group { flex-direction: column; gap: 1rem; }
+    .metrics-row { flex-direction: column; gap: 1rem; }
+  }
+  .metrics-row-scroll {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 2rem;
+    overflow-x: auto;
+    width: 100vw;
+    max-width: 100vw;
+    min-width: 0;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+  .metrics-row-scroll::-webkit-scrollbar {
+    display: none;
+  }
+  /* Add scroll-container style from expriment.html for horizontal scrolling */
+  .scroll-container {
+    display: flex;
+    overflow-x: auto;
+    gap: 2rem;
+    padding: 0.5rem 0;
+    scrollbar-width: none; /* Hide scrollbar in Firefox */
+    -ms-overflow-style: none;  /* Hide scrollbar in IE and Edge */
+  }
+  .scroll-container::-webkit-scrollbar {
+    display: none; /* Hide scrollbar in Chrome, Safari, Opera */
+  }
+  .scroll-container, .scroll-container * {
+    user-select: none;
+    -webkit-user-select: none;
+    -ms-user-select: none;
+    -moz-user-select: none;
+  }
+  .scroll-container {
+    cursor: grab;
+  }
+  .scroll-container.active {
+    cursor: grabbing;
   }
 </style>
 <div class="container-fluid px-0 text-center">
-  <div class="bg-primary text-white rounded-4 p-4 mb-4 mx-auto" style="min-height: 180px; max-width: 1200px; border-radius: 2rem !important; box-shadow: 0 4px 32px 0 rgba(33,150,243,0.10), 0 1.5px 6px 0 rgba(0,0,0,0.05);">
-    <div class="position-absolute top-0 start-0 w-100 h-100" style="pointer-events:none; opacity:0.10;">
-      <svg width="100%" height="100%"><line x1="0" y1="0" x2="100%" y2="100%" stroke="#fff" stroke-dasharray="12 8" stroke-width="2"/></svg>
-    </div>
-    <div class="position-relative z-1">
-      <h1 class="display-4 fw-bold glow mb-2">Fleet Command Center</h1>
-      <p class="lead mb-0 text-white">Track every trip. Assign in seconds. Bill with zero delays.<br>Your single source of truth for smooth, real-time operations.</p>
-    </div>
-  </div>
-  <div class="mb-4">
-    <h5 class="text-white mb-3"><i class="bi bi-lightbulb me-2"></i>Actionable Insights</h5>
-    <div class="row g-3 justify-content-center">
-      <div class="col-12 col-md-4 col-lg-3">
-        <div class="card bg-primary text-white h-100 shadow-sm border-0 mx-auto" style="max-width: 320px;">
-          <div class="card-body d-flex flex-column justify-content-between align-items-center">
-            <div>
-              <div class="d-flex align-items-center justify-content-center mb-2"><i class="bi bi-box fs-3 me-2"></i><span class="fw-semibold">Unassigned Jobs</span></div>
-              <div class="text-white-50 small mb-2">Jobs that need a driver and vehicle assigned.</div>
-            </div>
-            <span class="display-5 metric-glow mb-2">{{ unassigned_jobs }}</span>
-            <a href="{{ url_for('jobs') }}" class="btn btn-success btn-lg px-4"><i class="bi bi-person-plus me-2"></i>Assign Now</a>
+<!-- <div class="main-content"> -->
+  <div class="dashboard-top">
+    <div class="sidebar">
+      <h5 class="mb-3">Filters</h5>
+      <form>
+        <div class="mb-3 w-100">
+          <label for="status" class="form-label">Status</label>
+          <select class="form-select" id="status">
+            <option>All Status</option>
+            <option>Pending</option>
+            <option>Completed</option>
+            <option>Cancelled</option>
+          </select>
+        </div>
+        <div class="mb-3 w-100">
+          <label class="form-label">Date Range</label>
+          <div class="date-range-row">
+            <input type="date" class="form-control" placeholder="dd-mm-yyyy">
+            <input type="date" class="form-control" placeholder="dd-mm-yyyy">
           </div>
         </div>
-      </div>
-      <div class="col-12 col-md-4 col-lg-3">
-        <div class="card bg-primary text-white h-100 shadow-sm border-0 mx-auto" style="max-width: 320px;">
-          <div class="card-body d-flex flex-column justify-content-between align-items-center">
-            <div>
-              <div class="d-flex align-items-center justify-content-center mb-2"><i class="bi bi-file-earmark-text fs-3 me-2"></i><span class="fw-semibold">Ready to Invoice</span></div>
-              <div class="text-white-50 small mb-2">Completed jobs that are ready for billing.</div>
-            </div>
-            <span class="display-5 metric-glow mb-2">{{ ready_to_invoice }}</span>
-            <a href="{{ url_for('billing') }}" class="btn btn-success btn-lg px-4"><i class="bi bi-receipt me-2"></i>Create Invoices</a>
-          </div>
+        <div class="mb-3 w-100">
+          <label for="search-driver-agent" class="form-label">Driver/Agent</label>
+          <input type="text" class="form-control" id="search-driver-agent" placeholder="Search driver or agent...">
         </div>
-      </div>
-      <div class="col-12 col-md-4 col-lg-3">
-        <div class="card bg-primary text-white h-100 shadow-sm border-0 mx-auto" style="max-width: 320px;">
-          <div class="card-body d-flex flex-column justify-content-between align-items-center">
-            <div>
-              <div class="d-flex align-items-center justify-content-center mb-2"><i class="bi bi-file-earmark-excel fs-3   me-2"></i><span class="fw-semibold">Download Report</span></div>
-              <div class="text-white-50 small mb-2">Export a full Excel summary of jobs, drivers, vehicles, and billing data.</div>
-            </div>
-            <!-- <span class="display-5 metric-glow mb-2">{{ ready_to_invoice }}</span> -->
-            <a href="{{ url_for('download_report') }}" class="btn btn-success btn-lg px-4"><i class="bi bi-receipt me-2"></i>Download Excel</a>
-          </div>
-        </div>
-      </div>
+        <button type="submit" class="btn">Apply Filters</button>
+      </form>
     </div>
-  </div>
-  <h5 class="text-white mb-3">Fleet Status</h5>
-  <div class="row g-3 justify-content-center mb-4">
-    <div class="col-12 col-md-4 col-lg-3">
-      <div class="card bg-primary text-white h-100 shadow-sm border-0 mx-auto" style="max-width: 320px;">
-        <div class="card-body text-center">
-          <div class="fw-semibold mb-1">Total Vehicles <i class="bi bi-truck ms-1"></i></div>
-          <div class="display-6 metric-glow">{{ total_vehicles }}</div>
-          <div class="text-white-50 small">Managed across the fleet</div>
+    <!-- Single metrics-group with two visual rows -->
+    <div class="metrics-group flex-wrap">
+      <!-- First row with horizontal scroll -->
+      <div class="scroll-container mb-1">
+        <div class="metric-card">
+          <div class="d-flex align-items-center mb-2"><span class="metric-value" style="color:#1ecb81;">{{ completed_today }}</span><i class="bi bi-check-circle ms-2 fs-3 text-success"></i></div>
+          <div class="metric-label">Completed Jobs</div>
+          <div class="metric-change" style="color:#43e97b;">&nbsp;</div>
+        </div>
+        <div class="metric-card">
+          <div class="d-flex align-items-center mb-2"><span class="metric-value" style="color:#2196f3;">{{ total_vehicles }}</span><i class="bi bi-truck ms-2 fs-3 text-info"></i></div>
+          <div class="metric-label">Active Vehicles</div>
+          <div class="metric-change negative" style="color:#ff5e5e;">&nbsp;</div>
+        </div>
+        <div class="metric-card">
+          <div class="d-flex align-items-center mb-2"><span class="metric-value" style="color:#43e97b;">{{ available_drivers }}</span><i class="bi bi-person-badge ms-2 fs-3 text-info"></i></div>
+          <div class="metric-label">Available Drivers</div>
+          <div class="metric-change" style="color:#43e97b;">&nbsp;</div>
+        </div>
+        <div class="metric-card">
+          <div class="d-flex align-items-center mb-2"><span class="metric-value" style="color:#43e97b;">{{ active_jobs }}</span><i class="bi bi-person-badge ms-2 fs-3 text-info"></i></div>
+          <div class="metric-label">Active Jobs</div>
+          <div class="metric-change" style="color:#43e97b;">&nbsp;</div>
         </div>
       </div>
-    </div>
-    <div class="col-12 col-md-4 col-lg-3">
-      <div class="card bg-primary text-white h-100 shadow-sm border-0 mx-auto" style="max-width: 320px;">
-        <div class="card-body text-center">
-          <div class="fw-semibold mb-1">Available Drivers <i class="bi bi-person-badge ms-1"></i></div>
-          <div class="display-6 metric-glow">{{ available_drivers }}</div>
-          <div class="text-white-50 small">Ready for assignments</div>
+      <!-- Second row -->
+      <div class="d-flex w-100 flex-wrap justify-content-start" style="gap:2rem;">
+        <div class="metric-card">
+          <div class="d-flex align-items-center mb-2"><i class="bi bi-box ms-2 fs-3 text-warning"></i></div>
+          <div class="metric-label">Unassigned Jobs</div>
+          <div class="metric-change" style="color:#43e97b;">&nbsp;</div>
+          <span class="metric-value" style="color:#ff9900;">{{ unassigned_jobs }}</span>
+          <a href="{{ url_for('jobs') }}" class="btn btn-success w-100 mt-3"><i class="bi bi-person-plus me-2"></i>Assign Now</a>
         </div>
-      </div>
+        <div class="metric-card">
+          <div class="d-flex align-items-center mb-2"><i class="bi bi-file-earmark-text ms-2 fs-3 text-info"></i></div>
+          <div class="metric-label">Ready to Invoice</div>
+          <div class="metric-change" style="color:#43e97b;">&nbsp;</div>
+          <span class="metric-value" style="color:#2196f3;">{{ ready_to_invoice }}</span>
+          <a href="{{ url_for('billing') }}" class="btn btn-success w-100 mt-3"><i class="bi bi-receipt me-2"></i>Create Invoices</a>
     </div>
-    <div class="col-12 col-md-4 col-lg-3">
-      <div class="card bg-primary text-white h-100 shadow-sm border-0 mx-auto" style="max-width: 320px;">
-        <div class="card-body text-center">
-          <div class="fw-semibold mb-1">Active Jobs <i class="bi bi-clipboard2-check ms-1"></i></div>
-          <div class="display-6 metric-glow">{{ active_jobs }}</div>
-          <div class="text-white-50 small">Assigned or In Progress</div>
-        </div>
-      </div>
-    </div>
-    <div class="col-12 col-md-4 col-lg-3">
-      <div class="card bg-primary text-white h-100 shadow-sm border-0 mx-auto" style="max-width: 320px;">
-        <div class="card-body text-center">
-          <div class="fw-semibold mb-1">Completed Today <i class="bi bi-calendar-check ms-1"></i></div>
-          <div class="display-6 metric-glow">{{ completed_today }}</div>
-          <div class="text-white-50 small">Jobs finished today</div>
+        <div class="metric-card">
+          <div class="d-flex align-items-center mb-2"><i class="bi bi-file-earmark-excel fs-3 text-success"></i></div>
+          <div class="metric-label">Download Report</div>
+          <div class="metric-change" style="color:#43e97b;">&nbsp;</div>
+          <a href="{{ url_for('download_report') }}" class="btn btn-success w-100 mt-3"><i class="bi bi-file-earmark-excel me-2"></i>Download Excel</a>
         </div>
       </div>
     </div>
   </div>
+  <!-- Tabbed Job Table -->
+  {% include 'dashboard_table.html' %}
+<!-- </div> -->
 </div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const container = document.querySelector('.scroll-container');
+    if (!container) return;
+
+    // Duplicate the cards for seamless looping
+    container.innerHTML += container.innerHTML;
+
+    const cardCount = container.children.length / 2;
+    const cardWidth = container.children[0].offsetWidth + 32; // 32px = gap (adjust if needed)
+    const scrollStep = 1;
+    let stopped = false;
+
+    function smoothScroll() {
+      if (stopped) return;
+      if (container.scrollLeft >= cardWidth * cardCount) {
+        // Instantly jump back to the start of the first set
+        container.scrollLeft = 0;
+      }
+      container.scrollLeft += scrollStep;
+      requestAnimationFrame(smoothScroll);
+    }
+
+    // Pause on hover, resume on mouse leave
+    container.addEventListener('mouseenter', () => { stopped = true; });
+    container.addEventListener('mouseleave', () => {
+      stopped = false;
+      smoothScroll();
+    });
+
+    // Drag-to-scroll for desktop
+    let isDown = false;
+    let startX;
+    let scrollLeftOnDrag;
+
+    container.addEventListener('mousedown', (e) => {
+      isDown = true;
+      stopped = true; // Pause auto-scroll while dragging
+      container.classList.add('active');
+      startX = e.pageX - container.offsetLeft;
+      scrollLeftOnDrag = container.scrollLeft;
+    });
+    container.addEventListener('mouseleave', () => {
+      isDown = false;
+      container.classList.remove('active');
+      stopped = false;
+      smoothScroll();
+    });
+    container.addEventListener('mouseup', () => {
+      isDown = false;
+      container.classList.remove('active');
+      stopped = false;
+      smoothScroll();
+    });
+    container.addEventListener('mousemove', (e) => {
+      if (!isDown) return;
+      e.preventDefault();
+      const x = e.pageX - container.offsetLeft;
+      const walk = (x - startX) * 1; // Adjust scroll speed
+      container.scrollLeft = scrollLeftOnDrag - walk;
+      // Infinite loop logic for drag as well
+      if (container.scrollLeft >= cardWidth * cardCount) {
+        container.scrollLeft = 0;
+      }
+      if (container.scrollLeft < 0) {
+        container.scrollLeft = cardWidth * cardCount - 1;
+      }
+    });
+
+    smoothScroll();
+  });
+</script> 
 {% endblock %} 
