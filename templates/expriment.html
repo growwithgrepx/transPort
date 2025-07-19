@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Horizontal Scrolling Cards</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      margin: 0;
+      padding: 40px;
+    }
+    .scroll-container {
+      display: flex;
+      overflow-x: auto;
+      gap: 16px;
+      padding: 16px 0;
+      scrollbar-width: none; /* Firefox */
+      -ms-overflow-style: none;  /* IE and Edge */
+    }
+    .scroll-container::-webkit-scrollbar {
+      display: none; /* Chrome, Safari, Opera */
+    }
+    .scroll-container::-webkit-scrollbar-thumb {
+      background: #888;
+      border-radius: 5px;
+    }
+    .scroll-container::-webkit-scrollbar-track {
+      background: #e0e0e0;
+    }
+    .card {
+      min-width: 250px;
+      max-width: 250px;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      padding: 24px;
+      flex: 0 0 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transition: box-shadow 0.2s;
+    }
+    .card:hover {
+      box-shadow: 0 4px 16px rgba(0,0,0,0.16);
+    }
+    .card-title {
+      font-size: 1.2em;
+      margin-bottom: 12px;
+      font-weight: bold;
+    }
+    .card-content {
+      font-size: 1em;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+  <h2>Horizontal Scrolling Cards</h2>
+  <div class="scroll-container">
+    <div class="card">
+      <div class="card-title">Card 1</div>
+      <div class="card-content">This is the content of card 1.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Card 2</div>
+      <div class="card-content">This is the content of card 2.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Card 3</div>
+      <div class="card-content">This is the content of card 3.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Card 4</div>
+      <div class="card-content">This is the content of card 4.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Card 5</div>
+      <div class="card-content">This is the content of card 5.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Card 6</div>
+      <div class="card-content">This is the content of card 6.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Card 7</div>
+      <div class="card-content">This is the content of card 7.</div>
+    </div>
+    <!-- Add even more cards if you want -->
+  </div>
+  <script>
+    const container = document.querySelector('.scroll-container');
+    const scrollStep = 270; // Adjust to card width + gap
+    const delay = 1500; // Time delay in milliseconds
+
+    let scrollInterval = setInterval(() => {
+      // If at or near the end, scroll back to start
+      if (container.scrollLeft + container.clientWidth >= container.scrollWidth - 5) {
+        container.scrollTo({ left: 0, behavior: 'smooth' });
+      } else {
+        container.scrollBy({ left: scrollStep, behavior: 'smooth' });
+      }
+    }, delay);
+  </script>
+</body>
+</html>
