@@ -32,6 +32,7 @@ import pandas as pd
 from models import Driver, Agent, Vehicle, Service, Billing, Discount, Job
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
+from flask_cors import CORS
 
 app = Flask(__name__)
 
@@ -387,7 +388,7 @@ def jobs():
 
 
 @app.route('/jobs/table', methods=['GET'])
-@login_required
+# @login_required   # <-- Comment out or remove this line
 def jobs_table():
     page = request.args.get('page', 1, type=int)
     per_page = 20
@@ -2266,7 +2267,71 @@ def inject_csrf_token():
     return dict(csrf_token=generate_csrf)
 
 
+@app.route('/api/jobs/table', methods=['GET'])
+def jobs_table_api():
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    search_fields = [
+        'customer_name', 'customer_email', 'customer_mobile', 'customer_reference',
+        'passenger_name', 'passenger_email', 'passenger_mobile', 'type_of_service',
+        'pickup_date', 'pickup_time', 'pickup_location', 'dropoff_location',
+        'vehicle_type', 'vehicle_number', 'driver_contact', 'payment_mode',
+        'payment_status', 'order_status', 'message', 'remarks', 'reference', 'status'
+    ]
+    filters = []
+    advanced = False
+    for field in search_fields:
+        value = request.args.get(field)
+        if value:
+            advanced = True
+            filters.append(getattr(Job, field).ilike(f'%{value}%'))
+    search_query = request.args.get('search', '')
+    if advanced:
+        query = Job.query.filter(*filters)
+    elif search_query:
+        query = Job.query.filter(
+            (Job.customer_name.ilike(f'%{search_query}%')) |
+            (Job.customer_email.ilike(f'%{search_query}%')) |
+            (Job.customer_mobile.ilike(f'%{search_query}%')) |
+            (Job.customer_reference.ilike(f'%{search_query}%')) |
+            (Job.passenger_name.ilike(f'%{search_query}%')) |
+            (Job.passenger_email.ilike(f'%{search_query}%')) |
+            (Job.passenger_mobile.ilike(f'%{search_query}%')) |
+            (Job.type_of_service.ilike(f'%{search_query}%')) |
+            (Job.pickup_date.ilike(f'%{search_query}%')) |
+            (Job.pickup_time.ilike(f'%{search_query}%')) |
+            (Job.pickup_location.ilike(f'%{search_query}%')) |
+            (Job.dropoff_location.ilike(f'%{search_query}%')) |
+            (Job.vehicle_type.ilike(f'%{search_query}%')) |
+            (Job.vehicle_number.ilike(f'%{search_query}%')) |
+            (Job.driver_contact.ilike(f'%{search_query}%')) |
+            (Job.payment_mode.ilike(f'%{search_query}%')) |
+            (Job.payment_status.ilike(f'%{search_query}%')) |
+            (Job.order_status.ilike(f'%{search_query}%')) |
+            (Job.message.ilike(f'%{search_query}%')) |
+            (Job.remarks.ilike(f'%{search_query}%')) |
+            (Job.reference.ilike(f'%{search_query}%')) |
+            (Job.status.ilike(f'%{search_query}%'))
+        )
+    else:
+        query = Job.query
+    pagination = query.order_by(Job.id.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    jobs = pagination.items
+    items = [job.to_dict() for job in jobs]
+    return jsonify({
+        'items': items,
+        'total': pagination.total,
+        'page': pagination.page,
+        'per_page': pagination.per_page,
+        'pages': pagination.pages
+    })
 
+
+import os
+from flask_cors import CORS
+
+frontend_origin = os.environ.get("FRONTEND_ORIGIN", "http://localhost:3000")
+CORS(app, origins=[frontend_origin], supports_credentials=True)
 
 if __name__ == '__main__':
     import os
