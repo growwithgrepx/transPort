@@ -122,3 +122,5 @@ migrations/__pycache__/ attached_assets
 logs
 .replit
 attached_assets/
+
+**/node_modules/
